@@ -1,15 +1,17 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "@/db";  // path to your Drizzle client
+import * as schema from "@/db/schema";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
+    schema
     // optionally, you can pass schema/table config here
     // e.g. { schema: { user: ..., session: ..., account: ..., verification: ... } }
   }),
   // enable OAuth providers:
-  oauth: {
+  socialProviders: {
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
