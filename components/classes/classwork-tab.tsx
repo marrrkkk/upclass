@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useState, useTransition, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { BookOpen, Calendar, FileText, Plus, Upload } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { buttonVariants } from "@/components/ui/button"
@@ -14,6 +15,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { createClasswork, submitClasswork, gradeSubmission } from "@/app/actions/class-detail"
+import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
 
 type ClassworkData = {
@@ -54,11 +56,69 @@ type ClassworkTabProps = {
 }
 
 export function ClassworkTab({ classId, userId, userRole, classwork, submissions }: ClassworkTabProps) {
+  const router = useRouter()
   const [createOpen, setCreateOpen] = useState(false)
   const [submitOpen, setSubmitOpen] = useState<string | null>(null)
   const [gradeOpen, setGradeOpen] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+
+  // Set up realtime subscriptions for classwork and submissions
+  useEffect(() => {
+    if (!supabase) return
+
+    // Subscribe to classwork changes
+    const classworkChannel = supabase
+      .channel(`classwork:${classId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "classwork",
+          filter: `class_id=eq.${classId}`,
+        },
+        (payload) => {
+          router.refresh()
+        }
+      )
+      .subscribe()
+
+    // Subscribe to submissions changes
+    const classworkIds = new Set(classwork.map(c => c.id))
+    
+    const submissionsChannel = supabase
+      .channel(`submissions:${classId}:${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "submissions",
+          ...(userRole === "student" 
+            ? { filter: `student_id=eq.${userId}` }
+            : {}),
+        },
+        (payload) => {
+          // For teachers, only refresh if the submission is for a classwork in this class
+          if (userRole === "teacher") {
+            const submissionClassworkId = payload.new?.classwork_id || payload.old?.classwork_id
+            if (submissionClassworkId && classworkIds.has(submissionClassworkId)) {
+              router.refresh()
+            }
+          } else {
+            // For students, we already filtered by student_id, so refresh
+            router.refresh()
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(classworkChannel)
+      supabase.removeChannel(submissionsChannel)
+    }
+  }, [classId, userId, userRole, router, classwork])
 
   const handleCreateClasswork = async (formData: FormData) => {
     setError(null)

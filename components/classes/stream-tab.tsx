@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useState, useTransition, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { MessageSquare, Plus, Send } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -15,6 +16,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { createAnnouncement } from "@/app/actions/class-detail"
+import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
 
 type AnnouncementData = {
@@ -35,9 +37,36 @@ type StreamTabProps = {
 }
 
 export function StreamTab({ classId, userRole, announcements }: StreamTabProps) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+
+  // Set up realtime subscription for announcements
+  useEffect(() => {
+    if (!supabase) return
+
+    const channel = supabase
+      .channel(`announcements:${classId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "announcements",
+          filter: `class_id=eq.${classId}`,
+        },
+        (payload) => {
+          // Refresh the page data when announcements change
+          router.refresh()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [classId, router])
 
   const handleCreate = async (formData: FormData) => {
     setError(null)
