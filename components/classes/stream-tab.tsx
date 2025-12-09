@@ -34,9 +34,10 @@ type StreamTabProps = {
   classId: string
   userRole: "teacher" | "student"
   announcements: AnnouncementData[]
+  classColor: string
 }
 
-export function StreamTab({ classId, userRole, announcements }: StreamTabProps) {
+export function StreamTab({ classId, userRole, announcements, classColor }: StreamTabProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -102,7 +103,14 @@ export function StreamTab({ classId, userRole, announcements }: StreamTabProps) 
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <button
-              className={cn(buttonVariants({ size: "sm" }), "w-fit gap-2 bg-blue-600 hover:bg-blue-700")}
+              className={cn(buttonVariants({ size: "sm" }), "w-fit gap-2 text-white")}
+              style={{ backgroundColor: classColor }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.opacity = "0.9"
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.opacity = "1"
+              }}
               type="button"
             >
               <Plus className="h-4 w-4" />
@@ -139,7 +147,14 @@ export function StreamTab({ classId, userRole, announcements }: StreamTabProps) 
                 <button
                   type="submit"
                   disabled={pending}
-                  className={cn(buttonVariants(), "bg-blue-600 hover:bg-blue-700 disabled:opacity-70")}
+                  className={cn(buttonVariants(), "text-white disabled:opacity-70")}
+                  style={{ backgroundColor: classColor }}
+                  onMouseEnter={(e) => {
+                    if (!pending) e.currentTarget.style.opacity = "0.9"
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.opacity = "1"
+                  }}
                 >
                   {pending ? "Posting..." : "Post"}
                 </button>

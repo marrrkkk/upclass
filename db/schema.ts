@@ -111,6 +111,7 @@ export const classes = pgTable(
     category: text("category").default("General"),
     thumbnail: text("thumbnail"),
     code: text("code").notNull().unique(),
+    color: text("color").default("#3b82f6"), // Default blue color
     ownerId: text("owner_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),

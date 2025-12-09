@@ -24,6 +24,7 @@ export async function createClass(formData: FormData): Promise<ActionResponse> {
   const title = (formData.get("title") as string | null)?.trim()
   const description = (formData.get("description") as string | null)?.trim()
   const category = (formData.get("category") as string | null)?.trim() || "General"
+  const color = (formData.get("color") as string | null)?.trim() || "#3b82f6"
 
   if (!title) {
     return { success: false, error: "Title is required" }
@@ -66,6 +67,7 @@ export async function createClass(formData: FormData): Promise<ActionResponse> {
         description,
         category,
         code: classCode,
+        color,
         ownerId: session.user.id,
       })
 
@@ -147,6 +149,61 @@ export async function joinClass(formData: FormData): Promise<ActionResponse> {
   } catch (error) {
     console.error("joinClass error", error)
     return { success: false, error: "Failed to join class" }
+  }
+}
+
+export async function updateClass(classId: string, formData: FormData): Promise<ActionResponse> {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  })
+
+  if (!session?.user?.id) {
+    return { success: false, error: "Unauthorized" }
+  }
+
+  // Check if user is the owner/teacher of the class
+  const classData = await db
+    .select()
+    .from(classes)
+    .where(eq(classes.id, classId))
+    .limit(1)
+
+  if (classData.length === 0) {
+    return { success: false, error: "Class not found" }
+  }
+
+  if (classData[0].ownerId !== session.user.id) {
+    return { success: false, error: "Only the class owner can update the class" }
+  }
+
+  const title = (formData.get("title") as string | null)?.trim()
+  const description = (formData.get("description") as string | null)?.trim()
+  const category = (formData.get("category") as string | null)?.trim() || "General"
+  const color = (formData.get("color") as string | null)?.trim() || "#3b82f6"
+
+  if (!title) {
+    return { success: false, error: "Title is required" }
+  }
+
+  try {
+    await db
+      .update(classes)
+      .set({
+        title,
+        description,
+        category,
+        color,
+      })
+      .where(eq(classes.id, classId))
+
+    revalidatePath(`/home/classes/${classId}`)
+    revalidatePath("/home/classes")
+    revalidatePath("/home")
+
+    return { success: true }
+  } catch (error) {
+    console.error("updateClass error", error)
+    return { success: false, error: "Failed to update class" }
   }
 }
 

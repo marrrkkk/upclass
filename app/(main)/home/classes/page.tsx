@@ -12,6 +12,7 @@ type ClassRow = {
   title: string
   description: string | null
   category: string | null
+  color: string | null
   createdAt: Date | null
 }
 
@@ -47,6 +48,7 @@ export default async function ClassesPage() {
       title: classes.title,
       description: classes.description,
       category: classes.category,
+      color: classes.color,
       createdAt: classes.createdAt,
     })
     .from(classes)
@@ -65,6 +67,7 @@ export default async function ClassesPage() {
       title: classes.title,
       description: classes.description,
       category: classes.category,
+      color: classes.color,
       createdAt: classes.createdAt,
     })
     .from(classes)

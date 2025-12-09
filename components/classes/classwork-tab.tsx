@@ -53,9 +53,10 @@ type ClassworkTabProps = {
   userRole: "teacher" | "student"
   classwork: ClassworkData[]
   submissions: SubmissionData[]
+  classColor: string
 }
 
-export function ClassworkTab({ classId, userId, userRole, classwork, submissions }: ClassworkTabProps) {
+export function ClassworkTab({ classId, userId, userRole, classwork, submissions, classColor }: ClassworkTabProps) {
   const router = useRouter()
   const [createOpen, setCreateOpen] = useState(false)
   const [submitOpen, setSubmitOpen] = useState<string | null>(null)
@@ -179,7 +180,14 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
             <button
-              className={cn(buttonVariants({ size: "sm" }), "w-fit gap-2 bg-blue-600 hover:bg-blue-700")}
+              className={cn(buttonVariants({ size: "sm" }), "w-fit gap-2 text-white")}
+              style={{ backgroundColor: classColor }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.opacity = "0.9"
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.opacity = "1"
+              }}
               type="button"
             >
               <Plus className="h-4 w-4" />
@@ -254,7 +262,14 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
                 <button
                   type="submit"
                   disabled={pending}
-                  className={cn(buttonVariants(), "bg-blue-600 hover:bg-blue-700 disabled:opacity-70")}
+                  className={cn(buttonVariants(), "text-white disabled:opacity-70")}
+                  style={{ backgroundColor: classColor }}
+                  onMouseEnter={(e) => {
+                    if (!pending) e.currentTarget.style.opacity = "0.9"
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.opacity = "1"
+                  }}
                 >
                   {pending ? "Creating..." : "Create"}
                 </button>
@@ -341,7 +356,14 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
                         <Dialog open={submitOpen === item.id} onOpenChange={(open) => setSubmitOpen(open ? item.id : null)}>
                           <DialogTrigger asChild>
                             <button
-                              className={cn(buttonVariants({ size: "sm" }), "gap-2 bg-blue-600 hover:bg-blue-700")}
+                              className={cn(buttonVariants({ size: "sm" }), "gap-2 text-white")}
+                              style={{ backgroundColor: classColor }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.opacity = "0.9"
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.opacity = "1"
+                              }}
                               type="button"
                             >
                               <Upload className="h-4 w-4" />
@@ -394,7 +416,14 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
                                 <button
                                   type="submit"
                                   disabled={pending}
-                                  className={cn(buttonVariants(), "bg-blue-600 hover:bg-blue-700 disabled:opacity-70")}
+                                  className={cn(buttonVariants(), "text-white disabled:opacity-70")}
+                                  style={{ backgroundColor: classColor }}
+                                  onMouseEnter={(e) => {
+                                    if (!pending) e.currentTarget.style.opacity = "0.9"
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.opacity = "1"
+                                  }}
                                 >
                                   {pending ? "Submitting..." : "Submit"}
                                 </button>
@@ -448,7 +477,14 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
                                 >
                                   <DialogTrigger asChild>
                                     <button
-                                      className={cn(buttonVariants({ size: "sm" }), "mt-2 gap-2 bg-blue-600 hover:bg-blue-700")}
+                                      className={cn(buttonVariants({ size: "sm" }), "mt-2 gap-2 text-white")}
+                                      style={{ backgroundColor: classColor }}
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.style.opacity = "0.9"
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.opacity = "1"
+                                      }}
                                       type="button"
                                     >
                                       Grade
@@ -492,7 +528,14 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
                                         <button
                                           type="submit"
                                           disabled={pending}
-                                          className={cn(buttonVariants(), "bg-blue-600 hover:bg-blue-700 disabled:opacity-70")}
+                                          className={cn(buttonVariants(), "text-white disabled:opacity-70")}
+                                          style={{ backgroundColor: classColor }}
+                                          onMouseEnter={(e) => {
+                                            if (!pending) e.currentTarget.style.opacity = "0.9"
+                                          }}
+                                          onMouseLeave={(e) => {
+                                            e.currentTarget.style.opacity = "1"
+                                          }}
                                         >
                                           {pending ? "Grading..." : "Submit Grade"}
                                         </button>

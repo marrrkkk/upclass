@@ -19,6 +19,7 @@ type ClassCardData = {
   title: string
   description: string | null
   category: string | null
+  color: string | null
   createdAt: string
   enrolledCount: number
   role: "teaching" | "enrolled"
@@ -101,11 +102,19 @@ function ClassCard({ data }: { data: ClassCardData }) {
       }).format(new Date(data.createdAt))
     : ""
 
+  const classColor = data.color || "#3b82f6"
+  
   return (
     <Link href={`/home/classes/${data.id}`}>
       <div className="overflow-hidden rounded-xl border bg-card shadow-sm transition-all hover:shadow-md cursor-pointer">
-      <div className="relative h-32 bg-gradient-to-r from-blue-500 to-blue-400">
-        <div className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-blue-700 shadow-sm">
+      <div 
+        className="relative h-32"
+        style={{ backgroundColor: classColor }}
+      >
+        <div 
+          className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold shadow-sm"
+          style={{ color: classColor }}
+        >
           {data.enrolledCount} enrolled
         </div>
       </div>
@@ -121,7 +130,14 @@ function ClassCard({ data }: { data: ClassCardData }) {
 
         <div className="flex flex-wrap gap-2 text-xs font-medium">
           {data.category ? (
-            <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-blue-700">
+            <span 
+              className="rounded-full border px-3 py-1"
+              style={{ 
+                borderColor: `${classColor}40`,
+                backgroundColor: `${classColor}15`,
+                color: classColor,
+              }}
+            >
               {data.category}
             </span>
           ) : null}
@@ -132,7 +148,7 @@ function ClassCard({ data }: { data: ClassCardData }) {
 
         <div className="flex items-center justify-between text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-blue-600" />
+            <Users className="h-4 w-4" style={{ color: classColor }} />
             <span>{data.enrolledCount} member{data.enrolledCount === 1 ? "" : "s"}</span>
           </div>
           <span>Updated {createdDate}</span>

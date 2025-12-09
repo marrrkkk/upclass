@@ -1,12 +1,13 @@
 "use client"
 
 import { useState } from "react"
-import { Copy, Check } from "lucide-react"
+import { Copy, Check, Settings } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
 import { StreamTab } from "@/components/classes/stream-tab"
 import { ClassworkTab } from "@/components/classes/classwork-tab"
 import { PeopleTab } from "@/components/classes/people-tab"
+import { ClassSettingsDialog } from "@/components/classes/class-settings-dialog"
 
 type ClassData = {
   id: string
@@ -14,6 +15,7 @@ type ClassData = {
   description: string | null
   category: string | null
   code: string
+  color: string
 }
 
 type AnnouncementData = {
@@ -92,8 +94,16 @@ export function ClassDetailClient({
     setTimeout(() => setCopied(false), 2000)
   }
 
+  const classColor = classData.color || "#3b82f6"
+
   return (
     <div className="flex flex-col gap-6">
+      {/* Cover with class color */}
+      <div 
+        className="h-32 w-full rounded-lg"
+        style={{ backgroundColor: classColor }}
+      />
+
       {/* Header */}
       <div className="space-y-3">
         <div className="flex items-start justify-between">
@@ -104,31 +114,41 @@ export function ClassDetailClient({
             )}
           </div>
           {userRole === "teacher" && (
-            <div className="flex items-center gap-2 rounded-lg border bg-card p-3">
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground">Class Code</p>
-                <p className="font-mono text-lg font-semibold">{classData.code}</p>
+            <div className="flex items-center gap-2">
+              <ClassSettingsDialog classData={classData} />
+              <div className="flex items-center gap-2 rounded-lg border bg-card p-3">
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground">Class Code</p>
+                  <p className="font-mono text-lg font-semibold">{classData.code}</p>
+                </div>
+                <button
+                  onClick={handleCopyCode}
+                  className={cn(
+                    buttonVariants({ variant: "ghost", size: "icon" }),
+                    "h-8 w-8",
+                  )}
+                  type="button"
+                  title="Copy class code"
+                >
+                  {copied ? (
+                    <Check className="h-4 w-4 text-green-600" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                </button>
               </div>
-              <button
-                onClick={handleCopyCode}
-                className={cn(
-                  buttonVariants({ variant: "ghost", size: "icon" }),
-                  "h-8 w-8",
-                )}
-                type="button"
-                title="Copy class code"
-              >
-                {copied ? (
-                  <Check className="h-4 w-4 text-green-600" />
-                ) : (
-                  <Copy className="h-4 w-4" />
-                )}
-              </button>
             </div>
           )}
         </div>
         {classData.category && (
-          <span className="inline-block rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
+          <span 
+            className="inline-block rounded-full border px-3 py-1 text-xs font-medium"
+            style={{ 
+              borderColor: `${classColor}40`,
+              backgroundColor: `${classColor}15`,
+              color: classColor,
+            }}
+          >
             {classData.category}
           </span>
         )}
@@ -140,9 +160,10 @@ export function ClassDetailClient({
           className={cn(
             "rounded-md px-4 py-2 font-medium transition-colors",
             activeTab === "stream"
-              ? "bg-blue-600 text-white"
+              ? "text-white"
               : "text-muted-foreground hover:text-foreground",
           )}
+          style={activeTab === "stream" ? { backgroundColor: classColor } : {}}
           onClick={() => setActiveTab("stream")}
         >
           Stream
@@ -151,9 +172,10 @@ export function ClassDetailClient({
           className={cn(
             "rounded-md px-4 py-2 font-medium transition-colors",
             activeTab === "classwork"
-              ? "bg-blue-600 text-white"
+              ? "text-white"
               : "text-muted-foreground hover:text-foreground",
           )}
+          style={activeTab === "classwork" ? { backgroundColor: classColor } : {}}
           onClick={() => setActiveTab("classwork")}
         >
           Classwork
@@ -162,9 +184,10 @@ export function ClassDetailClient({
           className={cn(
             "rounded-md px-4 py-2 font-medium transition-colors",
             activeTab === "people"
-              ? "bg-blue-600 text-white"
+              ? "text-white"
               : "text-muted-foreground hover:text-foreground",
           )}
+          style={activeTab === "people" ? { backgroundColor: classColor } : {}}
           onClick={() => setActiveTab("people")}
         >
           People
@@ -177,6 +200,7 @@ export function ClassDetailClient({
           classId={classData.id}
           userRole={userRole}
           announcements={announcements}
+          classColor={classColor}
         />
       )}
       {activeTab === "classwork" && (
@@ -186,6 +210,7 @@ export function ClassDetailClient({
           userRole={userRole}
           classwork={classwork}
           submissions={submissions}
+          classColor={classColor}
         />
       )}
       {activeTab === "people" && <PeopleTab members={members} />}
