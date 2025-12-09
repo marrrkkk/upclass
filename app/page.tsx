@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { BookOpen, Users, BarChart, CheckCircle, ArrowRight } from "lucide-react"
+import { UploadTest } from "@/components/UploadTest"
 
 export default function LandingPage() {
   return (
@@ -62,6 +63,13 @@ export default function LandingPage() {
           </div>
           {/* Abstract Background Elements */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/5 rounded-full blur-3xl -z-10" />
+        </section>
+
+        {/* UploadThing Test Section - Remove this after testing */}
+        <section className="py-16 bg-muted/30">
+          <div className="container mx-auto px-4 md:px-6">
+            <UploadTest />
+          </div>
         </section>
 
         <section id="features" className="py-20 bg-background">
