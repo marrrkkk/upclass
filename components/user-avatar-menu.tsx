@@ -1,6 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { LogOut, User } from "lucide-react"
 import { useState } from "react"
 
@@ -78,9 +79,11 @@ export function UserAvatarMenu({ name, email, image }: UserAvatarMenuProps) {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem>
-          <User className="mr-2 h-4 w-4" />
-          <span>Profile</span>
+        <DropdownMenuItem asChild>
+          <Link href="/home/profile" className="flex items-center">
+            <User className="mr-2 h-4 w-4" />
+            <span>Profile</span>
+          </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem

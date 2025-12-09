@@ -6,7 +6,7 @@ import { eq, and } from "drizzle-orm"
 
 import { db } from "@/db"
 import { auth } from "@/lib/auth"
-import { classes, classMembership } from "@/db/schema"
+import { classes, classMembership, user } from "@/db/schema"
 
 type ActionResponse =
   | { success: true }
@@ -19,6 +19,17 @@ export async function createClass(formData: FormData): Promise<ActionResponse> {
 
   if (!session?.user?.id) {
     return { success: false, error: "Unauthorized" }
+  }
+
+  // Check if user is a teacher
+  const userData = await db
+    .select({ role: user.role })
+    .from(user)
+    .where(eq(user.id, session.user.id))
+    .limit(1)
+
+  if (userData.length === 0 || userData[0].role !== "teacher") {
+    return { success: false, error: "Only teachers can create classes" }
   }
 
   const title = (formData.get("title") as string | null)?.trim()

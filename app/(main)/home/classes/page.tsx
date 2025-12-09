@@ -5,7 +5,7 @@ import { ClassesClient } from "@/components/classes/classes-client"
 import { ClassesPageWrapper } from "@/components/classes/classes-page-wrapper"
 import { auth } from "@/lib/auth"
 import { db } from "@/db"
-import { classes, classMembership } from "@/db/schema"
+import { classes, classMembership, user } from "@/db/schema"
 
 type ClassRow = {
   id: string
@@ -30,6 +30,15 @@ export default async function ClassesPage() {
   }
 
   const userId = session.user.id
+
+  // Get user role
+  const userData = await db
+    .select({ role: user.role })
+    .from(user)
+    .where(eq(user.id, userId))
+    .limit(1)
+
+  const userRole = userData.length > 0 ? userData[0].role : null
 
   const enrollmentCounts = await db
     .select({
@@ -89,7 +98,7 @@ export default async function ClassesPage() {
     }))
 
   return (
-    <ClassesPageWrapper>
+    <ClassesPageWrapper userRole={userRole}>
       <ClassesClient
         teachingClasses={mapRows(teachingRows, "teaching")}
         enrolledClasses={mapRows(enrolledRows, "enrolled")}

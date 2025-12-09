@@ -9,6 +9,7 @@ import {
   FolderOpen, 
   Star, 
   Settings,
+  User,
   ChevronLeft,
   ChevronDown
 } from "lucide-react"
@@ -129,8 +130,21 @@ export function Sidebar() {
         </div>
       </nav>
 
-      {/* Settings at Bottom */}
-      <div className="border-t px-3 py-4">
+      {/* Profile and Settings at Bottom */}
+      <div className="border-t px-3 py-4 space-y-0.5">
+        <Link
+          href="/home/profile"
+          className={cn(
+            "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
+            "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+            currentPath === "/home/profile"
+              ? "bg-sidebar-accent text-sidebar-accent-foreground"
+              : "text-sidebar-foreground/70"
+          )}
+        >
+          <User className="h-5 w-5 stroke-[1.5]" />
+          <span>Profile</span>
+        </Link>
         <Link
           href="/home/settings"
           className={cn(
