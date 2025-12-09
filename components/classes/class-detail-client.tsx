@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Copy, Check, Settings } from "lucide-react"
+import { Copy, Check, Settings, PenTool } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
 import { StreamTab } from "@/components/classes/stream-tab"
@@ -115,6 +115,19 @@ export function ClassDetailClient({
           </div>
           {userRole === "teacher" && (
             <div className="flex items-center gap-2">
+              <a
+                href={`/home/classes/${classData.id}/whiteboard`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(
+                  buttonVariants({ variant: "outline" }),
+                  "gap-2"
+                )}
+                style={{ borderColor: `${classColor}40` }}
+              >
+                <PenTool className="h-4 w-4" />
+                Whiteboard
+              </a>
               <ClassSettingsDialog classData={classData} />
               <div className="flex items-center gap-2 rounded-lg border bg-card p-3">
                 <div className="space-y-1">
@@ -140,18 +153,33 @@ export function ClassDetailClient({
             </div>
           )}
         </div>
-        {classData.category && (
-          <span 
-            className="inline-block rounded-full border px-3 py-1 text-xs font-medium"
-            style={{ 
-              borderColor: `${classColor}40`,
-              backgroundColor: `${classColor}15`,
-              color: classColor,
-            }}
+        <div className="flex items-center gap-2">
+          {classData.category && (
+            <span 
+              className="inline-block rounded-full border px-3 py-1 text-xs font-medium"
+              style={{ 
+                borderColor: `${classColor}40`,
+                backgroundColor: `${classColor}15`,
+                color: classColor,
+              }}
+            >
+              {classData.category}
+            </span>
+          )}
+          <a
+            href={`/home/classes/${classData.id}/whiteboard`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(
+              buttonVariants({ variant: "outline" }),
+              "gap-2"
+            )}
+            style={{ borderColor: `${classColor}40` }}
           >
-            {classData.category}
-          </span>
-        )}
+            <PenTool className="h-4 w-4" />
+            Whiteboard
+          </a>
+        </div>
       </div>
 
       {/* Tabs */}

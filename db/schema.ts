@@ -400,3 +400,58 @@ export const messageRelations = relations(messages, ({ one }) => ({
     relationName: "receiver",
   }),
 }));
+
+export const whiteboards = pgTable(
+  "whiteboards",
+  {
+    id: text("id").primaryKey(),
+    classId: text("class_id")
+      .notNull()
+      .references(() => classes.id, { onDelete: "cascade" }),
+    data: text("data").notNull(), // JSON string of whiteboard elements
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("whiteboards_class_idx").on(table.classId),
+  ],
+);
+
+export const whiteboardCursors = pgTable(
+  "whiteboard_cursors",
+  {
+    id: text("id").primaryKey(),
+    whiteboardId: text("whiteboard_id")
+      .notNull()
+      .references(() => whiteboards.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    x: text("x").notNull(),
+    y: text("y").notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("whiteboard_cursors_whiteboard_idx").on(table.whiteboardId),
+    index("whiteboard_cursors_user_idx").on(table.userId),
+  ],
+);
+
+export const whiteboardRelations = relations(whiteboards, ({ one, many }) => ({
+  class: one(classes, {
+    fields: [whiteboards.classId],
+    references: [classes.id],
+  }),
+  cursors: many(whiteboardCursors),
+}));
+
+export const whiteboardCursorRelations = relations(whiteboardCursors, ({ one }) => ({
+  whiteboard: one(whiteboards, {
+    fields: [whiteboardCursors.whiteboardId],
+    references: [whiteboards.id],
+  }),
+  user: one(user, {
+    fields: [whiteboardCursors.userId],
+    references: [user.id],
+  }),
+}));
