@@ -96,6 +96,44 @@ export const ourFileRouter = {
         size: file.size?.toString() || "0",
       };
     }),
+
+  messageMediaUploader: f({
+    image: {
+      maxFileSize: "8MB",
+      maxFileCount: 10,
+    },
+    video: {
+      maxFileSize: "50MB",
+      maxFileCount: 10,
+    },
+    audio: {
+      maxFileSize: "10MB",
+      maxFileCount: 10,
+    },
+  })
+    .middleware(async ({ req }) => {
+      const session = await auth.api.getSession({
+        headers: await headers(),
+      });
+
+      if (!session?.user?.id) throw new UploadThingError("Unauthorized");
+
+      return { userId: session.user.id };
+    })
+    .onUploadComplete(async ({ metadata, file }) => {
+      console.log("Message media upload complete for userId:", metadata.userId);
+      console.log("file url", file.ufsUrl);
+      console.log("file name", file.name);
+      console.log("file size", file.size);
+
+      return {
+        uploadedBy: metadata.userId,
+        url: file.ufsUrl,
+        name: file.name,
+        size: file.size?.toString() || "0",
+        type: file.type || "image",
+      };
+    }),
 } satisfies FileRouter;
 
 export type OurFileRouter = typeof ourFileRouter;

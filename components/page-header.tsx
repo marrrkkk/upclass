@@ -13,6 +13,8 @@ const routeTitles: Record<string, string> = {
   "/home/favorites/folder-new-2024": "Folder NEW 2024",
   "/home/favorites/assignment-101": "Assignment 101",
   "/home/settings": "Settings",
+  "/home/notifications": "Notifications",
+  "/home/messages": "Messages",
 }
 
 type PageHeaderProps = {
@@ -21,11 +23,22 @@ type PageHeaderProps = {
     email: string | null
     image: string | null
   }
+  userId?: string
 }
 
-export function PageHeader({ user }: PageHeaderProps) {
+export function PageHeader({ user, userId }: PageHeaderProps) {
   const pathname = usePathname()
-  const title = routeTitles[pathname || "/home"] || "Home"
+  let title = routeTitles[pathname || "/home"] || "Home"
+  
+  // Handle dynamic routes
+  if (pathname?.startsWith("/home/user/")) {
+    title = "Profile"
+  } else if (pathname?.startsWith("/home/messages/")) {
+    title = "Chat"
+  } else if (pathname?.startsWith("/home/classes/")) {
+    title = "Class"
+  }
+  
   const { rightSideContent } = usePageHeader()
 
   return (
@@ -40,6 +53,7 @@ export function PageHeader({ user }: PageHeaderProps) {
             name={user.name}
             email={user.email}
             image={user.image}
+            userId={userId}
           />
         )}
       </div>

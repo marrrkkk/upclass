@@ -46,9 +46,9 @@ export default async function HomeLayout({
     <PageHeaderProvider>
       <OnboardRedirect hasRole={hasRole} />
       <div className="flex min-h-screen bg-background">
-        <Sidebar />
+        <Sidebar userId={session.user.id} />
         <main className="flex flex-1 flex-col gap-6 p-8">
-          <PageHeader user={userInfo} />
+          <PageHeader user={userInfo} userId={session.user.id} />
           {children}
         </main>
       </div>

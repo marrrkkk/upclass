@@ -7,6 +7,7 @@ import { eq, and } from "drizzle-orm"
 import { db } from "@/db"
 import { auth } from "@/lib/auth"
 import { announcements, classwork, submissions, classMembership } from "@/db/schema"
+import { createNotificationsForClass } from "@/app/actions/notifications"
 
 type ActionResponse =
   | { success: true }
@@ -47,12 +48,23 @@ export async function createAnnouncement(
   }
 
   try {
+    const announcementId = crypto.randomUUID()
     await db.insert(announcements).values({
-      id: crypto.randomUUID(),
+      id: announcementId,
       classId,
       authorId: session.user.id,
       content,
     })
+
+    // Create notifications for all students in the class
+    await createNotificationsForClass(
+      classId,
+      "announcement",
+      "New announcement",
+      content.length > 100 ? content.substring(0, 100) + "..." : content,
+      announcementId,
+      session.user.id, // Exclude the author
+    )
 
     revalidatePath(`/home/classes/${classId}`)
     return { success: true }
@@ -104,8 +116,9 @@ export async function createClasswork(
   const dueDate = dueDateStr ? new Date(dueDateStr) : null
 
   try {
+    const classworkId = crypto.randomUUID()
     await db.insert(classwork).values({
-      id: crypto.randomUUID(),
+      id: classworkId,
       classId,
       title,
       description,
@@ -113,6 +126,17 @@ export async function createClasswork(
       dueDate,
       points,
     })
+
+    // Create notifications for all students in the class
+    const notificationMessage = `New ${type}: ${title}`
+    await createNotificationsForClass(
+      classId,
+      "classwork",
+      `New ${type}`,
+      notificationMessage,
+      classworkId,
+      session.user.id, // Exclude the creator
+    )
 
     revalidatePath(`/home/classes/${classId}`)
     return { success: true }

@@ -21,9 +21,10 @@ type UserAvatarMenuProps = {
   name: string | null
   email: string | null
   image: string | null
+  userId?: string
 }
 
-export function UserAvatarMenu({ name, email, image }: UserAvatarMenuProps) {
+export function UserAvatarMenu({ name, email, image, userId }: UserAvatarMenuProps) {
   const router = useRouter()
   const [pending, setPending] = useState(false)
 
@@ -80,7 +81,7 @@ export function UserAvatarMenu({ name, email, image }: UserAvatarMenuProps) {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href="/home/profile" className="flex items-center">
+          <Link href={userId ? `/home/user/${userId}` : "/home/profile"} className="flex items-center">
             <User className="mr-2 h-4 w-4" />
             <span>Profile</span>
           </Link>

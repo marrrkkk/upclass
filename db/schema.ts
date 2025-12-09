@@ -329,3 +329,74 @@ export const submissionRelations = relations(submissions, ({ one }) => ({
     references: [user.id],
   }),
 }));
+
+export const notificationType = pgEnum("notification_type", ["announcement", "classwork"]);
+
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    type: notificationType("type").notNull(),
+    title: text("title").notNull(),
+    message: text("message").notNull(),
+    classId: text("class_id").references(() => classes.id, { onDelete: "cascade" }),
+    relatedId: text("related_id"), // announcement id or classwork id
+    read: boolean("read").default(false).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("notifications_user_idx").on(table.userId),
+    index("notifications_read_idx").on(table.read),
+    index("notifications_class_idx").on(table.classId),
+  ],
+);
+
+export const messages = pgTable(
+  "messages",
+  {
+    id: text("id").primaryKey(),
+    senderId: text("sender_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    receiverId: text("receiver_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    content: text("content").notNull(),
+    media: text("media"), // JSON array of media files: [{url, type, name, size}]
+    url: text("url"), // Single URL if message contains a link
+    read: boolean("read").default(false).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("messages_sender_idx").on(table.senderId),
+    index("messages_receiver_idx").on(table.receiverId),
+    index("messages_read_idx").on(table.read),
+  ],
+);
+
+export const notificationRelations = relations(notifications, ({ one }) => ({
+  user: one(user, {
+    fields: [notifications.userId],
+    references: [user.id],
+  }),
+  class: one(classes, {
+    fields: [notifications.classId],
+    references: [classes.id],
+  }),
+}));
+
+export const messageRelations = relations(messages, ({ one }) => ({
+  sender: one(user, {
+    fields: [messages.senderId],
+    references: [user.id],
+    relationName: "sender",
+  }),
+  receiver: one(user, {
+    fields: [messages.receiverId],
+    references: [user.id],
+    relationName: "receiver",
+  }),
+}));

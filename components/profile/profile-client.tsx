@@ -3,9 +3,10 @@
 import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { GraduationCap, BookOpen, FolderOpen, Users } from "lucide-react"
+import { GraduationCap, BookOpen, FolderOpen, Users, MessageSquare } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { EditProfileDialog } from "@/components/profile/edit-profile-dialog"
+import { buttonVariants } from "@/components/ui/button"
 
 type UserData = {
   id: string
@@ -41,6 +42,8 @@ type ProfileClientProps = {
   createdClasses: ClassData[]
   enrolledClasses: ClassData[]
   createdResources: ResourceData[]
+  isOwnProfile?: boolean
+  currentUserId?: string
 }
 
 export function ProfileClient({
@@ -48,6 +51,8 @@ export function ProfileClient({
   createdClasses,
   enrolledClasses,
   createdResources,
+  isOwnProfile = false,
+  currentUserId,
 }: ProfileClientProps) {
   const initials = user.name
     .split(" ")
@@ -79,7 +84,19 @@ export function ProfileClient({
                     </span>
                   )}
                 </div>
-                <EditProfileDialog user={user} />
+                <div className="flex gap-2">
+                  {isOwnProfile ? (
+                    <EditProfileDialog user={user} />
+                  ) : (
+                    <Link
+                      href={`/home/messages/${user.id}`}
+                      className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-2")}
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                      Message
+                    </Link>
+                  )}
+                </div>
               </div>
               {user.bio && (
                 <p className="text-sm text-muted-foreground mt-4">{user.bio}</p>

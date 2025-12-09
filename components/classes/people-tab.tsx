@@ -1,8 +1,10 @@
 "use client"
 
+import Link from "next/link"
 import { Users } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent } from "@/components/ui/card"
+import { cn } from "@/lib/utils"
 
 type MemberData = {
   id: string
@@ -32,21 +34,23 @@ export function PeopleTab({ members }: PeopleTabProps) {
             {teachers.map((member) => {
               const initial = member.name.charAt(0).toUpperCase()
               return (
-                <Card key={member.id}>
-                  <CardContent className="flex items-center gap-3 p-4">
-                    <Avatar>
-                      <AvatarImage src={member.image || undefined} alt={member.name} />
-                      <AvatarFallback>{initial}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <p className="font-medium">{member.name}</p>
-                      <p className="text-sm text-muted-foreground">{member.email}</p>
-                    </div>
-                    <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
-                      Teacher
-                    </span>
-                  </CardContent>
-                </Card>
+                <Link key={member.id} href={`/home/user/${member.id}`}>
+                  <Card className="transition-all hover:shadow-md cursor-pointer">
+                    <CardContent className="flex items-center gap-3 p-4">
+                      <Avatar>
+                        <AvatarImage src={member.image || undefined} alt={member.name} />
+                        <AvatarFallback>{initial}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <p className="font-medium">{member.name}</p>
+                        <p className="text-sm text-muted-foreground">{member.email}</p>
+                      </div>
+                      <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
+                        Teacher
+                      </span>
+                    </CardContent>
+                  </Card>
+                </Link>
               )
             })}
           </div>
@@ -71,21 +75,23 @@ export function PeopleTab({ members }: PeopleTabProps) {
             {students.map((member) => {
               const initial = member.name.charAt(0).toUpperCase()
               return (
-                <Card key={member.id}>
-                  <CardContent className="flex items-center gap-3 p-4">
-                    <Avatar>
-                      <AvatarImage src={member.image || undefined} alt={member.name} />
-                      <AvatarFallback>{initial}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <p className="font-medium">{member.name}</p>
-                      <p className="text-sm text-muted-foreground">{member.email}</p>
-                    </div>
-                    <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700">
-                      Student
-                    </span>
-                  </CardContent>
-                </Card>
+                <Link key={member.id} href={`/home/user/${member.id}`}>
+                  <Card className="transition-all hover:shadow-md cursor-pointer">
+                    <CardContent className="flex items-center gap-3 p-4">
+                      <Avatar>
+                        <AvatarImage src={member.image || undefined} alt={member.name} />
+                        <AvatarFallback>{initial}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <p className="font-medium">{member.name}</p>
+                        <p className="text-sm text-muted-foreground">{member.email}</p>
+                      </div>
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700">
+                        Student
+                      </span>
+                    </CardContent>
+                  </Card>
+                </Link>
               )
             })}
           </div>

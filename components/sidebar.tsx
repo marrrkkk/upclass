@@ -14,6 +14,8 @@ import {
   ChevronDown
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { NotificationsSection } from "@/components/sidebar/notifications-section"
+import { MessagesSection } from "@/components/sidebar/messages-section"
 
 const navItems = [
   { label: "Home", href: "/home", icon: Home },
@@ -27,7 +29,11 @@ const favoriteItems = [
   { label: "Assignment 101", href: "/home/favorites/assignment-101" },
 ]
 
-export function Sidebar() {
+type SidebarProps = {
+  userId?: string
+}
+
+export function Sidebar({ userId }: SidebarProps = {}) {
   const pathname = usePathname()
   const currentPath = pathname || "/home"
   const [isFavoritesOpen, setIsFavoritesOpen] = useState(
@@ -77,6 +83,14 @@ export function Sidebar() {
             </Link>
           )
         })}
+
+        {/* Notifications and Messages */}
+        {userId && (
+          <div className="mt-2 space-y-0.5">
+            <NotificationsSection userId={userId} />
+            <MessagesSection userId={userId} />
+          </div>
+        )}
 
         {/* Favorites Section */}
         <div className="mt-2">
@@ -133,11 +147,11 @@ export function Sidebar() {
       {/* Profile and Settings at Bottom */}
       <div className="border-t px-3 py-4 space-y-0.5">
         <Link
-          href="/home/profile"
+          href={userId ? `/home/user/${userId}` : "/home/profile"}
           className={cn(
             "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
             "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-            currentPath === "/home/profile"
+            currentPath?.startsWith("/home/user/")
               ? "bg-sidebar-accent text-sidebar-accent-foreground"
               : "text-sidebar-foreground/70"
           )}
