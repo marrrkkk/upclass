@@ -1,5 +1,13 @@
-import { relations } from "drizzle-orm";
-import { pgTable, text, timestamp, boolean, index } from "drizzle-orm/pg-core";
+import { relations, sql } from "drizzle-orm";
+import {
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  boolean,
+  index,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -91,3 +99,70 @@ export const accountRelations = relations(account, ({ one }) => ({
     references: [user.id],
   }),
 }));
+
+export const classRole = pgEnum("class_role", ["teacher", "student"]);
+
+export const classes = pgTable(
+  "classes",
+  {
+    id: text("id").primaryKey(),
+    title: text("title").notNull(),
+    description: text("description"),
+    category: text("category").default("General"),
+    thumbnail: text("thumbnail"),
+    ownerId: text("owner_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [index("classes_owner_idx").on(table.ownerId)],
+);
+
+export const classMembership = pgTable(
+  "class_membership",
+  {
+    id: text("id").primaryKey(),
+    classId: text("class_id")
+      .notNull()
+      .references(() => classes.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    role: classRole("role").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("class_membership_user_idx").on(table.userId),
+    index("class_membership_class_idx").on(table.classId),
+    uniqueIndex("class_membership_unique_user_class").on(
+      table.classId,
+      table.userId,
+    ),
+  ],
+);
+
+export const classRelations = relations(classes, ({ many, one }) => ({
+  memberships: many(classMembership),
+  owner: one(user, {
+    fields: [classes.ownerId],
+    references: [user.id],
+  }),
+}));
+
+export const classMembershipRelations = relations(
+  classMembership,
+  ({ one }) => ({
+    class: one(classes, {
+      fields: [classMembership.classId],
+      references: [classes.id],
+    }),
+    user: one(user, {
+      fields: [classMembership.userId],
+      references: [user.id],
+    }),
+  }),
+);
