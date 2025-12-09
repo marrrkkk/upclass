@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { GraduationCap, Users } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -101,7 +102,8 @@ function ClassCard({ data }: { data: ClassCardData }) {
     : ""
 
   return (
-    <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+    <Link href={`/home/classes/${data.id}`}>
+      <div className="overflow-hidden rounded-xl border bg-card shadow-sm transition-all hover:shadow-md cursor-pointer">
       <div className="relative h-32 bg-gradient-to-r from-blue-500 to-blue-400">
         <div className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-blue-700 shadow-sm">
           {data.enrolledCount} enrolled
@@ -137,6 +139,7 @@ function ClassCard({ data }: { data: ClassCardData }) {
         </div>
       </div>
     </div>
+    </Link>
   )
 }
 

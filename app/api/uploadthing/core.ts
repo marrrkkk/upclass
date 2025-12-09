@@ -1,10 +1,9 @@
 import { createUploadthing, type FileRouter } from "uploadthing/next";
 import { UploadThingError } from "uploadthing/server";
+import { headers } from "next/headers";
+import { auth } from "@/lib/auth";
 
 const f = createUploadthing();
-
-// Fake auth function - replace with your actual auth logic later
-const auth = (req: Request) => ({ id: "fakeId" });
 
 // FileRouter for your app, can contain multiple FileRoutes
 export const ourFileRouter = {
@@ -22,13 +21,15 @@ export const ourFileRouter = {
     // Set permissions and file types for this FileRoute
     .middleware(async ({ req }) => {
       // This code runs on your server before upload
-      const user = await auth(req);
+      const session = await auth.api.getSession({
+        headers: await headers(),
+      });
 
       // If you throw, the user will not be able to upload
-      if (!user) throw new UploadThingError("Unauthorized");
+      if (!session?.user?.id) throw new UploadThingError("Unauthorized");
 
       // Whatever is returned here is accessible in onUploadComplete as `metadata`
-      return { userId: user.id };
+      return { userId: session.user.id };
     })
     .onUploadComplete(async ({ metadata, file }) => {
       // This code RUNS ON YOUR SERVER after upload
@@ -37,6 +38,63 @@ export const ourFileRouter = {
 
       // !!! Whatever is returned here is sent to the clientside `onClientUploadComplete` callback
       return { uploadedBy: metadata.userId };
+    }),
+
+  resourceUploader: f({
+    pdf: {
+      maxFileSize: "16MB",
+      maxFileCount: 1,
+    },
+    text: {
+      maxFileSize: "4MB",
+      maxFileCount: 1,
+    },
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation": {
+      maxFileSize: "16MB",
+      maxFileCount: 1,
+    },
+    "application/vnd.ms-powerpoint": {
+      maxFileSize: "16MB",
+      maxFileCount: 1,
+    },
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
+      maxFileSize: "16MB",
+      maxFileCount: 1,
+    },
+    "application/msword": {
+      maxFileSize: "16MB",
+      maxFileCount: 1,
+    },
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+      maxFileSize: "16MB",
+      maxFileCount: 1,
+    },
+    "application/vnd.ms-excel": {
+      maxFileSize: "16MB",
+      maxFileCount: 1,
+    },
+  })
+    .middleware(async ({ req }) => {
+      const session = await auth.api.getSession({
+        headers: await headers(),
+      });
+
+      if (!session?.user?.id) throw new UploadThingError("Unauthorized");
+
+      return { userId: session.user.id };
+    })
+    .onUploadComplete(async ({ metadata, file }) => {
+      console.log("Resource upload complete for userId:", metadata.userId);
+      console.log("file url", file.ufsUrl);
+      console.log("file name", file.name);
+      console.log("file size", file.size);
+
+      return {
+        uploadedBy: metadata.userId,
+        url: file.ufsUrl,
+        name: file.name,
+        size: file.size?.toString() || "0",
+      };
     }),
 } satisfies FileRouter;
 
