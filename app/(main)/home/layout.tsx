@@ -2,7 +2,6 @@ import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import { Sidebar } from "@/components/sidebar"
 import { PageHeader } from "@/components/page-header"
-import { PageHeaderProvider } from "@/components/page-header-context"
 import { OnboardRedirect } from "@/components/onboard-redirect"
 import { auth } from "@/lib/auth"
 import { db } from "@/db"
@@ -43,7 +42,7 @@ export default async function HomeLayout({
   const hasRole = userData.length > 0 && userData[0].role !== null
 
   return (
-    <PageHeaderProvider>
+    <>
       <OnboardRedirect hasRole={hasRole} />
       <div className="flex h-screen bg-background overflow-hidden">
         <Sidebar userId={session.user.id} />
@@ -52,7 +51,7 @@ export default async function HomeLayout({
           {children}
         </main>
       </div>
-    </PageHeaderProvider>
+    </>
   )
 }
 

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { CreateClassButton } from "./create-class-button"
 import { JoinClassButton } from "./join-class-button"
-import { usePageHeader } from "@/components/page-header-context"
+import { usePageHeaderStore } from "@/lib/stores/page-header-store"
 
 type ClassesPageWrapperProps = {
   children: React.ReactNode
@@ -11,7 +11,7 @@ type ClassesPageWrapperProps = {
 }
 
 export function ClassesPageWrapper({ children, userRole }: ClassesPageWrapperProps) {
-  const { setRightSideContent } = usePageHeader()
+  const setRightSideContent = usePageHeaderStore((state) => state.setRightSideContent)
 
   useEffect(() => {
     setRightSideContent(

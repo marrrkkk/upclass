@@ -37,9 +37,14 @@ export async function sendMessage(
     return { success: false, error: "Message must have content or media" }
   }
 
-  // Verify receiver exists
+  // Verify receiver exists and check notification settings
   const receiver = await db
-    .select()
+    .select({
+      id: user.id,
+      messageNotifications: user.messageNotifications,
+      emailNotifications: user.emailNotifications,
+      pushNotifications: user.pushNotifications,
+    })
     .from(user)
     .where(eq(user.id, receiverId))
     .limit(1)
@@ -58,6 +63,10 @@ export async function sendMessage(
       url: null, // URLs are now detected in content
       read: false,
     })
+
+    // TODO: Send email notification if emailNotifications is enabled
+    // TODO: Send push notification if pushNotifications is enabled
+    // Note: Messages are always sent, but notifications can be disabled
 
     revalidatePath("/home/messages")
     return { success: true }

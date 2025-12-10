@@ -25,7 +25,6 @@ export default async function ResourcesPage() {
   const resourcesList = await db
     .select()
     .from(resources)
-    .where(eq(resources.ownerId, userId))
     .orderBy(resources.createdAt)
 
   const mappedResources = resourcesList.map((resource) => ({

@@ -19,14 +19,14 @@ export function NotificationsSection({ userId }: NotificationsSectionProps) {
     // Fetch initial unread count
     const fetchUnreadCount = async () => {
       try {
-        const { data, error } = await supabase
+        const { count, error } = await supabase
           .from("notifications")
-          .select("id", { count: "exact", head: true })
+          .select("*", { count: "exact", head: true })
           .eq("user_id", userId)
           .eq("read", false)
 
-        if (!error && data !== null) {
-          setUnreadCount(data.length || 0)
+        if (!error && count !== null) {
+          setUnreadCount(count)
         }
       } catch (err) {
         console.error("Error fetching unread count:", err)
@@ -41,14 +41,35 @@ export function NotificationsSection({ userId }: NotificationsSectionProps) {
       .on(
         "postgres_changes",
         {
-          event: "*",
+          event: "INSERT",
           schema: "public",
           table: "notifications",
           filter: `user_id=eq.${userId}`,
         },
-        () => {
-          // Refetch count on any change
-          fetchUnreadCount()
+        (payload) => {
+          const newNotif = payload.new as any
+          if (newNotif.read === false) {
+            setUnreadCount((prev) => prev + 1)
+          }
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          const updatedNotif = payload.new as any
+          if (updatedNotif.read === true) {
+            // Decrement count when notification is marked as read
+            setUnreadCount((prev) => Math.max(0, prev - 1))
+          } else if (updatedNotif.read === false) {
+            // Increment count if somehow marked as unread
+            setUnreadCount((prev) => prev + 1)
+          }
         },
       )
       .subscribe()

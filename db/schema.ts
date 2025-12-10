@@ -19,6 +19,20 @@ export const user = pgTable("user", {
   image: text("image"),
   bio: text("bio"),
   role: userRole("role"),
+  // Notification settings
+  emailNotifications: boolean("email_notifications").default(true).notNull(),
+  pushNotifications: boolean("push_notifications").default(true).notNull(),
+  classNotifications: boolean("class_notifications").default(true).notNull(),
+  messageNotifications: boolean("message_notifications").default(true).notNull(),
+  // Privacy settings
+  profileVisibility: text("profile_visibility").default("public").notNull(), // public, private, contacts
+  showEmail: boolean("show_email").default(false).notNull(),
+  showClasses: boolean("show_classes").default(true).notNull(),
+  showResources: boolean("show_resources").default(true).notNull(),
+  // Preferences
+  theme: text("theme").default("system").notNull(), // light, dark, system
+  language: text("language").default("en").notNull(),
+  timezone: text("timezone"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()

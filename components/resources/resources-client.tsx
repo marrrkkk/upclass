@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react"
 import { FileText, Search, Download } from "lucide-react"
+import Link from "next/link"
 
 import { cn } from "@/lib/utils"
 import {
@@ -157,24 +158,28 @@ export function ResourcesClient({ resources }: ResourcesClientProps) {
 function ResourceCard({ data }: { data: ResourceCardData }) {
   const createdDate = data.createdAt
     ? new Intl.DateTimeFormat("en", {
-        month: "short",
-        day: "numeric",
-      }).format(new Date(data.createdAt))
+      month: "short",
+      day: "numeric",
+    }).format(new Date(data.createdAt))
     : ""
 
   return (
-    <div className="overflow-hidden rounded-xl border bg-card shadow-sm hover:shadow-md transition-shadow">
-      <div className="relative h-32 bg-gradient-to-r from-blue-500 to-blue-400 flex items-center justify-center">
-        <div className="text-5xl">{getFileIcon(data.fileType)}</div>
-        <div className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-blue-700 shadow-sm">
-          {data.fileType.toUpperCase()}
+    <div className="block overflow-hidden rounded-xl border bg-card shadow-sm hover:shadow-md transition-shadow">
+      <Link href={`/home/resources/${data.id}`}>
+        <div className="relative h-32 bg-gradient-to-r from-blue-500 to-blue-400 flex items-center justify-center">
+          <div className="text-5xl">{getFileIcon(data.fileType)}</div>
+          <div className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-blue-700 shadow-sm">
+            {data.fileType.toUpperCase()}
+          </div>
         </div>
-      </div>
+      </Link>
       <div className="space-y-3 p-4">
         <div>
-          <h3 className="text-lg font-semibold text-foreground line-clamp-1">
-            {data.title}
-          </h3>
+          <Link href={`/home/resources/${data.id}`}>
+            <h3 className="text-lg font-semibold text-foreground line-clamp-1 hover:text-blue-600 transition-colors">
+              {data.title}
+            </h3>
+          </Link>
           {data.description ? (
             <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
               {data.description}

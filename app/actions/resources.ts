@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers"
 import { revalidatePath } from "next/cache"
+import { eq } from "drizzle-orm"
 
 import { db } from "@/db"
 import { auth } from "@/lib/auth"
@@ -72,6 +73,64 @@ export async function createResource(formData: FormData): Promise<ActionResponse
   } catch (error) {
     console.error("createResource error", error)
     return { success: false, error: "Failed to create resource" }
+  }
+}
+
+export async function updateResource(formData: FormData): Promise<ActionResponse> {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  })
+
+  if (!session?.user?.id) {
+    return { success: false, error: "Unauthorized" }
+  }
+
+  const id = formData.get("id") as string | null
+  const title = (formData.get("title") as string | null)?.trim()
+  const description = (formData.get("description") as string | null)?.trim()
+  const category = (formData.get("category") as string | null)?.trim() || "General"
+
+  if (!id) {
+    return { success: false, error: "Resource ID is required" }
+  }
+
+  if (!title) {
+    return { success: false, error: "Title is required" }
+  }
+
+  try {
+    // Verify user is the owner
+    const existingResource = await db
+      .select()
+      .from(resources)
+      .where(eq(resources.id, id))
+      .limit(1)
+
+    if (existingResource.length === 0) {
+      return { success: false, error: "Resource not found" }
+    }
+
+    if (existingResource[0].ownerId !== session.user.id) {
+      return { success: false, error: "Unauthorized: You can only edit your own resources" }
+    }
+
+    await db
+      .update(resources)
+      .set({
+        title,
+        description,
+        category,
+        updatedAt: new Date(),
+      })
+      .where(eq(resources.id, id))
+
+    revalidatePath("/home/resources")
+    revalidatePath(`/home/resources/${id}`)
+
+    return { success: true }
+  } catch (error) {
+    console.error("updateResource error", error)
+    return { success: false, error: "Failed to update resource" }
   }
 }
 

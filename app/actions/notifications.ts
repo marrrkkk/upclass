@@ -6,7 +6,7 @@ import { eq, and, desc, ne } from "drizzle-orm"
 
 import { db } from "@/db"
 import { auth } from "@/lib/auth"
-import { notifications, classMembership } from "@/db/schema"
+import { notifications, classMembership, user } from "@/db/schema"
 
 type ActionResponse =
   | { success: true }
@@ -73,7 +73,7 @@ export async function createNotificationsForClass(
   excludeUserId?: string,
 ): Promise<void> {
   try {
-    // Get all student members of the class
+    // Get all student members of the class with their notification settings
     const whereConditions: any[] = [
       eq(classMembership.classId, classId),
       eq(classMembership.role, "student"),
@@ -84,13 +84,25 @@ export async function createNotificationsForClass(
     }
 
     const members = await db
-      .select({ userId: classMembership.userId })
+      .select({
+        userId: classMembership.userId,
+        classNotifications: user.classNotifications,
+        emailNotifications: user.emailNotifications,
+        pushNotifications: user.pushNotifications,
+      })
       .from(classMembership)
+      .innerJoin(user, eq(classMembership.userId, user.id))
       .where(and(...whereConditions))
 
-    // Create notifications for each student
-    if (members.length > 0) {
-      const notificationValues = members.map((member) => ({
+    // Filter members based on notification settings
+    const membersToNotify = members.filter((member) => {
+      // Only create notification if class notifications are enabled
+      return member.classNotifications !== false
+    })
+
+    // Create notifications for each student who has notifications enabled
+    if (membersToNotify.length > 0) {
+      const notificationValues = membersToNotify.map((member) => ({
         id: crypto.randomUUID(),
         userId: member.userId,
         type: type as any,
@@ -102,6 +114,9 @@ export async function createNotificationsForClass(
       }))
 
       await db.insert(notifications).values(notificationValues)
+
+      // TODO: Send email notifications if emailNotifications is enabled
+      // TODO: Send push notifications if pushNotifications is enabled
     }
   } catch (error) {
     console.error("createNotificationsForClass error", error)

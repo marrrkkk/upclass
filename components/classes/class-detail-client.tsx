@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Copy, Check, Settings, PenTool } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
@@ -8,6 +8,7 @@ import { StreamTab } from "@/components/classes/stream-tab"
 import { ClassworkTab } from "@/components/classes/classwork-tab"
 import { PeopleTab } from "@/components/classes/people-tab"
 import { ClassSettingsDialog } from "@/components/classes/class-settings-dialog"
+import { usePageHeaderStore } from "@/lib/stores/page-header-store"
 
 type ClassData = {
   id: string
@@ -85,8 +86,15 @@ export function ClassDetailClient({
   submissions,
   members,
 }: ClassDetailClientProps) {
+  const setPageTitle = usePageHeaderStore((state) => state.setPageTitle)
   const [activeTab, setActiveTab] = useState<"stream" | "classwork" | "people">("stream")
   const [copied, setCopied] = useState(false)
+
+  // Set page title for breadcrumbs
+  useEffect(() => {
+    setPageTitle(classData.title)
+    return () => setPageTitle(null)
+  }, [classData.title, setPageTitle])
 
   const handleCopyCode = async () => {
     await navigator.clipboard.writeText(classData.code)
@@ -99,7 +107,7 @@ export function ClassDetailClient({
   return (
     <div className="flex flex-col gap-6">
       {/* Cover with class color */}
-      <div 
+      <div
         className="h-32 w-full rounded-lg"
         style={{ backgroundColor: classColor }}
       />
@@ -155,9 +163,9 @@ export function ClassDetailClient({
         </div>
         <div className="flex items-center gap-2">
           {classData.category && (
-            <span 
+            <span
               className="inline-block rounded-full border px-3 py-1 text-xs font-medium"
-              style={{ 
+              style={{
                 borderColor: `${classColor}40`,
                 backgroundColor: `${classColor}15`,
                 color: classColor,

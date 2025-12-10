@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { GraduationCap, BookOpen, FolderOpen, Users, MessageSquare } from "lucide-react"
+import { GraduationCap, BookOpen, FolderOpen, Users, MessageSquare, Lock } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { EditProfileDialog } from "@/components/profile/edit-profile-dialog"
 import { buttonVariants } from "@/components/ui/button"
@@ -11,7 +11,7 @@ import { buttonVariants } from "@/components/ui/button"
 type UserData = {
   id: string
   name: string
-  email: string
+  email: string | null
   image: string | null
   bio: string | null
   role: "teacher" | "student" | null
@@ -44,6 +44,7 @@ type ProfileClientProps = {
   createdResources: ResourceData[]
   isOwnProfile?: boolean
   currentUserId?: string
+  isPrivate?: boolean
 }
 
 export function ProfileClient({
@@ -61,6 +62,35 @@ export function ProfileClient({
     .toUpperCase()
     .slice(0, 2)
 
+  // Show private profile message
+  if (isPrivate && !isOwnProfile) {
+    return (
+      <div className="flex flex-col gap-6">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex flex-col items-center justify-center gap-4 py-8">
+              <Avatar className="h-24 w-24">
+                <AvatarImage src={user.image || undefined} alt={user.name} />
+                <AvatarFallback className="bg-blue-600 text-white text-2xl">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              <div className="text-center space-y-2">
+                <h1 className="text-2xl font-bold flex items-center justify-center gap-2">
+                  {user.name}
+                  <Lock className="h-5 w-5 text-muted-foreground" />
+                </h1>
+                <p className="text-muted-foreground">
+                  This profile is private
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-6">
       {/* Profile Header */}
@@ -77,7 +107,9 @@ export function ProfileClient({
               <div className="flex items-start justify-between">
                 <div>
                   <h1 className="text-2xl font-bold">{user.name}</h1>
-                  <p className="text-muted-foreground">{user.email}</p>
+                  {user.email && (
+                    <p className="text-muted-foreground">{user.email}</p>
+                  )}
                   {user.role && (
                     <span className="mt-2 inline-block rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
                       {user.role === "teacher" ? "Teacher" : "Student"}

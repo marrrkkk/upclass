@@ -19,14 +19,14 @@ export function MessagesSection({ userId }: MessagesSectionProps) {
     // Fetch initial unread count
     const fetchUnreadCount = async () => {
       try {
-        const { data, error } = await supabase
+        const { count, error } = await supabase
           .from("messages")
-          .select("id", { count: "exact", head: true })
+          .select("*", { count: "exact", head: true })
           .eq("receiver_id", userId)
           .eq("read", false)
 
-        if (!error && data !== null) {
-          setUnreadCount(data.length || 0)
+        if (!error && count !== null) {
+          setUnreadCount(count)
         }
       } catch (err) {
         console.error("Error fetching unread count:", err)
@@ -41,14 +41,35 @@ export function MessagesSection({ userId }: MessagesSectionProps) {
       .on(
         "postgres_changes",
         {
-          event: "*",
+          event: "INSERT",
           schema: "public",
           table: "messages",
           filter: `receiver_id=eq.${userId}`,
         },
-        () => {
-          // Refetch count on any change
-          fetchUnreadCount()
+        (payload) => {
+          const newMessage = payload.new as any
+          if (newMessage.read === false) {
+            setUnreadCount((prev) => prev + 1)
+          }
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "messages",
+          filter: `receiver_id=eq.${userId}`,
+        },
+        (payload) => {
+          const updatedMessage = payload.new as any
+          if (updatedMessage.read === true) {
+            // Decrement count when message is marked as read
+            setUnreadCount((prev) => Math.max(0, prev - 1))
+          } else if (updatedMessage.read === false) {
+            // Increment count if somehow marked as unread
+            setUnreadCount((prev) => prev + 1)
+          }
         },
       )
       .subscribe()
