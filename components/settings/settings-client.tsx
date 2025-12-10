@@ -228,7 +228,7 @@ export function SettingsClient({ userData }: SettingsClientProps) {
             <button
               onClick={() => setActiveTab("profile")}
               className={cn(
-                "flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap cursor-pointer",
+                "flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
                 activeTab === "profile"
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground"
@@ -240,7 +240,7 @@ export function SettingsClient({ userData }: SettingsClientProps) {
             <button
               onClick={() => setActiveTab("notifications")}
               className={cn(
-                "flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap cursor-pointer",
+                "flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
                 activeTab === "notifications"
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground"
@@ -252,7 +252,7 @@ export function SettingsClient({ userData }: SettingsClientProps) {
             <button
               onClick={() => setActiveTab("privacy")}
               className={cn(
-                "flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap cursor-pointer",
+                "flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
                 activeTab === "privacy"
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground"
@@ -264,7 +264,7 @@ export function SettingsClient({ userData }: SettingsClientProps) {
             <button
               onClick={() => setActiveTab("account")}
               className={cn(
-                "flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap cursor-pointer",
+                "flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
                 activeTab === "account"
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground"
@@ -437,18 +437,7 @@ export function SettingsClient({ userData }: SettingsClientProps) {
                       </div>
                       <Switch
                         checked={emailNotifications}
-                        onCheckedChange={(checked) => {
-                          setEmailNotifications(checked)
-                          startTransition(async () => {
-                            const formData = new FormData()
-                            formData.append("emailNotifications", checked.toString())
-                            formData.append("pushNotifications", pushNotifications.toString())
-                            formData.append("classNotifications", classNotifications.toString())
-                            formData.append("messageNotifications", messageNotifications.toString())
-                            await updateSettings(formData, "notifications")
-                            router.refresh()
-                          })
-                        }}
+                        onCheckedChange={setEmailNotifications}
                       />
                     </div>
 
@@ -461,18 +450,7 @@ export function SettingsClient({ userData }: SettingsClientProps) {
                       </div>
                       <Switch
                         checked={pushNotifications}
-                        onCheckedChange={(checked) => {
-                          setPushNotifications(checked)
-                          startTransition(async () => {
-                            const formData = new FormData()
-                            formData.append("emailNotifications", emailNotifications.toString())
-                            formData.append("pushNotifications", checked.toString())
-                            formData.append("classNotifications", classNotifications.toString())
-                            formData.append("messageNotifications", messageNotifications.toString())
-                            await updateSettings(formData, "notifications")
-                            router.refresh()
-                          })
-                        }}
+                        onCheckedChange={setPushNotifications}
                       />
                     </div>
 
@@ -488,18 +466,7 @@ export function SettingsClient({ userData }: SettingsClientProps) {
                         </div>
                         <Switch
                           checked={classNotifications}
-                          onCheckedChange={(checked) => {
-                            setClassNotifications(checked)
-                            startTransition(async () => {
-                              const formData = new FormData()
-                              formData.append("emailNotifications", emailNotifications.toString())
-                              formData.append("pushNotifications", pushNotifications.toString())
-                              formData.append("classNotifications", checked.toString())
-                              formData.append("messageNotifications", messageNotifications.toString())
-                              await updateSettings(formData, "notifications")
-                              router.refresh()
-                            })
-                          }}
+                          onCheckedChange={setClassNotifications}
                         />
                       </div>
                       <div className="h-px bg-border/50" />
@@ -512,18 +479,7 @@ export function SettingsClient({ userData }: SettingsClientProps) {
                         </div>
                         <Switch
                           checked={messageNotifications}
-                          onCheckedChange={(checked) => {
-                            setMessageNotifications(checked)
-                            startTransition(async () => {
-                              const formData = new FormData()
-                              formData.append("emailNotifications", emailNotifications.toString())
-                              formData.append("pushNotifications", pushNotifications.toString())
-                              formData.append("classNotifications", classNotifications.toString())
-                              formData.append("messageNotifications", checked.toString())
-                              await updateSettings(formData, "notifications")
-                              router.refresh()
-                            })
-                          }}
+                          onCheckedChange={setMessageNotifications}
                         />
                       </div>
                     </div>
@@ -592,18 +548,7 @@ export function SettingsClient({ userData }: SettingsClientProps) {
                       </div>
                       <Switch
                         checked={showEmail}
-                        onCheckedChange={(checked) => {
-                          setShowEmail(checked)
-                          startTransition(async () => {
-                            const formData = new FormData()
-                            formData.append("profileVisibility", profileVisibility)
-                            formData.append("showEmail", checked.toString())
-                            formData.append("showClasses", showClasses.toString())
-                            formData.append("showResources", showResources.toString())
-                            await updateSettings(formData, "privacy")
-                            router.refresh()
-                          })
-                        }}
+                        onCheckedChange={setShowEmail}
                       />
                     </div>
 
@@ -616,18 +561,7 @@ export function SettingsClient({ userData }: SettingsClientProps) {
                       </div>
                       <Switch
                         checked={showClasses}
-                        onCheckedChange={(checked) => {
-                          setShowClasses(checked)
-                          startTransition(async () => {
-                            const formData = new FormData()
-                            formData.append("profileVisibility", profileVisibility)
-                            formData.append("showEmail", showEmail.toString())
-                            formData.append("showClasses", checked.toString())
-                            formData.append("showResources", showResources.toString())
-                            await updateSettings(formData, "privacy")
-                            router.refresh()
-                          })
-                        }}
+                        onCheckedChange={setShowClasses}
                       />
                     </div>
 
@@ -640,18 +574,7 @@ export function SettingsClient({ userData }: SettingsClientProps) {
                       </div>
                       <Switch
                         checked={showResources}
-                        onCheckedChange={(checked) => {
-                          setShowResources(checked)
-                          startTransition(async () => {
-                            const formData = new FormData()
-                            formData.append("profileVisibility", profileVisibility)
-                            formData.append("showEmail", showEmail.toString())
-                            formData.append("showClasses", showClasses.toString())
-                            formData.append("showResources", checked.toString())
-                            await updateSettings(formData, "privacy")
-                            router.refresh()
-                          })
-                        }}
+                        onCheckedChange={setShowResources}
                       />
                     </div>
                   </div>

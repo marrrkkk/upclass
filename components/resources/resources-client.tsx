@@ -1,20 +1,17 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import {
-  FileText,
-  Search,
-  Download,
-  FileCode,
-  FileSpreadsheet,
-  Presentation,
-  FileIcon as FileIconLucide,
-  FileType
-} from "lucide-react"
+import { FileText, Search, Download } from "lucide-react"
 import Link from "next/link"
 
 import { cn } from "@/lib/utils"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty"
 
 type ResourceCardData = {
   id: string
@@ -26,8 +23,6 @@ type ResourceCardData = {
   fileType: string
   fileSize: string | null
   createdAt: string
-  authorName: string | null
-  authorImage: string | null
 }
 
 type ResourcesClientProps = {
@@ -44,14 +39,13 @@ const fileTypeFilters = [
   { label: "Other", value: "other" },
 ]
 
-const getFileTypeInfo = (type: string) => {
-  const t = type.toLowerCase()
-  if (t === 'pdf') return { icon: FileText, bgColor: 'bg-red-50', textColor: 'text-red-600' }
-  if (t === 'doc' || t === 'docx') return { icon: FileText, bgColor: 'bg-blue-50', textColor: 'text-blue-600' }
-  if (t === 'xls' || t === 'xlsx' || t === 'csv') return { icon: FileSpreadsheet, bgColor: 'bg-green-50', textColor: 'text-green-600' }
-  if (t === 'ppt' || t === 'pptx') return { icon: Presentation, bgColor: 'bg-orange-50', textColor: 'text-orange-600' }
-  if (t === 'txt') return { icon: FileType, bgColor: 'bg-gray-50', textColor: 'text-gray-600' }
-  return { icon: FileIconLucide, bgColor: 'bg-gray-50', textColor: 'text-gray-600' }
+const getFileIcon = (fileType: string) => {
+  if (fileType === "pdf") return "📄"
+  if (fileType === "ppt" || fileType === "pptx") return "📊"
+  if (fileType === "doc" || fileType === "docx") return "📝"
+  if (fileType === "xls" || fileType === "xlsx") return "📈"
+  if (fileType === "txt") return "📋"
+  return "📎"
 }
 
 const formatFileSize = (size: string | null) => {
@@ -101,34 +95,32 @@ export function ResourcesClient({ resources }: ResourcesClientProps) {
   }, [resources, selectedFilter, searchQuery])
 
   return (
-    <div className="flex flex-col gap-8">
-      {/* Header Controls */}
-      <div className="flex flex-col gap-4 items-start justify-start w-full">
+    <div className="flex flex-col gap-6">
+      {/* Search and Filters */}
+      <div className="flex flex-col gap-4">
         {/* Search Bar */}
-        <div className="relative w-full md:max-w-md">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-4 w-4 text-muted-foreground" />
-          </div>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search resources..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="block w-full rounded-xl border-0 py-2.5 pl-10 text-sm ring-1 ring-inset ring-gray-200 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-primary/20 bg-muted/20 transition-all hover:bg-muted/30 focus:bg-white"
+            className="w-full rounded-md border border-input bg-background pl-10 pr-4 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40"
           />
         </div>
 
         {/* File Type Filters */}
-        <div className="flex overflow-x-auto pb-2 md:pb-0 no-scrollbar gap-2 w-full">
+        <div className="flex flex-wrap gap-2">
           {fileTypeFilters.map((filter) => (
             <button
               key={filter.value}
               onClick={() => setSelectedFilter(filter.value)}
               className={cn(
-                "whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 cursor-pointer",
+                "rounded-md border px-3 py-1.5 text-sm font-medium transition-colors",
                 selectedFilter === filter.value
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground",
+                  ? "border-blue-600 bg-blue-600 text-white"
+                  : "border-input bg-card text-foreground hover:bg-accent",
               )}
             >
               {filter.label}
@@ -139,23 +131,21 @@ export function ResourcesClient({ resources }: ResourcesClientProps) {
 
       {/* Resources Grid */}
       {filteredResources.length === 0 ? (
-        <div className="rounded-2xl border-2 border-dashed border-muted bg-muted/5 p-12 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-50">
-            <FileText className="h-8 w-8 text-blue-500" />
-          </div>
-          <h3 className="mt-4 text-lg font-semibold text-gray-900">
-            {searchQuery || selectedFilter !== "all"
-              ? "No resources found"
-              : "No uploaded resources"}
-          </h3>
-          <p className="mt-2 text-sm text-muted-foreground max-w-sm mx-auto">
-            {searchQuery || selectedFilter !== "all"
-              ? "We couldn't find matches for your search. Try adjusting the keywords or filters."
-              : "Upload documents, slides, and other materials to share with your class."}
-          </p>
-        </div>
+        <Empty className="border border-dashed">
+          <EmptyHeader>
+            <EmptyMedia variant="icon" className="bg-blue-50 text-blue-600">
+              <FileText className="size-6" />
+            </EmptyMedia>
+            <EmptyTitle>No Resources Found</EmptyTitle>
+            <EmptyDescription>
+              {searchQuery || selectedFilter !== "all"
+                ? "No resources match your search criteria. Try adjusting your filters."
+                : "You haven't uploaded any resources yet. Get started by uploading your first resource."}
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {filteredResources.map((resource) => (
             <ResourceCard key={resource.id} data={resource} />
           ))}
@@ -170,89 +160,63 @@ function ResourceCard({ data }: { data: ResourceCardData }) {
     ? new Intl.DateTimeFormat("en", {
       month: "short",
       day: "numeric",
-      year: "numeric"
     }).format(new Date(data.createdAt))
     : ""
 
-  const fileInfo = getFileTypeInfo(data.fileType)
-
   return (
-    <div className="group relative flex flex-col overflow-hidden rounded-2xl border bg-card transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-primary/20 h-full">
-      <Link href={`/home/resources/${data.id}`} className="absolute inset-0 z-10">
-        <span className="sr-only">View {data.title}</span>
-      </Link>
-
-      {/* Card Header / Preview Area */}
-      <div
-        className={cn("relative h-32 flex items-center justify-center overflow-hidden", fileInfo.bgColor)}
-      >
-        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_1px_1px,currentColor_1px,transparent_0)] [background-size:16px_16px] [color:inherit]" />
-
-        <div className={cn("relative z-10 transform transition-transform duration-300 group-hover:scale-110", fileInfo.textColor)}>
-          <div className="p-4 rounded-xl bg-white/20 backdrop-blur-sm shadow-sm border border-white/20">
-            <fileInfo.icon className="h-10 w-10" />
+    <div className="block overflow-hidden rounded-xl border bg-card shadow-sm hover:shadow-md transition-shadow">
+      <Link href={`/home/resources/${data.id}`}>
+        <div className="relative h-32 bg-gradient-to-r from-blue-500 to-blue-400 flex items-center justify-center">
+          <div className="text-5xl">{getFileIcon(data.fileType)}</div>
+          <div className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-blue-700 shadow-sm">
+            {data.fileType.toUpperCase()}
           </div>
         </div>
-
-        <div className="absolute top-3 right-3">
-          <span className="inline-flex items-center rounded-md bg-white/90 px-2 py-1 text-xs font-semibold uppercase tracking-wider shadow-sm text-foreground/80 backdrop-blur-sm">
-            {data.fileType}
-          </span>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="flex flex-1 flex-col p-5 space-y-4">
-        <div className="space-y-1.5">
-          <h3 className="font-bold text-lg leading-tight tracking-tight text-foreground transition-colors group-hover:text-primary line-clamp-1">
-            {data.title}
-          </h3>
-          <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed h-[2.5em]">
-            {data.description || "No description provided."}
+      </Link>
+      <div className="space-y-3 p-4">
+        <div>
+          <Link href={`/home/resources/${data.id}`}>
+            <h3 className="text-lg font-semibold text-foreground line-clamp-1 hover:text-blue-600 transition-colors">
+              {data.title}
+            </h3>
+          </Link>
+          {data.description ? (
+            <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+              {data.description}
+            </p>
+          ) : null}
+          <p className="mt-1 text-xs text-muted-foreground line-clamp-1">
+            {data.fileName}
           </p>
         </div>
 
-        <div className="mt-auto pt-4 border-t flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span>{createdDate}</span>
-              {data.fileSize && (
-                <>
-                  <span>•</span>
-                  <span>{formatFileSize(data.fileSize)}</span>
-                </>
-              )}
-            </div>
-
-            <a
-              href={data.fileUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="relative z-20 p-2 -mr-2 text-muted-foreground hover:text-primary transition-colors rounded-full hover:bg-primary/10"
-              title="Download"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <Download className="h-4 w-4" />
-            </a>
-          </div>
-
-          {/* Author Info */}
-          <div className="flex items-center gap-2 pt-2 border-t border-dashed border-border/50">
-            <Avatar className="h-6 w-6">
-              <AvatarImage src={data.authorImage || undefined} alt={data.authorName || "Author"} />
-              <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
-                {data.authorName?.charAt(0) || "U"}
-              </AvatarFallback>
-            </Avatar>
-            <span className="text-xs text-muted-foreground truncate max-w-[150px]">
-              By <span className="font-medium text-foreground/80">{data.authorName || "Unknown"}</span>
+        <div className="flex flex-wrap gap-2 text-xs font-medium">
+          {data.category ? (
+            <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-blue-700">
+              {data.category}
             </span>
-          </div>
+          ) : null}
+          {data.fileSize && (
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-slate-700">
+              {formatFileSize(data.fileSize)}
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <span>Uploaded {createdDate}</span>
+          <a
+            href={data.fileUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors"
+          >
+            <Download className="h-4 w-4" />
+            <span>Download</span>
+          </a>
         </div>
       </div>
     </div>
   )
 }
-
-
 
