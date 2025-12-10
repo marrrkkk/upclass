@@ -120,4 +120,29 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Cursor pointer for all clickable elements */
+  button,
+  a,
+  [role="button"],
+  [role="link"],
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  input[type="file"],
+  select,
+  label[for],
+  [onclick],
+  [data-clickable],
+  .cursor-pointer {
+    cursor: pointer;
+  }
+
+  /* Disabled elements should not have pointer cursor */
+  button:disabled,
+  input:disabled,
+  select:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
 }

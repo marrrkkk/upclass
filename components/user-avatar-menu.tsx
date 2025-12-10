@@ -61,7 +61,7 @@ export function UserAvatarMenu({ name, email, image, userId }: UserAvatarMenuPro
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          className="relative flex h-9 w-9 shrink-0 overflow-hidden rounded-full ring-2 ring-transparent transition-all hover:ring-primary/20 hover:scale-105 focus:outline-none focus:ring-primary/30"
+          className="relative flex h-9 w-9 shrink-0 overflow-hidden rounded-full ring-2 ring-transparent transition-all hover:ring-primary/20 hover:scale-105 focus:outline-none focus:ring-primary/30 cursor-pointer"
           type="button"
         >
           <Avatar className="h-9 w-9 border border-border/50">

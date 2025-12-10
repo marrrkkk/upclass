@@ -125,7 +125,7 @@ export function ResourcesClient({ resources }: ResourcesClientProps) {
               key={filter.value}
               onClick={() => setSelectedFilter(filter.value)}
               className={cn(
-                "whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all duration-200",
+                "whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 cursor-pointer",
                 selectedFilter === filter.value
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground",
