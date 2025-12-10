@@ -85,7 +85,7 @@ export function PageHeader({ user, userId }: PageHeaderProps) {
   const breadcrumbs = generateBreadcrumbs()
 
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between w-full">
       <Breadcrumb>
         <BreadcrumbList>
           {breadcrumbs.map((crumb, index) => (

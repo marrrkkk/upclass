@@ -30,6 +30,7 @@ export default async function ClassDetailPage({
       category: classes.category,
       code: classes.code,
       color: classes.color,
+      schedule: classes.schedule,
     })
     .from(classes)
     .where(eq(classes.id, id))
@@ -137,6 +138,7 @@ export default async function ClassDetailPage({
         category: classData[0].category,
         code: classData[0].code,
         color: classData[0].color || "#3b82f6",
+        schedule: classData[0].schedule,
       }}
       userId={session.user.id}
       userRole={userRole}

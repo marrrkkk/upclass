@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { MessageSquare } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase-client"
@@ -79,19 +80,27 @@ export function MessagesSection({ userId }: MessagesSectionProps) {
     }
   }, [userId])
 
+  const pathname = usePathname()
+  const isActive = pathname?.startsWith("/home/messages")
+
   return (
     <Link
       href="/home/messages"
       className={cn(
-        "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
-        "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-        "text-sidebar-foreground/70"
+        "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-all duration-200",
+        "hover:bg-primary/10 hover:text-primary",
+        isActive
+          ? "bg-primary/10 text-primary shadow-sm"
+          : "text-sidebar-foreground/70"
       )}
     >
-      <MessageSquare className="h-5 w-5 stroke-[1.5]" />
-      <span>Messages</span>
+      <MessageSquare className={cn(
+        "h-4 w-4 stroke-[2]",
+        isActive && "text-primary"
+      )} />
+      <span className="tracking-tight">Messages</span>
       {unreadCount > 0 && (
-        <span className="ml-auto rounded-full bg-blue-600 px-2 py-0.5 text-xs font-medium text-white">
+        <span className="ml-auto rounded-full bg-primary px-1.5 py-0.5 min-w-[1.25rem] text-center text-[10px] font-semibold text-primary-foreground">
           {unreadCount > 99 ? "99+" : unreadCount}
         </span>
       )}

@@ -13,7 +13,10 @@ type ClassRow = {
   description: string | null
   category: string | null
   color: string | null
+  schedule: string | null
   createdAt: Date | null
+  teacherName: string | null
+  teacherImage: string | null
 }
 
 export default async function ClassesPage() {
@@ -40,12 +43,14 @@ export default async function ClassesPage() {
 
   const userRole = userData.length > 0 ? userData[0].role : null
 
+  // Get enrollment counts excluding teachers
   const enrollmentCounts = await db
     .select({
       classId: classMembership.classId,
       count: sql<number>`count(${classMembership.id})`,
     })
     .from(classMembership)
+    .where(eq(classMembership.role, "student"))
     .groupBy(classMembership.classId)
 
   const countMap = new Map<string, number>()
@@ -58,7 +63,10 @@ export default async function ClassesPage() {
       description: classes.description,
       category: classes.category,
       color: classes.color,
+      schedule: classes.schedule,
       createdAt: classes.createdAt,
+      teacherName: user.name,
+      teacherImage: user.image,
     })
     .from(classes)
     .innerJoin(
@@ -69,6 +77,7 @@ export default async function ClassesPage() {
         eq(classMembership.role, "teacher"),
       ),
     )
+    .innerJoin(user, eq(classes.ownerId, user.id))
 
   const enrolledRows = await db
     .select({
@@ -77,7 +86,10 @@ export default async function ClassesPage() {
       description: classes.description,
       category: classes.category,
       color: classes.color,
+      schedule: classes.schedule,
       createdAt: classes.createdAt,
+      teacherName: user.name,
+      teacherImage: user.image,
     })
     .from(classes)
     .innerJoin(
@@ -88,6 +100,7 @@ export default async function ClassesPage() {
         eq(classMembership.role, "student"),
       ),
     )
+    .innerJoin(user, eq(classes.ownerId, user.id))
 
   const mapRows = (rows: ClassRow[], role: "teaching" | "enrolled") =>
     rows.map((row) => ({
@@ -95,6 +108,8 @@ export default async function ClassesPage() {
       createdAt: row.createdAt?.toISOString() ?? "",
       enrolledCount: countMap.get(row.id) ?? 0,
       role,
+      teacherName: row.teacherName,
+      teacherImage: row.teacherImage,
     }))
 
   return (

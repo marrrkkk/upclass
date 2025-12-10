@@ -21,6 +21,7 @@ type ClassData = {
   description: string | null
   category: string | null
   color: string
+  schedule: string | null
 }
 
 type ClassSettingsDialogProps = {
@@ -94,40 +95,51 @@ export function ClassSettingsDialog({ classData }: ClassSettingsDialogProps) {
               rows={3}
             />
           </label>
-          <label className="space-y-2 text-sm font-medium text-foreground">
-            <span>Color</span>
-            <div className="flex items-center gap-3">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="space-y-2 text-sm font-medium text-foreground">
+              <span>Schedule</span>
               <input
-                type="color"
-                id="settings-color-picker"
-                defaultValue={classData.color || "#3b82f6"}
-                className="h-10 w-20 cursor-pointer rounded-md border border-input"
-                onChange={(e) => {
-                  const textInput = document.getElementById("settings-color-text") as HTMLInputElement
-                  const hiddenInput = document.getElementById("settings-color-hidden") as HTMLInputElement
-                  if (textInput) textInput.value = e.target.value
-                  if (hiddenInput) hiddenInput.value = e.target.value
-                }}
+                name="schedule"
+                defaultValue={classData.schedule || ""}
+                placeholder="e.g. Mon, Wed, Fri 10:00 AM"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40"
               />
-              <input
-                type="text"
-                id="settings-color-text"
-                defaultValue={classData.color || "#3b82f6"}
-                pattern="^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"
-                placeholder="#3b82f6"
-                className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40"
-                onChange={(e) => {
-                  const colorInput = document.getElementById("settings-color-picker") as HTMLInputElement
-                  const hiddenInput = document.getElementById("settings-color-hidden") as HTMLInputElement
-                  if (colorInput && /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(e.target.value)) {
-                    colorInput.value = e.target.value
+            </label>
+            <label className="space-y-2 text-sm font-medium text-foreground">
+              <span>Color</span>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  id="settings-color-picker"
+                  defaultValue={classData.color || "#3b82f6"}
+                  className="h-10 w-20 cursor-pointer rounded-md border border-input"
+                  onChange={(e) => {
+                    const textInput = document.getElementById("settings-color-text") as HTMLInputElement
+                    const hiddenInput = document.getElementById("settings-color-hidden") as HTMLInputElement
+                    if (textInput) textInput.value = e.target.value
                     if (hiddenInput) hiddenInput.value = e.target.value
-                  }
-                }}
-              />
-              <input type="hidden" id="settings-color-hidden" name="color" defaultValue={classData.color || "#3b82f6"} />
-            </div>
-          </label>
+                  }}
+                />
+                <input
+                  type="text"
+                  id="settings-color-text"
+                  defaultValue={classData.color || "#3b82f6"}
+                  pattern="^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"
+                  placeholder="#3b82f6"
+                  className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40"
+                  onChange={(e) => {
+                    const colorInput = document.getElementById("settings-color-picker") as HTMLInputElement
+                    const hiddenInput = document.getElementById("settings-color-hidden") as HTMLInputElement
+                    if (colorInput && /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(e.target.value)) {
+                      colorInput.value = e.target.value
+                      if (hiddenInput) hiddenInput.value = e.target.value
+                    }
+                  }}
+                />
+                <input type="hidden" id="settings-color-hidden" name="color" defaultValue={classData.color || "#3b82f6"} />
+              </div>
+            </label>
+          </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 

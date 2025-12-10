@@ -36,6 +36,7 @@ export async function createClass(formData: FormData): Promise<ActionResponse> {
   const description = (formData.get("description") as string | null)?.trim()
   const category = (formData.get("category") as string | null)?.trim() || "General"
   const color = (formData.get("color") as string | null)?.trim() || "#3b82f6"
+  const schedule = (formData.get("schedule") as string | null)?.trim() || null
 
   if (!title) {
     return { success: false, error: "Title is required" }
@@ -79,6 +80,7 @@ export async function createClass(formData: FormData): Promise<ActionResponse> {
         category,
         code: classCode,
         color,
+        schedule,
         ownerId: session.user.id,
       })
 
@@ -191,6 +193,7 @@ export async function updateClass(classId: string, formData: FormData): Promise<
   const description = (formData.get("description") as string | null)?.trim()
   const category = (formData.get("category") as string | null)?.trim() || "General"
   const color = (formData.get("color") as string | null)?.trim() || "#3b82f6"
+  const schedule = (formData.get("schedule") as string | null)?.trim() || null
 
   if (!title) {
     return { success: false, error: "Title is required" }
@@ -204,6 +207,7 @@ export async function updateClass(classId: string, formData: FormData): Promise<
         description,
         category,
         color,
+        schedule,
       })
       .where(eq(classes.id, classId))
 

@@ -29,10 +29,6 @@ export const user = pgTable("user", {
   showEmail: boolean("show_email").default(false).notNull(),
   showClasses: boolean("show_classes").default(true).notNull(),
   showResources: boolean("show_resources").default(true).notNull(),
-  // Preferences
-  theme: text("theme").default("system").notNull(), // light, dark, system
-  language: text("language").default("en").notNull(),
-  timezone: text("timezone"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
@@ -130,6 +126,7 @@ export const classes = pgTable(
     thumbnail: text("thumbnail"),
     code: text("code").notNull().unique(),
     color: text("color").default("#3b82f6"), // Default blue color
+    schedule: text("schedule"), // Class schedule (e.g., "Mon, Wed, Fri 10:00 AM")
     ownerId: text("owner_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),

@@ -94,15 +94,17 @@ export function MessagesClient({ conversations: initialConversations, userId }: 
         <NewConversationDialog currentUserId={userId} />
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <input
-          type="text"
-          placeholder="Search conversations..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-9 rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40"
-        />
+      <div className="relative max-w-md">
+        <div className="relative flex items-center">
+          <Search className="absolute left-3 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Search conversations..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 rounded-md border border-input bg-background text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40"
+          />
+        </div>
       </div>
 
       {filteredConversations.length === 0 ? (

@@ -17,6 +17,7 @@ type ClassData = {
   category: string | null
   code: string
   color: string
+  schedule: string | null
 }
 
 type AnnouncementData = {
