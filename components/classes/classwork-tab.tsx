@@ -90,7 +90,7 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
 
     // Subscribe to submissions changes
     const classworkIds = new Set(classwork.map(c => c.id))
-    
+
     const submissionsChannel = supabase
       .channel(`submissions:${classId}:${userId}`)
       .on(
@@ -99,14 +99,17 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
           event: "*",
           schema: "public",
           table: "submissions",
-          ...(userRole === "student" 
+          ...(userRole === "student"
             ? { filter: `student_id=eq.${userId}` }
             : {}),
         },
         (payload) => {
           // For teachers, only refresh if the submission is for a classwork in this class
           if (userRole === "teacher") {
-            const submissionClassworkId = payload.new?.classwork_id || payload.old?.classwork_id
+            const newRecord = payload.new as any
+            const oldRecord = payload.old as any
+            const submissionClassworkId = newRecord?.classwork_id || oldRecord?.classwork_id
+
             if (submissionClassworkId && classworkIds.has(submissionClassworkId)) {
               router.refresh()
             }
@@ -119,8 +122,8 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
       .subscribe()
 
     return () => {
-      supabase.removeChannel(classworkChannel)
-      supabase.removeChannel(submissionsChannel)
+      supabase?.removeChannel(classworkChannel)
+      supabase?.removeChannel(submissionsChannel)
     }
   }, [classId, userId, userRole, router, classwork])
 
@@ -183,7 +186,7 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
             <button
-              className={cn(buttonVariants({ size: "sm" }), "w-fit gap-2 text-white")}
+              className={cn(buttonVariants({ size: "sm" }), "w-fit gap-2 text-white shadow-md hover:shadow-lg transition-all")}
               style={{ backgroundColor: classColor }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.opacity = "0.9"
@@ -197,76 +200,91 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
               Create classwork
             </button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Create Classwork</DialogTitle>
-              <DialogDescription>
+          <DialogContent className="sm:max-w-[550px] gap-0 p-0 overflow-hidden border-0 shadow-2xl">
+            <DialogHeader className="p-6 pb-2 bg-gradient-to-r from-muted/50 to-muted/10">
+              <DialogTitle className="text-xl font-semibold tracking-tight">Create Classwork</DialogTitle>
+              <DialogDescription className="text-muted-foreground">
                 Create an assignment, quiz, or material for your students.
               </DialogDescription>
             </DialogHeader>
-            <form action={handleCreateClasswork} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="classwork-title">Title</Label>
-                <Input
-                  id="classwork-title"
-                  name="title"
-                  required
-                  placeholder="e.g. Chapter 5 Quiz"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="classwork-description">Description</Label>
-                <Textarea
-                  id="classwork-description"
-                  name="description"
-                  placeholder="Add instructions or details..."
-                  rows={3}
-                />
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
+            <form action={handleCreateClasswork} className="p-6 space-y-6">
+              <div className="grid gap-5">
                 <div className="space-y-2">
-                  <Label htmlFor="classwork-type">Type</Label>
-                  <select
-                    id="classwork-type"
-                    name="type"
-                    className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs transition-all outline-none focus-visible:border-primary focus-visible:ring-primary/20 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <option value="assignment">Assignment</option>
-                    <option value="quiz">Quiz</option>
-                    <option value="material">Material</option>
-                  </select>
+                  <Label htmlFor="classwork-title" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Title</Label>
+                  <Input
+                    id="classwork-title"
+                    name="title"
+                    required
+                    placeholder="e.g. Chapter 5 Quiz"
+                    className="h-11 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors text-base"
+                  />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="classwork-points">Points</Label>
+                  <Label htmlFor="classwork-description" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Description</Label>
+                  <Textarea
+                    id="classwork-description"
+                    name="description"
+                    placeholder="Add instructions or details..."
+                    rows={3}
+                    className="resize-none bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors"
+                  />
+                </div>
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="classwork-type" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Type</Label>
+                    <div className="relative">
+                      <select
+                        id="classwork-type"
+                        name="type"
+                        className="h-10 w-full appearance-none rounded-md border border-muted-foreground/20 bg-muted/20 px-3 py-2 text-sm shadow-sm transition-colors focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <option value="assignment">Assignment</option>
+                        <option value="quiz">Quiz</option>
+                        <option value="material">Material</option>
+                      </select>
+                      {/* Custom arrow could go here */}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="classwork-points" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Max Points</Label>
+                    <Input
+                      id="classwork-points"
+                      name="points"
+                      type="number"
+                      placeholder="e.g. 100"
+                      className="h-10 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="classwork-dueDate" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Due Date</Label>
                   <Input
-                    id="classwork-points"
-                    name="points"
-                    type="number"
-                    placeholder="e.g. 100"
+                    id="classwork-dueDate"
+                    name="dueDate"
+                    type="datetime-local"
+                    className="h-10 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors"
                   />
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="classwork-dueDate">Due Date</Label>
-                <Input
-                  id="classwork-dueDate"
-                  name="dueDate"
-                  type="datetime-local"
-                />
-              </div>
-              {error && <p className="text-sm text-destructive">{error}</p>}
-              <DialogFooter>
+
+              {error && (
+                <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive font-medium border border-destructive/20 animate-in fade-in slide-in-from-bottom-2">
+                  {error}
+                </div>
+              )}
+
+              <DialogFooter className="pt-2">
                 <button
                   type="button"
                   onClick={() => setCreateOpen(false)}
-                  className={cn(buttonVariants({ variant: "ghost" }), "text-muted-foreground")}
+                  className={cn(buttonVariants({ variant: "ghost" }), "text-muted-foreground hover:text-foreground")}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={pending}
-                  className={cn(buttonVariants(), "text-white disabled:opacity-70")}
+                  className={cn(buttonVariants(), "text-white disabled:opacity-70 shadow-md hover:shadow-lg transition-all min-w-[100px]")}
                   style={{ backgroundColor: classColor }}
                   onMouseEnter={(e) => {
                     if (!pending) e.currentTarget.style.opacity = "0.9"
@@ -360,7 +378,7 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
                         <Dialog open={submitOpen === item.id} onOpenChange={(open) => setSubmitOpen(open ? item.id : null)}>
                           <DialogTrigger asChild>
                             <button
-                              className={cn(buttonVariants({ size: "sm" }), "gap-2 text-white")}
+                              className={cn(buttonVariants({ size: "sm" }), "gap-2 text-white shadow-sm hover:shadow-md transition-all")}
                               style={{ backgroundColor: classColor }}
                               onMouseEnter={(e) => {
                                 e.currentTarget.style.opacity = "0.9"
@@ -374,53 +392,63 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
                               Submit
                             </button>
                           </DialogTrigger>
-                          <DialogContent className="sm:max-w-[500px]">
-                            <DialogHeader>
-                              <DialogTitle>Submit {item.title}</DialogTitle>
-                              <DialogDescription>
-                                Submit your work for this assignment.
+                          <DialogContent className="sm:max-w-[500px] gap-0 p-0 overflow-hidden border-0 shadow-2xl">
+                            <DialogHeader className="p-6 pb-2 bg-gradient-to-r from-muted/50 to-muted/10">
+                              <DialogTitle className="text-xl font-semibold tracking-tight">Submit Assignment</DialogTitle>
+                              <DialogDescription className="text-muted-foreground">
+                                Submit your work for &quot;{item.title}&quot;
                               </DialogDescription>
                             </DialogHeader>
-                            <form action={(fd) => handleSubmit(item.id, fd)} className="space-y-4">
-                              <label className="space-y-2 text-sm font-medium text-foreground">
-                                <span>Content</span>
-                                <textarea
-                                  name="content"
-                                  placeholder="Write your submission here..."
-                                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40"
-                                  rows={5}
-                                />
-                              </label>
-                              <label className="space-y-2 text-sm font-medium text-foreground">
-                                <span>File URL (optional)</span>
-                                <input
-                                  name="fileUrl"
-                                  type="url"
-                                  placeholder="https://..."
-                                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40"
-                                />
-                              </label>
-                              <label className="space-y-2 text-sm font-medium text-foreground">
-                                <span>File Name (optional)</span>
-                                <input
-                                  name="fileName"
-                                  placeholder="submission.pdf"
-                                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40"
-                                />
-                              </label>
-                              {error && <p className="text-sm text-destructive">{error}</p>}
-                              <DialogFooter>
+                            <form action={(fd) => handleSubmit(item.id, fd)} className="p-6 space-y-6">
+                              <div className="space-y-4">
+                                <div className="space-y-2">
+                                  <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Your Work</Label>
+                                  <textarea
+                                    name="content"
+                                    placeholder="Write your submission content or comments here..."
+                                    className="w-full rounded-md border border-muted-foreground/20 bg-muted/20 px-4 py-3 text-sm outline-none focus:bg-background focus:ring-1 focus:ring-primary transition-all resize-none"
+                                    rows={5}
+                                  />
+                                </div>
+                                <div className="grid gap-4">
+                                  <div className="space-y-2">
+                                    <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">File URL (Optional)</Label>
+                                    <Input
+                                      name="fileUrl"
+                                      type="url"
+                                      placeholder="https://drive.google.com/..."
+                                      className="h-10 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors"
+                                    />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">File Name (Optional)</Label>
+                                    <Input
+                                      name="fileName"
+                                      placeholder="Project_Details.pdf"
+                                      className="h-10 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+
+                              {error && (
+                                <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive font-medium border border-destructive/20 animate-in fade-in slide-in-from-bottom-2">
+                                  {error}
+                                </div>
+                              )}
+
+                              <DialogFooter className="pt-2">
                                 <button
                                   type="button"
                                   onClick={() => setSubmitOpen(null)}
-                                  className={cn(buttonVariants({ variant: "ghost" }), "text-muted-foreground")}
+                                  className={cn(buttonVariants({ variant: "ghost" }), "text-muted-foreground hover:text-foreground")}
                                 >
                                   Cancel
                                 </button>
                                 <button
                                   type="submit"
                                   disabled={pending}
-                                  className={cn(buttonVariants(), "text-white disabled:opacity-70")}
+                                  className={cn(buttonVariants(), "text-white disabled:opacity-70 shadow-md hover:shadow-lg transition-all min-w-[100px]")}
                                   style={{ backgroundColor: classColor }}
                                   onMouseEnter={(e) => {
                                     if (!pending) e.currentTarget.style.opacity = "0.9"
@@ -481,7 +509,7 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
                                 >
                                   <DialogTrigger asChild>
                                     <button
-                                      className={cn(buttonVariants({ size: "sm" }), "mt-2 gap-2 text-white")}
+                                      className={cn(buttonVariants({ size: "sm" }), "mt-2 gap-2 text-white shadow-sm hover:shadow-md transition-all")}
                                       style={{ backgroundColor: classColor }}
                                       onMouseEnter={(e) => {
                                         e.currentTarget.style.opacity = "0.9"
@@ -494,45 +522,54 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
                                       Grade
                                     </button>
                                   </DialogTrigger>
-                                  <DialogContent className="sm:max-w-[500px]">
-                                    <DialogHeader>
-                                      <DialogTitle>Grade Submission</DialogTitle>
-                                      <DialogDescription>
-                                        Grade {sub.student.name}'s submission.
+                                  <DialogContent className="sm:max-w-[500px] gap-0 p-0 overflow-hidden border-0 shadow-2xl">
+                                    <DialogHeader className="p-6 pb-2 bg-gradient-to-r from-muted/50 to-muted/10">
+                                      <DialogTitle className="text-xl font-semibold tracking-tight">Grade Submission</DialogTitle>
+                                      <DialogDescription className="text-muted-foreground">
+                                        Evaluating {sub.student.name}&apos;s work.
                                       </DialogDescription>
                                     </DialogHeader>
-                                    <form action={(fd) => handleGrade(sub.id, fd)} className="space-y-4">
-                                      <label className="space-y-2 text-sm font-medium text-foreground">
-                                        <span>Grade</span>
-                                        <input
-                                          name="grade"
-                                          required
-                                          placeholder="e.g. 85"
-                                          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40"
-                                        />
-                                      </label>
-                                      <label className="space-y-2 text-sm font-medium text-foreground">
-                                        <span>Feedback</span>
-                                        <textarea
-                                          name="feedback"
-                                          placeholder="Add feedback..."
-                                          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40"
-                                          rows={4}
-                                        />
-                                      </label>
-                                      {error && <p className="text-sm text-destructive">{error}</p>}
-                                      <DialogFooter>
+                                    <form action={(fd) => handleGrade(sub.id, fd)} className="p-6 space-y-6">
+                                      <div className="space-y-4">
+                                        <div className="space-y-2">
+                                          <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Score</Label>
+                                          <Input
+                                            name="grade"
+                                            required
+                                            type="number"
+                                            placeholder={`Out of ${item.points || 100}`}
+                                            className="h-11 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors text-lg font-medium"
+                                          />
+                                        </div>
+                                        <div className="space-y-2">
+                                          <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Feedback</Label>
+                                          <textarea
+                                            name="feedback"
+                                            placeholder="Provide constructive feedback..."
+                                            className="w-full rounded-md border border-muted-foreground/20 bg-muted/20 px-4 py-3 text-sm outline-none focus:bg-background focus:ring-1 focus:ring-primary transition-all resize-none"
+                                            rows={4}
+                                          />
+                                        </div>
+                                      </div>
+
+                                      {error && (
+                                        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive font-medium border border-destructive/20 animate-in fade-in slide-in-from-bottom-2">
+                                          {error}
+                                        </div>
+                                      )}
+
+                                      <DialogFooter className="pt-2">
                                         <button
                                           type="button"
                                           onClick={() => setGradeOpen(null)}
-                                          className={cn(buttonVariants({ variant: "ghost" }), "text-muted-foreground")}
+                                          className={cn(buttonVariants({ variant: "ghost" }), "text-muted-foreground hover:text-foreground")}
                                         >
                                           Cancel
                                         </button>
                                         <button
                                           type="submit"
                                           disabled={pending}
-                                          className={cn(buttonVariants(), "text-white disabled:opacity-70")}
+                                          className={cn(buttonVariants(), "text-white disabled:opacity-70 shadow-md hover:shadow-lg transition-all min-w-[100px]")}
                                           style={{ backgroundColor: classColor }}
                                           onMouseEnter={(e) => {
                                             if (!pending) e.currentTarget.style.opacity = "0.9"

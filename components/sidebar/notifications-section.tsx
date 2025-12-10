@@ -20,7 +20,7 @@ export function NotificationsSection({ userId }: NotificationsSectionProps) {
     // Fetch initial unread count
     const fetchUnreadCount = async () => {
       try {
-        const { count, error } = await supabase
+        const { count, error } = await supabase!
           .from("notifications")
           .select("*", { count: "exact", head: true })
           .eq("user_id", userId)
@@ -37,7 +37,7 @@ export function NotificationsSection({ userId }: NotificationsSectionProps) {
     fetchUnreadCount()
 
     // Subscribe to real-time changes
-    const channel = supabase
+    const channel = supabase!
       .channel(`notifications:${userId}`)
       .on(
         "postgres_changes",
@@ -48,7 +48,7 @@ export function NotificationsSection({ userId }: NotificationsSectionProps) {
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {
-          const newNotif = payload.new as any
+          const newNotif = payload.new as { read: boolean }
           if (newNotif.read === false) {
             setUnreadCount((prev) => prev + 1)
           }
@@ -63,8 +63,8 @@ export function NotificationsSection({ userId }: NotificationsSectionProps) {
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {
-          const updatedNotif = payload.new as any
-          const oldNotif = payload.old as any
+          const updatedNotif = payload.new as { read: boolean }
+          const oldNotif = payload.old as { read: boolean }
 
           // Only update count if read status actually changed
           if (oldNotif.read === false && updatedNotif.read === true) {
@@ -85,7 +85,7 @@ export function NotificationsSection({ userId }: NotificationsSectionProps) {
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {
-          const deletedNotif = payload.old as any
+          const deletedNotif = payload.old as { read: boolean }
           if (deletedNotif.read === false) {
             setUnreadCount((prev) => Math.max(0, prev - 1))
           }
@@ -107,7 +107,7 @@ export function NotificationsSection({ userId }: NotificationsSectionProps) {
 
     const refetchCount = async () => {
       try {
-        const { count, error } = await supabase
+        const { count, error } = await supabase!
           .from("notifications")
           .select("*", { count: "exact", head: true })
           .eq("user_id", userId)
@@ -129,20 +129,24 @@ export function NotificationsSection({ userId }: NotificationsSectionProps) {
     <Link
       href="/home/notifications"
       className={cn(
-        "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-all duration-200",
-        "hover:bg-primary/10 hover:text-primary",
+        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 group/item",
         isActive
-          ? "bg-primary/10 text-primary shadow-sm"
-          : "text-sidebar-foreground/70"
+          ? "bg-primary text-primary-foreground shadow-md"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground"
       )}
     >
       <Bell className={cn(
-        "h-4 w-4 stroke-[2]",
-        isActive && "text-primary"
+        "h-4 w-4 transition-transform group-hover/item:shake",
+        isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"
       )} />
-      <span className="tracking-tight">Notifications</span>
+      <span>Notifications</span>
       {unreadCount > 0 && (
-        <span className="ml-auto rounded-full bg-primary px-1.5 py-0.5 min-w-[1.25rem] text-center text-[10px] font-semibold text-primary-foreground">
+        <span className={cn(
+          "ml-auto rounded-full px-2 py-0.5 min-w-[1.25rem] text-center text-[10px] font-bold shadow-sm",
+          isActive
+            ? "bg-white text-primary"
+            : "bg-primary text-primary-foreground"
+        )}>
           {unreadCount > 99 ? "99+" : unreadCount}
         </span>
       )}

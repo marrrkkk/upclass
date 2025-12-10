@@ -3,7 +3,21 @@
 import { useState, useTransition, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Download, Edit, FileText, Calendar, User, Tag, Bot } from "lucide-react"
+import {
+  ArrowLeft,
+  Download,
+  Edit,
+  FileText,
+  Calendar,
+  User,
+  Tag,
+  Bot,
+  FileCode,
+  FileSpreadsheet,
+  Presentation,
+  FileIcon as FileIconLucide,
+  FileType
+} from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -50,13 +64,14 @@ type ResourceDetailClientProps = {
   currentUserId: string
 }
 
-const getFileIcon = (fileType: string) => {
-  if (fileType === "pdf") return "📄"
-  if (fileType === "ppt" || fileType === "pptx") return "📊"
-  if (fileType === "doc" || fileType === "docx") return "📝"
-  if (fileType === "xls" || fileType === "xlsx") return "📈"
-  if (fileType === "txt") return "📋"
-  return "📎"
+const getFileTypeInfo = (type: string) => {
+  const t = type.toLowerCase()
+  if (t === 'pdf') return { icon: FileText, bgColor: 'bg-red-50', textColor: 'text-red-600' }
+  if (t === 'doc' || t === 'docx') return { icon: FileText, bgColor: 'bg-blue-50', textColor: 'text-blue-600' }
+  if (t === 'xls' || t === 'xlsx' || t === 'csv') return { icon: FileSpreadsheet, bgColor: 'bg-green-50', textColor: 'text-green-600' }
+  if (t === 'ppt' || t === 'pptx') return { icon: Presentation, bgColor: 'bg-orange-50', textColor: 'text-orange-600' }
+  if (t === 'txt') return { icon: FileType, bgColor: 'bg-gray-50', textColor: 'text-gray-600' }
+  return { icon: FileIconLucide, bgColor: 'bg-gray-50', textColor: 'text-gray-600' }
 }
 
 const formatFileSize = (size: string | null) => {
@@ -92,6 +107,9 @@ export function ResourceDetailClient({ resource, isOwner, currentUserId }: Resou
   const [category, setCategory] = useState(resource.category || "General")
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+
+  // Determine styles based on file type
+  const fileInfo = getFileTypeInfo(resource.fileType)
 
   // Set page title for breadcrumbs
   useEffect(() => {
@@ -138,12 +156,6 @@ export function ResourceDetailClient({ resource, isOwner, currentUserId }: Resou
     window.open(resource.fileUrl, "_blank")
   }
 
-  const handlePreview = () => {
-    if (canPreview(resource.fileType)) {
-      window.open(resource.fileUrl, "_blank")
-    }
-  }
-
   const getInitials = (name: string) => {
     return name
       .split(" ")
@@ -153,46 +165,30 @@ export function ResourceDetailClient({ resource, isOwner, currentUserId }: Resou
       .slice(0, 2)
   }
 
-  const primaryColor = "#3b82f6" // Primary blue
-
   return (
-    <div className="flex flex-col gap-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link href="/home/resources">
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
+    <div className="flex flex-col gap-8 max-w-7xl mx-auto">
+      {/* Header Back Link */}
+      <div>
+        <Link
+          href="/home/resources"
+          className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          Back to resources
         </Link>
-        <div className="flex-1">
-          <h1 className="text-3xl font-bold">{resource.title}</h1>
-        </div>
-        {isOwner && (
-          <Button
-            variant="outline"
-            onClick={handleOpenEdit}
-            style={{ borderColor: `${primaryColor}40` }}
-          >
-            <Edit className="h-4 w-4 mr-2" />
-            Edit
-          </Button>
-        )}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Main Content */}
+      <div className="grid lg:grid-cols-3 gap-8">
+        {/* Left Column: Preview & File Visual */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Preview Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Preview
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+          <div className={cn("relative overflow-hidden rounded-2xl border bg-card shadow-sm group", fileInfo.bgColor)}>
+            {/* Background Pattern */}
+            <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_1px_1px,currentColor_1px,transparent_0)] [background-size:24px_24px] [color:inherit]" />
+
+            {/* Preview Content */}
+            <div className="relative z-10 p-1">
               {canPreview(resource.fileType) ? (
-                <div className="aspect-video w-full rounded-lg border bg-muted overflow-hidden">
+                <div className="aspect-[4/3] w-full rounded-xl bg-background shadow-inner overflow-hidden border">
                   <iframe
                     src={resource.fileUrl}
                     className="w-full h-full"
@@ -200,214 +196,211 @@ export function ResourceDetailClient({ resource, isOwner, currentUserId }: Resou
                   />
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center aspect-video rounded-lg border bg-muted">
-                  <div className="text-6xl mb-4">{getFileIcon(resource.fileType)}</div>
-                  <p className="text-muted-foreground mb-4">
-                    Preview not available for {resource.fileType.toUpperCase()} files
+                <div className="aspect-[4/3] w-full flex flex-col items-center justify-center text-center p-12">
+                  <div className={cn("p-8 rounded-3xl bg-white/30 backdrop-blur-md shadow-lg mb-6 transform transition-transform group-hover:scale-105", fileInfo.textColor)}>
+                    <fileInfo.icon className="h-24 w-24" />
+                  </div>
+                  <h3 className="text-xl font-semibold opacity-90 mb-2">
+                    Preview not available
+                  </h3>
+                  <p className="text-muted-foreground max-w-xs mx-auto mb-8">
+                    This file type ({resource.fileType.toUpperCase()}) cannot be previewed in the browser.
                   </p>
-                  <Button onClick={handleDownload} style={{ backgroundColor: primaryColor }}>
+                  <Button
+                    onClick={handleDownload}
+                    size="lg"
+                    className="rounded-full shadow-lg hover:shadow-xl transition-all"
+                  >
                     <Download className="h-4 w-4 mr-2" />
-                    Download to View
+                    Download File
                   </Button>
                 </div>
               )}
-            </CardContent>
-          </Card>
-
-          {/* Description */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Description</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground whitespace-pre-wrap">
-                {resource.description || "No description provided."}
-              </p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
-        {/* Sidebar */}
+        {/* Right Column: Details & Actions */}
         <div className="space-y-6">
-          {/* Info Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* File Info */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <FileText className="h-4 w-4" />
-                  <span className="font-medium">File:</span>
-                </div>
-                <p className="text-sm">{resource.fileName}</p>
-                <p className="text-xs text-muted-foreground">
-                  {formatFileSize(resource.fileSize)} • {resource.fileType.toUpperCase()}
-                </p>
-              </div>
-
-              {/* Category */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Tag className="h-4 w-4" />
-                  <span className="font-medium">Category:</span>
-                </div>
-                <span
-                  className="inline-block rounded-full border px-3 py-1 text-xs font-medium"
-                  style={{
-                    borderColor: `${primaryColor}40`,
-                    backgroundColor: `${primaryColor}15`,
-                    color: primaryColor,
-                  }}
-                >
-                  {resource.category || "General"}
-                </span>
-              </div>
-
-              {/* Owner */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <User className="h-4 w-4" />
-                  <span className="font-medium">Owner:</span>
-                </div>
-                <Link
-                  href={`/home/user/${resource.owner.id}`}
-                  className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-                >
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={resource.owner.image || undefined} alt={resource.owner.name} />
-                    <AvatarFallback className="text-xs" style={{ backgroundColor: primaryColor, color: "white" }}>
-                      {getInitials(resource.owner.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="text-sm font-medium">{resource.owner.name}</p>
-                    <p className="text-xs text-muted-foreground">{resource.owner.email}</p>
-                  </div>
-                </Link>
-              </div>
-
-              {/* Dates */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Calendar className="h-4 w-4" />
-                  <span className="font-medium">Created:</span>
-                </div>
-                <p className="text-xs">{formatDate(resource.createdAt)}</p>
-                {resource.updatedAt !== resource.createdAt && (
-                  <>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
-                      <Calendar className="h-4 w-4" />
-                      <span className="font-medium">Updated:</span>
-                    </div>
-                    <p className="text-xs">{formatDate(resource.updatedAt)}</p>
-                  </>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button
-                onClick={handleDownload}
-                className="w-full"
-                style={{ backgroundColor: primaryColor }}
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Download
-              </Button>
-              {canPreview(resource.fileType) && (
+          {/* Header Info */}
+          <div className="space-y-4">
+            <div className="flex items-start justify-between gap-4">
+              <h1 className="text-3xl font-bold leading-tight decoration-clone bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
+                {resource.title}
+              </h1>
+              {isOwner && (
                 <Button
-                  onClick={handlePreview}
                   variant="outline"
-                  className="w-full"
-                  style={{ borderColor: `${primaryColor}40` }}
+                  size="icon"
+                  className="shrink-0"
+                  onClick={handleOpenEdit}
                 >
-                  <FileText className="h-4 w-4 mr-2" />
-                  Open Preview
+                  <Edit className="h-4 w-4" />
                 </Button>
               )}
-              <Button
-                onClick={() => setAiChatOpen(true)}
-                variant="outline"
-                className="w-full"
-                style={{ borderColor: `${primaryColor}40` }}
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <span
+                className={cn("px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider", fileInfo.bgColor, fileInfo.textColor)}
               >
-                <Bot className="h-4 w-4 mr-2" />
-                Ask AI
-              </Button>
+                {resource.fileType}
+              </span>
+              <span className="px-3 py-1 rounded-full text-xs font-medium bg-secondary text-secondary-foreground">
+                {formatFileSize(resource.fileSize)}
+              </span>
+              <span className="px-3 py-1 rounded-full text-xs font-medium bg-secondary text-secondary-foreground border border-border">
+                {resource.category || "General"}
+              </span>
+            </div>
+          </div>
+
+          {/* Description */}
+          <div className="prose prose-sm text-muted-foreground max-w-none">
+            <p className="whitespace-pre-wrap leading-relaxed">
+              {resource.description || "No description provided for this resource."}
+            </p>
+          </div>
+
+          {/* Actions */}
+          <Card className="overflow-hidden border-none shadow-lg bg-gradient-to-br from-card to-secondary/20">
+            <CardContent className="p-0">
+              <div className="flex flex-col">
+                <button
+                  onClick={() => setAiChatOpen(true)}
+                  className="flex items-center gap-4 p-4 hover:bg-muted/50 transition-colors text-left group border-b border-border/50"
+                >
+                  <div className="h-10 w-10 rounded-full bg-violet-100 flex items-center justify-center text-violet-600 group-hover:scale-110 transition-transform">
+                    <Bot className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1">
+                    <span className="font-semibold block text-base group-hover:text-primary transition-colors">Ask AI Assistant</span>
+                    <span className="text-xs text-muted-foreground">Summarize, question, or analyze this file</span>
+                  </div>
+                  <ArrowLeft className="h-4 w-4 rotate-180 text-muted-foreground group-hover:translate-x-1 transition-transform" />
+                </button>
+
+                <button
+                  onClick={handleDownload}
+                  className="flex items-center gap-4 p-4 hover:bg-muted/50 transition-colors text-left group"
+                >
+                  <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
+                    <Download className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1">
+                    <span className="font-semibold block text-base group-hover:text-primary transition-colors">Download File</span>
+                    <span className="text-xs text-muted-foreground">Save to your device</span>
+                  </div>
+                  <ArrowLeft className="h-4 w-4 rotate-180 text-muted-foreground group-hover:translate-x-1 transition-transform" />
+                </button>
+              </div>
             </CardContent>
           </Card>
+
+          {/* Metadata */}
+          <div className="rounded-xl bg-muted/30 p-4 space-y-4 border border-border/50">
+            <div className="flex items-center gap-3">
+              <Avatar className="h-10 w-10 border border-background shadow-sm">
+                <AvatarImage src={resource.owner.image || undefined} alt={resource.owner.name} />
+                <AvatarFallback>{getInitials(resource.owner.name)}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{resource.owner.name}</p>
+                <p className="text-xs text-muted-foreground truncate">{resource.owner.email}</p>
+              </div>
+            </div>
+
+            <div className="h-px bg-border/50" />
+
+            <div className="grid grid-cols-2 gap-4 text-xs">
+              <div>
+                <p className="text-muted-foreground mb-1">Created</p>
+                <p className="font-medium flex items-center gap-1.5">
+                  <Calendar className="h-3.5 w-3.5" />
+                  {formatDate(resource.createdAt)}
+                </p>
+              </div>
+              <div>
+                <p className="text-muted-foreground mb-1">Updated</p>
+                <p className="font-medium flex items-center gap-1.5">
+                  <Calendar className="h-3.5 w-3.5" />
+                  {formatDate(resource.updatedAt)}
+                </p>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
 
-      {/* Edit Dialog */}
+      {/* Edit Dialog - Kept similar functional logic but ensured improved visuals */}
+      {/* Edit Dialog - Premium UI */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Edit Resource</DialogTitle>
-            <DialogDescription>
+        <DialogContent className="sm:max-w-[550px] gap-0 p-0 overflow-hidden border-0 shadow-2xl">
+          <DialogHeader className="p-6 pb-2 bg-gradient-to-r from-muted/50 to-muted/10 border-b border-border/50">
+            <DialogTitle className="text-xl font-semibold tracking-tight">Edit Resource</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
               Update the resource details. Click save when you're done.
             </DialogDescription>
           </DialogHeader>
 
           {error && (
-            <div className="rounded-lg border border-destructive bg-destructive/10 p-3 text-sm text-destructive">
-              {error}
+            <div className="px-6 pt-4">
+              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive font-medium border border-destructive/20 animate-in fade-in slide-in-from-bottom-2">
+                {error}
+              </div>
             </div>
           )}
 
-          <div className="space-y-4 py-4">
+          <div className="space-y-5 p-6">
             <div className="space-y-2">
-              <Label htmlFor="edit-title">Title</Label>
+              <Label htmlFor="edit-title" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Title</Label>
               <Input
                 id="edit-title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Resource title"
+                className="h-11 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors text-base"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="edit-description">Description</Label>
+              <Label htmlFor="edit-description" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Description</Label>
               <Textarea
                 id="edit-description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Add a description..."
                 rows={6}
+                className="resize-none bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="edit-category">Category</Label>
+              <Label htmlFor="edit-category" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Category</Label>
               <Input
                 id="edit-category"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 placeholder="e.g. Lecture Notes, Assignments"
+                className="h-10 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors"
               />
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="px-6 py-4 bg-muted/30 border-t backdrop-blur-sm">
             <Button
-              variant="outline"
+              variant="ghost"
               onClick={handleCloseEdit}
               disabled={pending}
+              className="text-muted-foreground hover:text-foreground"
             >
               Cancel
             </Button>
             <Button
               onClick={handleSave}
               disabled={pending || !title.trim()}
-              style={{ backgroundColor: primaryColor }}
+              className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg transition-all px-6"
             >
               {pending ? "Saving..." : "Save Changes"}
             </Button>
@@ -430,4 +423,6 @@ export function ResourceDetailClient({ resource, isOwner, currentUserId }: Resou
     </div>
   )
 }
+
+
 

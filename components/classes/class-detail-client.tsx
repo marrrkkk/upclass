@@ -106,151 +106,167 @@ export function ClassDetailClient({
   const classColor = classData.color || "#3b82f6"
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Cover with class color */}
+    <div className="flex flex-col gap-6 -mt-4">
+      {/* Hero Banner */}
       <div
-        className="h-32 w-full rounded-lg"
-        style={{ backgroundColor: classColor }}
-      />
+        className="relative w-full rounded-b-xl overflow-hidden shadow-sm"
+        style={{
+          background: `linear-gradient(135deg, ${classColor} 0%, ${classColor}dd 100%)`,
+          height: "240px"
+        }}
+      >
+        {/* Pattern Overlay */}
+        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_1px_1px,white_1px,transparent_0)] [background-size:24px_24px]" />
 
-      {/* Header */}
-      <div className="space-y-3">
-        <div className="flex items-start justify-between">
-          <div className="space-y-2">
-            <h1 className="text-3xl font-bold text-foreground">{classData.title}</h1>
-            {classData.description && (
-              <p className="text-muted-foreground">{classData.description}</p>
-            )}
-          </div>
-          {userRole === "teacher" && (
-            <div className="flex items-center gap-2">
+        {/* Content Container */}
+        <div className="absolute bottom-0 left-0 w-full p-8 text-white">
+          <div className="flex items-end justify-between gap-4">
+            <div className="space-y-2 max-w-2xl">
+              <div className="flex items-center gap-2 mb-2">
+                {classData.category && (
+                  <span className="inline-flex items-center rounded-full bg-white/20 px-3 py-1 text-xs font-medium backdrop-blur-sm border border-white/20">
+                    {classData.category}
+                  </span>
+                )}
+                {classData.schedule && (
+                  <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-1 text-xs font-medium backdrop-blur-sm">
+                    {classData.schedule}
+                  </span>
+                )}
+              </div>
+              <h1 className="text-4xl font-bold tracking-tight text-white drop-shadow-sm">
+                {classData.title}
+              </h1>
+              {classData.description && (
+                <p className="text-blue-50/90 text-lg max-w-xl line-clamp-2">
+                  {classData.description}
+                </p>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex flex-col items-end gap-3">
+              {userRole === "teacher" && (
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 rounded-lg bg-white/10 p-2 backdrop-blur-md border border-white/20">
+                    <div className="px-2">
+                      <p className="text-[10px] font-medium text-blue-100 uppercase tracking-wider">Class Code</p>
+                      <p className="font-mono text-xl font-bold">{classData.code}</p>
+                    </div>
+                    <button
+                      onClick={handleCopyCode}
+                      className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-white/20 transition-colors"
+                      type="button"
+                      title="Copy class code"
+                    >
+                      {copied ? (
+                        <Check className="h-4 w-4" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                  <ClassSettingsDialog classData={classData} trigger={
+                    <button className="h-10 w-10 rounded-lg bg-white/10 flex items-center justify-center hover:bg-white/20 backdrop-blur-md border border-white/20 transition-colors">
+                      <Settings className="h-5 w-5" />
+                    </button>
+                  } />
+                </div>
+              )}
+
               <a
                 href={`/home/classes/${classData.id}/whiteboard`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={cn(
-                  buttonVariants({ variant: "outline" }),
-                  "gap-2"
-                )}
-                style={{ borderColor: `${classColor}40` }}
+                className="inline-flex items-center gap-2 rounded-lg bg-white text-blue-600 px-4 py-2 font-semibold shadow-sm hover:bg-blue-50 transition-colors"
               >
                 <PenTool className="h-4 w-4" />
-                Whiteboard
+                Open Whiteboard
               </a>
-              <ClassSettingsDialog classData={classData} />
-              <div className="flex items-center gap-2 rounded-lg border bg-card p-3">
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground">Class Code</p>
-                  <p className="font-mono text-lg font-semibold">{classData.code}</p>
-                </div>
-                <button
-                  onClick={handleCopyCode}
-                  className={cn(
-                    buttonVariants({ variant: "ghost", size: "icon" }),
-                    "h-8 w-8",
-                  )}
-                  type="button"
-                  title="Copy class code"
-                >
-                  {copied ? (
-                    <Check className="h-4 w-4 text-green-600" />
-                  ) : (
-                    <Copy className="h-4 w-4" />
-                  )}
-                </button>
-              </div>
             </div>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {classData.category && (
-            <span
-              className="inline-block rounded-full border px-3 py-1 text-xs font-medium"
-              style={{
-                borderColor: `${classColor}40`,
-                backgroundColor: `${classColor}15`,
-                color: classColor,
-              }}
-            >
-              {classData.category}
-            </span>
-          )}
-          <a
-            href={`/home/classes/${classData.id}/whiteboard`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={cn(
-              buttonVariants({ variant: "outline" }),
-              "gap-2"
-            )}
-            style={{ borderColor: `${classColor}40` }}
-          >
-            <PenTool className="h-4 w-4" />
-            Whiteboard
-          </a>
+          </div>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="inline-flex rounded-lg border bg-card p-1 text-sm shadow-sm">
-        <button
-          className={cn(
-            "rounded-md px-4 py-2 font-medium transition-colors",
-            activeTab === "stream"
-              ? "text-white"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-          style={activeTab === "stream" ? { backgroundColor: classColor } : {}}
-          onClick={() => setActiveTab("stream")}
-        >
-          Stream
-        </button>
-        <button
-          className={cn(
-            "rounded-md px-4 py-2 font-medium transition-colors",
-            activeTab === "classwork"
-              ? "text-white"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-          style={activeTab === "classwork" ? { backgroundColor: classColor } : {}}
-          onClick={() => setActiveTab("classwork")}
-        >
-          Classwork
-        </button>
-        <button
-          className={cn(
-            "rounded-md px-4 py-2 font-medium transition-colors",
-            activeTab === "people"
-              ? "text-white"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-          style={activeTab === "people" ? { backgroundColor: classColor } : {}}
-          onClick={() => setActiveTab("people")}
-        >
-          People
-        </button>
+      {/* Tabs Navigation */}
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b w-full">
+        <div className="flex items-center gap-8 px-4">
+          <button
+            className={cn(
+              "relative py-4 text-sm font-medium transition-colors hover:text-foreground",
+              activeTab === "stream"
+                ? "text-primary"
+                : "text-muted-foreground"
+            )}
+            onClick={() => setActiveTab("stream")}
+          >
+            Stream
+            {activeTab === "stream" && (
+              <span
+                className="absolute bottom-0 left-0 h-0.5 w-full bg-primary rounded-t-full"
+                style={{ backgroundColor: classColor }}
+              />
+            )}
+          </button>
+          <button
+            className={cn(
+              "relative py-4 text-sm font-medium transition-colors hover:text-foreground",
+              activeTab === "classwork"
+                ? "text-primary"
+                : "text-muted-foreground"
+            )}
+            onClick={() => setActiveTab("classwork")}
+          >
+            Classwork
+            {activeTab === "classwork" && (
+              <span
+                className="absolute bottom-0 left-0 h-0.5 w-full bg-primary rounded-t-full"
+                style={{ backgroundColor: classColor }}
+              />
+            )}
+          </button>
+          <button
+            className={cn(
+              "relative py-4 text-sm font-medium transition-colors hover:text-foreground",
+              activeTab === "people"
+                ? "text-primary"
+                : "text-muted-foreground"
+            )}
+            onClick={() => setActiveTab("people")}
+          >
+            People
+            {activeTab === "people" && (
+              <span
+                className="absolute bottom-0 left-0 h-0.5 w-full bg-primary rounded-t-full"
+                style={{ backgroundColor: classColor }}
+              />
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Tab Content */}
-      {activeTab === "stream" && (
-        <StreamTab
-          classId={classData.id}
-          userRole={userRole}
-          announcements={announcements}
-          classColor={classColor}
-        />
-      )}
-      {activeTab === "classwork" && (
-        <ClassworkTab
-          classId={classData.id}
-          userId={userId}
-          userRole={userRole}
-          classwork={classwork}
-          submissions={submissions}
-          classColor={classColor}
-        />
-      )}
-      {activeTab === "people" && <PeopleTab members={members} />}
+      <div className="px-1">
+        {activeTab === "stream" && (
+          <StreamTab
+            classId={classData.id}
+            userRole={userRole}
+            announcements={announcements}
+            classColor={classColor}
+          />
+        )}
+        {activeTab === "classwork" && (
+          <ClassworkTab
+            classId={classData.id}
+            userId={userId}
+            userRole={userRole}
+            classwork={classwork}
+            submissions={submissions}
+            classColor={classColor}
+          />
+        )}
+        {activeTab === "people" && <PeopleTab members={members} />}
+      </div>
     </div>
   )
 }

@@ -65,7 +65,7 @@ export function StreamTab({ classId, userRole, announcements, classColor }: Stre
       .subscribe()
 
     return () => {
-      supabase.removeChannel(channel)
+      supabase?.removeChannel(channel)
     }
   }, [classId, router])
 
@@ -96,109 +96,183 @@ export function StreamTab({ classId, userRole, announcements, classColor }: Stre
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
   }
 
+  // Determine if we should show the 2-column layout
+  const showSidebar = true // We can make this conditional based on props later
+
   return (
-    <div className="flex flex-col gap-4">
-      {/* Create Announcement Button (only for teachers) */}
-      {userRole === "teacher" && (
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <button
-              className={cn(buttonVariants({ size: "sm" }), "w-fit gap-2 text-white")}
-              style={{ backgroundColor: classColor }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.opacity = "0.9"
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.opacity = "1"
-              }}
-              type="button"
+    <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6 items-start">
+      {/* Sidebar - Upcoming Work */}
+      <div className="hidden lg:block space-y-4">
+        <Card className="border-l-4" style={{ borderLeftColor: classColor }}>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-semibold text-sm">Upcoming</h3>
+            </div>
+            <p className="text-sm text-muted-foreground py-8 text-center">
+              No work due soon
+            </p>
+            <div className="flex justify-end">
+              <button
+                className="text-xs font-medium hover:underline"
+                style={{ color: classColor }}
+                onClick={() => {
+                  // Navigate to classwork tab via parent or router
+                  // For now this is just a visual link
+                }}
+              >
+                View all
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Main Feed */}
+      <div className="flex flex-col gap-4">
+        {/* Create Announcement Input */}
+        <Card className="shadow-sm overflow-hidden">
+          {userRole === "teacher" ? (
+            <div
+              className="p-4 cursor-pointer transition-colors hover:bg-muted/30"
+              onClick={() => setOpen(true)}
             >
-              <Plus className="h-4 w-4" />
-              Create announcement
-            </button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Create Announcement</DialogTitle>
-              <DialogDescription>
-                Share an announcement with your class.
-              </DialogDescription>
+              <div className="flex items-center gap-4">
+                <Avatar className="h-10 w-10">
+                  <AvatarFallback className="bg-blue-100 text-blue-600">
+                    <Plus className="h-5 w-5" />
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 rounded-full bg-muted/50 px-4 py-2.5 text-sm text-muted-foreground hover:bg-muted transition-colors text-left">
+                  Announce something to your class...
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="p-4 flex items-center gap-3 text-muted-foreground">
+              <MessageSquare className="h-5 w-5" />
+              <p className="text-sm">Only teachers can post announcements.</p>
+            </div>
+          )}
+        </Card>
+
+        {/* Create Dialog */}
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden gap-0 border-0 shadow-2xl">
+            <DialogHeader className="p-6 pb-2 bg-gradient-to-r from-muted/50 to-muted/10 border-b border-border/50">
+              <DialogTitle className="text-xl font-semibold tracking-tight flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                  <MessageSquare className="h-5 w-5" />
+                </div>
+                Announcement
+              </DialogTitle>
             </DialogHeader>
-            <form action={handleCreate} className="space-y-4">
-              <label className="space-y-2 text-sm font-medium text-foreground">
-                <span>Content</span>
+            <div className="p-6 pb-4">
+              <form id="announcement-form" action={handleCreate} className="space-y-4">
                 <textarea
                   name="content"
                   required
-                  placeholder="What's on your mind?"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40"
-                  rows={5}
+                  placeholder="Announce something to your class..."
+                  className="w-full min-h-[180px] resize-none border-0 bg-transparent p-0 text-base outline-none placeholder:text-muted-foreground focus:ring-0 leading-relaxed"
                 />
-              </label>
-              {error && <p className="text-sm text-destructive">{error}</p>}
-              <DialogFooter>
+              </form>
+            </div>
+            {error && (
+              <div className="px-6 pb-4">
+                <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive font-medium border border-destructive/20 animate-in fade-in slide-in-from-bottom-2">
+                  {error}
+                </div>
+              </div>
+            )}
+            <div className="bg-muted/30 px-6 py-4 flex items-center justify-between border-t backdrop-blur-sm">
+              <div className="flex items-center gap-2">
+                {/* Add attachment buttons here in future */}
+                <button type="button" className="p-2 rounded-full hover:bg-muted transition-all text-muted-foreground hover:text-foreground" title="Add attachment">
+                  <div className="h-5 w-5 border-2 border-dashed border-current rounded-sm flex items-center justify-center opacity-60">
+                    <Plus className="h-3 w-3" />
+                  </div>
+                </button>
+              </div>
+              <div className="flex items-center gap-3">
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className={cn(buttonVariants({ variant: "ghost" }), "text-muted-foreground")}
+                  className={cn(buttonVariants({ variant: "ghost" }), "text-muted-foreground hover:text-foreground")}
                 >
                   Cancel
                 </button>
                 <button
+                  form="announcement-form"
                   type="submit"
                   disabled={pending}
-                  className={cn(buttonVariants(), "text-white disabled:opacity-70")}
+                  className={cn(buttonVariants(), "text-white disabled:opacity-70 px-6 shadow-md hover:shadow-lg transition-all")}
                   style={{ backgroundColor: classColor }}
-                  onMouseEnter={(e) => {
-                    if (!pending) e.currentTarget.style.opacity = "0.9"
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.opacity = "1"
-                  }}
                 >
                   {pending ? "Posting..." : "Post"}
                 </button>
-              </DialogFooter>
-            </form>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
-      )}
 
-      {/* Announcements List */}
-      {announcements.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <MessageSquare className="h-12 w-12 text-muted-foreground" />
-            <p className="mt-4 text-sm text-muted-foreground">No announcements yet</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="flex flex-col gap-4">
-          {announcements.map((announcement) => {
-            const authorInitial = announcement.author.name.charAt(0).toUpperCase()
-            return (
-              <Card key={announcement.id}>
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <Avatar>
-                      <AvatarImage src={announcement.author.image || undefined} alt={announcement.author.name} />
-                      <AvatarFallback>{authorInitial}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <p className="font-semibold">{announcement.author.name}</p>
-                      <p className="text-xs text-muted-foreground">{formatDate(announcement.createdAt)}</p>
+        {/* Announcements List */}
+        {announcements.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center rounded-xl border-2 border-dashed border-muted-foreground/10 bg-muted/10">
+            <div className="rounded-full bg-background p-4 shadow-sm mb-3">
+              <MessageSquare className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <p className="text-sm font-medium text-foreground">No announcements yet</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {userRole === "teacher"
+                ? "Share updates, assignments, and more with your class."
+                : "Check back later for updates from your teacher."}
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4">
+            {announcements.map((announcement) => {
+              const authorInitial = announcement.author.name.charAt(0).toUpperCase()
+              return (
+                <Card key={announcement.id} className="group transition-all hover:shadow-md border-border/60">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10 border">
+                          <AvatarImage src={announcement.author.image || undefined} alt={announcement.author.name} />
+                          <AvatarFallback className="bg-primary/10 text-primary">{authorInitial}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-semibold text-sm leading-none">{announcement.author.name}</p>
+                          <p className="text-xs text-muted-foreground mt-1">{formatDate(announcement.createdAt)}</p>
+                        </div>
+                      </div>
+                      <button className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-muted rounded-full text-muted-foreground">
+                        <div className="h-1 w-1 bg-current rounded-full mb-0.5" />
+                        <div className="h-1 w-1 bg-current rounded-full mb-0.5" />
+                        <div className="h-1 w-1 bg-current rounded-full" />
+                      </button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">{announcement.content}</p>
+                  </CardContent>
+                  <div className="px-6 py-3 border-t bg-muted/5 flex items-center gap-4">
+                    {/* Comment placeholder */}
+                    <div className="flex-1 flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-full bg-muted animate-pulse" /> {/* User avatar placeholder */}
+                      <div className="h-9 flex-1 rounded-full border bg-background px-3 text-sm text-muted-foreground flex items-center">
+                        Add class comment...
+                      </div>
+                      <button className="p-2 text-muted-foreground hover:text-primary transition-colors">
+                        <Send className="h-4 w-4" />
+                      </button>
                     </div>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="whitespace-pre-wrap text-sm">{announcement.content}</p>
-                </CardContent>
-              </Card>
-            )
-          })}
-        </div>
-      )}
+                </Card>
+              )
+            })}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
-

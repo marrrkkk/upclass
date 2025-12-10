@@ -63,68 +63,79 @@ export function NewConversationDialog({ currentUserId }: NewConversationDialogPr
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <button
-          className={cn(buttonVariants({ size: "sm" }), "gap-2")}
+          className={cn(buttonVariants({ size: "sm" }), "gap-2 shadow-sm transition-all hover:shadow-md")}
           type="button"
         >
           <Plus className="h-4 w-4" />
           New Conversation
         </button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>Start New Conversation</DialogTitle>
-          <DialogDescription>
-            Enter the email address of the user you want to message.
+      <DialogContent className="sm:max-w-[480px] gap-0 p-0 overflow-hidden border-0 shadow-2xl">
+        <DialogHeader className="p-6 pb-2">
+          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+            <Plus className="h-6 w-6 text-primary" />
+          </div>
+          <DialogTitle className="text-xl font-semibold tracking-tight">Start New Conversation</DialogTitle>
+          <DialogDescription className="text-muted-foreground">
+            Connect with other users by entering their email address.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email Address</Label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-              <Input
-                id="email"
-                type="email"
-                placeholder="user@example.com"
-                value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value)
-                  setError(null)
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault()
-                    handleSearch()
-                  }
-                }}
-                className="pl-10"
-                disabled={pending}
-              />
+        <div className="p-6 pt-2 space-y-6">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Email Address</Label>
+              <div className="relative group">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none" />
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="user@example.com"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value)
+                    setError(null)
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault()
+                      handleSearch()
+                    }
+                  }}
+                  className="pl-10 h-11 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors text-base"
+                  disabled={pending}
+                />
+              </div>
             </div>
+
+            {error && (
+              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive font-medium border border-destructive/20 animate-in fade-in slide-in-from-bottom-2">
+                {error}
+              </div>
+            )}
           </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
+
+          <DialogFooter className="pt-2">
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false)
+                setEmail("")
+                setError(null)
+              }}
+              className={cn(buttonVariants({ variant: "ghost" }), "text-muted-foreground hover:text-foreground")}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSearch}
+              disabled={pending || !email.trim()}
+              className={cn(buttonVariants(), "min-w-[100px] shadow-md hover:shadow-lg transition-all", pending && "opacity-80")}
+            >
+              {pending ? "Searching..." : "Start Chat"}
+            </button>
+          </DialogFooter>
         </div>
-        <DialogFooter>
-          <button
-            type="button"
-            onClick={() => {
-              setOpen(false)
-              setEmail("")
-              setError(null)
-            }}
-            className={cn(buttonVariants({ variant: "ghost" }), "text-muted-foreground")}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleSearch}
-            disabled={pending || !email.trim()}
-            className={cn(buttonVariants())}
-          >
-            {pending ? "Searching..." : "Start Conversation"}
-          </button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

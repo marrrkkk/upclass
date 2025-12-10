@@ -20,7 +20,7 @@ export function MessagesSection({ userId }: MessagesSectionProps) {
     // Fetch initial unread count
     const fetchUnreadCount = async () => {
       try {
-        const { count, error } = await supabase
+        const { count, error } = await supabase!
           .from("messages")
           .select("*", { count: "exact", head: true })
           .eq("receiver_id", userId)
@@ -37,7 +37,7 @@ export function MessagesSection({ userId }: MessagesSectionProps) {
     fetchUnreadCount()
 
     // Subscribe to real-time changes
-    const channel = supabase
+    const channel = supabase!
       .channel(`messages:${userId}`)
       .on(
         "postgres_changes",
@@ -48,7 +48,7 @@ export function MessagesSection({ userId }: MessagesSectionProps) {
           filter: `receiver_id=eq.${userId}`,
         },
         (payload) => {
-          const newMessage = payload.new as any
+          const newMessage = payload.new as { read: boolean }
           if (newMessage.read === false) {
             setUnreadCount((prev) => prev + 1)
           }
@@ -63,8 +63,8 @@ export function MessagesSection({ userId }: MessagesSectionProps) {
           filter: `receiver_id=eq.${userId}`,
         },
         (payload) => {
-          const updatedMessage = payload.new as any
-          const oldMessage = payload.old as any
+          const updatedMessage = payload.new as { read: boolean }
+          const oldMessage = payload.old as { read: boolean }
 
           // Only update count if read status actually changed
           if (oldMessage.read === false && updatedMessage.read === true) {
@@ -85,7 +85,7 @@ export function MessagesSection({ userId }: MessagesSectionProps) {
           filter: `receiver_id=eq.${userId}`,
         },
         (payload) => {
-          const deletedMessage = payload.old as any
+          const deletedMessage = payload.old as { read: boolean }
           if (deletedMessage.read === false) {
             setUnreadCount((prev) => Math.max(0, prev - 1))
           }
@@ -107,7 +107,7 @@ export function MessagesSection({ userId }: MessagesSectionProps) {
 
     const refetchCount = async () => {
       try {
-        const { count, error } = await supabase
+        const { count, error } = await supabase!
           .from("messages")
           .select("*", { count: "exact", head: true })
           .eq("receiver_id", userId)
@@ -129,20 +129,24 @@ export function MessagesSection({ userId }: MessagesSectionProps) {
     <Link
       href="/home/messages"
       className={cn(
-        "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-all duration-200",
-        "hover:bg-primary/10 hover:text-primary",
+        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 group/item",
         isActive
-          ? "bg-primary/10 text-primary shadow-sm"
-          : "text-sidebar-foreground/70"
+          ? "bg-primary text-primary-foreground shadow-md"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground"
       )}
     >
       <MessageSquare className={cn(
-        "h-4 w-4 stroke-[2]",
-        isActive && "text-primary"
+        "h-4 w-4 transition-transform group-hover/item:scale-110",
+        isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"
       )} />
-      <span className="tracking-tight">Messages</span>
+      <span>Messages</span>
       {unreadCount > 0 && (
-        <span className="ml-auto rounded-full bg-primary px-1.5 py-0.5 min-w-[1.25rem] text-center text-[10px] font-semibold text-primary-foreground">
+        <span className={cn(
+          "ml-auto rounded-full px-2 py-0.5 min-w-[1.25rem] text-center text-[10px] font-bold shadow-sm",
+          isActive
+            ? "bg-white text-primary"
+            : "bg-primary text-primary-foreground"
+        )}>
           {unreadCount > 99 ? "99+" : unreadCount}
         </span>
       )}

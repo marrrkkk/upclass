@@ -2,18 +2,20 @@
 
 import { useState, useEffect, useRef, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { Send, ArrowLeft } from "lucide-react"
+import { Send, ArrowLeft, MoreVertical, Phone, Video } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent } from "@/components/ui/card"
-import { buttonVariants } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { sendMessage, markConversationAsRead } from "@/app/actions/messages"
 import { supabase } from "@/lib/supabase-client"
 import { useUploadThing } from "@/lib/uploadthing"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
-import { Paperclip, X, Video, Music, Image as ImageIcon } from "lucide-react"
+import { Paperclip, X, Music, Image as ImageIcon } from "lucide-react"
 import { UrlLinkify } from "@/components/messages/url-linkify"
 import { ImageViewerDialog } from "@/components/messages/image-viewer-dialog"
+import { formatDistanceToNow, isSameDay, format } from "date-fns"
 
 type MediaFile = {
   url: string
@@ -58,7 +60,7 @@ export function ChatClient({ messages: initialMessages, currentUserId, otherUser
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { startUpload, isUploading } = useUploadThing("messageMediaUploader")
-  
+
   // Store optimistic timestamps to preserve them
   const optimisticTimestamps = useRef<Map<string, string>>(new Map())
 
@@ -111,11 +113,11 @@ export function ChatClient({ messages: initialMessages, currentUserId, otherUser
                   m.receiverId === otherUser.id &&
                   JSON.stringify(m.media) === JSON.stringify(newMsg.media ? (typeof newMsg.media === 'string' ? JSON.parse(newMsg.media) : newMsg.media) : null)
               )
-              
+
               // Check if real message already exists
               const exists = prev.some((m) => m.id === newMsg.id)
               if (exists) return prev
-              
+
               // Replace temp with real, or add if no temp found
               if (tempIndex >= 0) {
                 const updated = [...prev]
@@ -123,7 +125,7 @@ export function ChatClient({ messages: initialMessages, currentUserId, otherUser
                 // Preserve optimistic timestamp if it exists
                 const preservedTimestamp = optimisticTimestamps.current.get(tempMsg.id) || normalizeTimestamp(newMsg.created_at)
                 optimisticTimestamps.current.delete(tempMsg.id)
-                
+
                 updated[tempIndex] = {
                   id: newMsg.id,
                   senderId: newMsg.sender_id,
@@ -170,19 +172,19 @@ export function ChatClient({ messages: initialMessages, currentUserId, otherUser
             setMessages((prev) => {
               const exists = prev.some((m) => m.id === newMsg.id)
               if (exists) return prev
-              
+
               return [
                 ...prev,
-                  {
-                    id: newMsg.id,
-                    senderId: newMsg.sender_id,
-                    receiverId: newMsg.receiver_id,
-                    content: newMsg.content || "",
-                    media: newMsg.media ? (typeof newMsg.media === 'string' ? JSON.parse(newMsg.media) : newMsg.media) : null,
-                    url: null, // URLs are now in content
-                    read: newMsg.read,
-                    createdAt: normalizeTimestamp(newMsg.created_at),
-                  },
+                {
+                  id: newMsg.id,
+                  senderId: newMsg.sender_id,
+                  receiverId: newMsg.receiver_id,
+                  content: newMsg.content || "",
+                  media: newMsg.media ? (typeof newMsg.media === 'string' ? JSON.parse(newMsg.media) : newMsg.media) : null,
+                  url: null, // URLs are now in content
+                  read: newMsg.read,
+                  createdAt: normalizeTimestamp(newMsg.created_at),
+                },
               ]
             })
             // Mark as read
@@ -193,7 +195,7 @@ export function ChatClient({ messages: initialMessages, currentUserId, otherUser
       .subscribe()
 
     return () => {
-      supabase.removeChannel(channel)
+      supabase?.removeChannel(channel)
     }
   }, [currentUserId, otherUser.id])
 
@@ -226,12 +228,12 @@ export function ChatClient({ messages: initialMessages, currentUserId, otherUser
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault()
     const messageContent = newMessage.trim()
-    
+
     if (!messageContent && selectedFiles.length === 0) {
       setError("Please enter a message or add media")
       return
     }
-    
+
     if (pending || isUploading) return
 
     setError(null)
@@ -250,6 +252,7 @@ export function ChatClient({ messages: initialMessages, currentUserId, otherUser
           }))
         }
       } catch (err) {
+        console.error(err)
         setError("Failed to upload media files")
         return
       }
@@ -259,7 +262,7 @@ export function ChatClient({ messages: initialMessages, currentUserId, otherUser
     const tempId = `temp-${Date.now()}`
     const optimisticTimestamp = new Date().toISOString()
     optimisticTimestamps.current.set(tempId, optimisticTimestamp)
-    
+
     const optimisticMessage: MessageData = {
       id: tempId,
       senderId: currentUserId,
@@ -321,14 +324,9 @@ export function ChatClient({ messages: initialMessages, currentUserId, otherUser
     setImageViewerOpen(true)
   }
 
-  const formatTime = (dateString: string) => {
+  const formatMessageTime = (dateString: string) => {
     if (!dateString) return ""
-    const date = new Date(dateString)
-    // Format in user's local timezone - the database stores UTC, Date will convert automatically
-    return date.toLocaleTimeString([], { 
-      hour: "2-digit", 
-      minute: "2-digit"
-    })
+    return format(new Date(dateString), "h:mm a")
   }
 
   const getInitials = (name: string) => {
@@ -341,143 +339,184 @@ export function ChatClient({ messages: initialMessages, currentUserId, otherUser
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-12rem)]">
+    <div className="flex flex-col h-[calc(100vh-12rem)] bg-background rounded-lg border shadow-sm overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-4 pb-4 border-b">
-        <Link href="/home/messages" className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}>
-          <ArrowLeft className="h-5 w-5" />
-        </Link>
-        <Avatar className="h-10 w-10">
-          <AvatarImage src={otherUser.image || undefined} alt={otherUser.name} />
-          <AvatarFallback className="bg-blue-600 text-white">
-            {getInitials(otherUser.name)}
-          </AvatarFallback>
-        </Avatar>
-        <div>
-          <p className="font-semibold">{otherUser.name}</p>
-          <p className="text-xs text-muted-foreground">{otherUser.email}</p>
+      <div className="flex items-center justify-between p-3 border-b bg-card/50 backdrop-blur-sm">
+        <div className="flex items-center gap-3">
+          <Link href="/home/messages" className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "text-muted-foreground hover:text-foreground md:hidden")}>
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
+          <div className="relative">
+            <Avatar className="h-10 w-10 border border-border/50">
+              <AvatarImage src={otherUser.image || undefined} alt={otherUser.name} />
+              <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-medium">
+                {getInitials(otherUser.name)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-background"></div>
+          </div>
+          <div>
+            <p className="font-semibold text-sm leading-none">{otherUser.name}</p>
+            <p className="text-xs text-muted-foreground mt-1">Active now</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" className="text-muted-foreground hidden sm:flex">
+            <Phone className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" className="text-muted-foreground hidden sm:flex">
+            <Video className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" className="text-muted-foreground">
+            <MoreVertical className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
       {/* Messages */}
       <div
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto space-y-4 py-4"
+        className="flex-1 overflow-y-auto space-y-6 p-4 bg-muted/20"
       >
         {messages.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-sm text-muted-foreground">No messages yet. Start the conversation!</p>
+          <div className="flex flex-col items-center justify-center h-full text-center space-y-3 opacity-60">
+            <Avatar className="h-16 w-16 mb-2 grayscale opacity-50">
+              <AvatarImage src={otherUser.image || undefined} alt={otherUser.name} />
+              <AvatarFallback>{getInitials(otherUser.name)}</AvatarFallback>
+            </Avatar>
+            <div>
+              <p className="text-sm font-medium">No messages yet</p>
+              <p className="text-xs text-muted-foreground">Send a message to start the conversation with {otherUser.name.split(" ")[0]}.</p>
+            </div>
           </div>
         ) : (
           <>
-            {messages.map((msg) => {
+            {messages.map((msg, index) => {
               const isOwn = msg.senderId === currentUserId
+              const showAvatar = !isOwn && (index === 0 || messages[index - 1].senderId !== msg.senderId)
+              const showDate = index === 0 || !isSameDay(new Date(msg.createdAt), new Date(messages[index - 1].createdAt))
+
               return (
-                <div
-                  key={msg.id}
-                  className={cn("flex gap-3", isOwn ? "justify-end" : "justify-start")}
-                >
-                  {!isOwn && (
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={otherUser.image || undefined} alt={otherUser.name} />
-                      <AvatarFallback className="bg-blue-600 text-white text-xs">
-                        {getInitials(otherUser.name)}
-                      </AvatarFallback>
-                    </Avatar>
+                <div key={msg.id} className="space-y-4">
+                  {showDate && (
+                    <div className="flex justify-center">
+                      <span className="text-[10px] font-medium text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                        {format(new Date(msg.createdAt), "MMMM d, yyyy")}
+                      </span>
+                    </div>
                   )}
-                  <div className={cn("flex flex-col max-w-[70%]", isOwn ? "items-end" : "items-start")}>
-                    <Card
-                      className={cn(
-                        "px-4 py-2",
-                        isOwn
-                          ? "bg-blue-600 text-white border-blue-600"
-                          : "bg-muted",
+
+                  <div
+                    className={cn(
+                      "flex gap-3",
+                      isOwn ? "justify-end" : "justify-start"
+                    )}
+                  >
+                    {!isOwn && (
+                      <div className="w-8 flex-shrink-0 flex flex-col justify-end">
+                        {showAvatar ? (
+                          <Avatar className="h-8 w-8 border border-border/50">
+                            <AvatarImage src={otherUser.image || undefined} alt={otherUser.name} />
+                            <AvatarFallback className="bg-indigo-100 text-indigo-600 text-[10px]">
+                              {getInitials(otherUser.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                        ) : (
+                          <div className="w-8" />
+                        )}
+                      </div>
+                    )}
+
+                    <div className={cn("flex flex-col max-w-[75%]", isOwn ? "items-end" : "items-start")}>
+                      <div
+                        className={cn(
+                          "px-4 py-2.5 rounded-2xl shadow-sm text-sm relative group transition-all duration-200",
+                          isOwn
+                            ? "bg-primary text-primary-foreground rounded-tr-sm"
+                            : "bg-card border border-border text-foreground rounded-tl-sm"
+                        )}
+                      >
+                        <div className="space-y-2">
+                          {msg.content && (
+                            <div className={cn("whitespace-pre-wrap break-words leading-relaxed", isOwn ? "text-primary-foreground" : "text-foreground")}>
+                              <UrlLinkify
+                                text={msg.content}
+                                linkClassName={isOwn ? "text-white underline opacity-90 hover:opacity-100" : "text-primary underline hover:opacity-80"}
+                              />
+                            </div>
+                          )}
+
+                          {/* Media Files */}
+                          {msg.media && msg.media.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              {msg.media.map((media, idx) => {
+                                const isImage = media.type.startsWith("image/")
+                                const isVideo = media.type.startsWith("video/")
+                                const isAudio = media.type.startsWith("audio/")
+
+                                const imageUrls = msg.media
+                                  ?.filter((m) => m.type.startsWith("image/"))
+                                  .map((m) => m.url) || []
+
+                                return (
+                                  <div key={idx} className="relative">
+                                    {isImage && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const imageIndex = msg.media
+                                            ?.filter((m) => m.type.startsWith("image/"))
+                                            .findIndex((m) => m.url === media.url) || 0
+                                          handleImageClick(imageUrls, imageIndex)
+                                        }}
+                                        className="relative group overflow-hidden rounded-lg"
+                                      >
+                                        <img
+                                          src={media.url}
+                                          alt={media.name}
+                                          className="h-32 w-32 object-cover border cursor-pointer hover:scale-105 transition-transform duration-300"
+                                        />
+                                      </button>
+                                    )}
+                                    {!isImage && !isVideo && !isAudio && (
+                                      <a
+                                        href={media.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className={cn(
+                                          "flex items-center gap-2 p-2 rounded-lg border transition-colors",
+                                          isOwn ? "bg-primary-foreground/10 border-primary-foreground/20 hover:bg-primary-foreground/20" : "bg-muted/50 hover:bg-muted"
+                                        )}
+                                      >
+                                        <Paperclip className="h-4 w-4 opacity-70" />
+                                        <span className="text-xs truncate max-w-[120px]">{media.name}</span>
+                                      </a>
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )}
+
+                        </div>
+
+                        <span className={cn(
+                          "text-[10px] opacity-70 absolute bottom-1 right-2 hidden group-hover:block transition-all",
+                          isOwn ? "text-primary-foreground" : "text-muted-foreground"
+                        )}>
+                          {formatMessageTime(msg.createdAt)}
+                        </span>
+                      </div>
+
+                      {/* Always show timestamp for last message in group */}
+                      {((index < messages.length - 1 && messages[index + 1].senderId !== msg.senderId) || index === messages.length - 1) && (
+                        <span className="text-[10px] text-muted-foreground mt-1 px-1 opacity-60">
+                          {msg.read && isOwn ? "Read " : ""}{formatMessageTime(msg.createdAt)}
+                        </span>
                       )}
-                    >
-                      <CardContent className="p-0 space-y-2">
-                        {msg.content && (
-                          <p className="text-sm whitespace-pre-wrap break-words">
-                            <UrlLinkify
-                              text={msg.content}
-                              linkClassName={isOwn ? "text-blue-100" : "text-blue-600"}
-                            />
-                          </p>
-                        )}
-                        
-                        {/* Media Files */}
-                        {msg.media && msg.media.length > 0 && (
-                          <div className="flex flex-wrap gap-2">
-                            {msg.media.map((media, idx) => {
-                              const isImage = media.type.startsWith("image/")
-                              const isVideo = media.type.startsWith("video/")
-                              const isAudio = media.type.startsWith("audio/")
-                              
-                              // Get all image URLs for the viewer
-                              const imageUrls = msg.media
-                                ?.filter((m) => m.type.startsWith("image/"))
-                                .map((m) => m.url) || []
-                              
-                              return (
-                                <div key={idx} className="relative">
-                                  {isImage && (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        const imageIndex = msg.media
-                                          ?.filter((m) => m.type.startsWith("image/"))
-                                          .findIndex((m) => m.url === media.url) || 0
-                                        handleImageClick(imageUrls, imageIndex)
-                                      }}
-                                      className="relative group"
-                                    >
-                                      <img
-                                        src={media.url}
-                                        alt={media.name}
-                                        className="h-32 w-32 object-cover rounded-lg border cursor-pointer hover:opacity-80 transition-opacity"
-                                      />
-                                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-lg transition-colors flex items-center justify-center">
-                                        <ImageIcon className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                                      </div>
-                                    </button>
-                                  )}
-                                  {isVideo && (
-                                    <video
-                                      src={media.url}
-                                      controls
-                                      className="h-32 w-32 object-cover rounded-lg border"
-                                    >
-                                      Your browser does not support the video tag.
-                                    </video>
-                                  )}
-                                  {isAudio && (
-                                    <div className="p-3 flex items-center gap-2 rounded-lg border bg-background/50 min-w-[200px]">
-                                      <Music className="h-5 w-5 text-muted-foreground" />
-                                      <audio src={media.url} controls className="flex-1">
-                                        Your browser does not support the audio tag.
-                                      </audio>
-                                    </div>
-                                  )}
-                                  {!isImage && !isVideo && !isAudio && (
-                                    <a
-                                      href={media.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="flex items-center gap-2 p-3 rounded-lg border bg-background/50 hover:bg-background transition-colors"
-                                    >
-                                      <Paperclip className="h-5 w-5 text-muted-foreground" />
-                                      <span className="text-sm truncate max-w-[150px]">{media.name}</span>
-                                    </a>
-                                  )}
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                    <p className="text-xs text-muted-foreground mt-1 px-1">
-                      {msg.createdAt ? formatTime(msg.createdAt) : "Sending..."}
-                    </p>
+
+                    </div>
                   </div>
                 </div>
               )
@@ -488,74 +527,76 @@ export function ChatClient({ messages: initialMessages, currentUserId, otherUser
       </div>
 
       {/* Input */}
-      {error && (
-        <p className="text-sm text-destructive px-4 pb-2">{error}</p>
-      )}
-      
-      {/* Selected Files Preview */}
-      {selectedFiles.length > 0 && (
-        <div className="px-4 py-2 border-t bg-muted/50">
-          <div className="flex flex-wrap gap-2">
+      <div className="p-3 bg-background border-t">
+        {selectedFiles.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto pb-2 mb-2">
             {selectedFiles.map((file, idx) => (
               <div
                 key={idx}
-                className="flex items-center gap-2 rounded-md border bg-background px-2 py-1 text-xs"
+                className="flex items-center gap-2 rounded-md border bg-muted/50 px-2 py-1 text-xs shrink-0"
               >
                 <Paperclip className="h-3 w-3" />
-                <span className="max-w-[150px] truncate">{file.name}</span>
+                <span className="max-w-[100px] truncate">{file.name}</span>
                 <button
                   type="button"
                   onClick={() => removeFile(idx)}
-                  className="text-muted-foreground hover:text-foreground"
+                  className="text-muted-foreground hover:text-destructive"
                 >
                   <X className="h-3 w-3" />
                 </button>
               </div>
             ))}
           </div>
-        </div>
-      )}
-      
-      <form onSubmit={handleSend} className="flex gap-2 pt-4 border-t px-4 pb-4">
-        <label className="cursor-pointer">
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept="image/*,video/*,audio/*"
-            onChange={handleFileSelect}
-            className="hidden"
-            disabled={pending || isUploading || selectedFiles.length >= 10}
-          />
-          <span
+        )}
+
+        <form onSubmit={handleSend} className="flex gap-2 items-end">
+          <label className="cursor-pointer pb-1.5">
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/*,video/*,audio/*"
+              onChange={handleFileSelect}
+              className="hidden"
+              disabled={pending || isUploading || selectedFiles.length >= 10}
+            />
+            <span
+              className={cn(
+                buttonVariants({ variant: "ghost", size: "icon" }),
+                "text-muted-foreground hover:text-primary transition-colors"
+              )}
+            >
+              <Paperclip className="h-5 w-5" />
+            </span>
+          </label>
+
+          <div className="flex-1 relative">
+            <Input
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              placeholder="Type a message..."
+              className="min-h-[44px] py-3 pr-10 rounded-full bg-muted/30 border-muted-foreground/20 focus-visible:ring-1 focus-visible:ring-primary focus-visible:bg-background transition-all"
+              disabled={pending || isUploading}
+            />
+          </div>
+
+          <Button
+            type="submit"
+            disabled={pending || isUploading || (!newMessage.trim() && selectedFiles.length === 0)}
+            size="icon"
             className={cn(
-              buttonVariants({ variant: "outline", size: "icon" }),
-              "disabled:opacity-50"
+              "h-11 w-11 rounded-full shrink-0 transition-all duration-300",
+              (!newMessage.trim() && selectedFiles.length === 0) ? "opacity-50 scale-95" : "hover:scale-105 shadow-md"
             )}
           >
-            <Paperclip className="h-4 w-4" />
-          </span>
-        </label>
-        <input
-          type="text"
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          placeholder="Type a message... (URLs will be auto-detected)"
-          className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40"
-          disabled={pending || isUploading}
-        />
-        <button
-          type="submit"
-          disabled={pending || isUploading || (!newMessage.trim() && selectedFiles.length === 0)}
-          className={cn(
-            buttonVariants(),
-            "bg-blue-600 hover:bg-blue-700 disabled:opacity-70",
-          )}
-        >
-          <Send className="h-4 w-4" />
-        </button>
-      </form>
-      
+            <Send className="h-4 w-4 ml-0.5" />
+          </Button>
+        </form>
+        {error && (
+          <p className="text-xs text-destructive mt-2 ml-2">{error}</p>
+        )}
+      </div>
+
       {/* Image Viewer Dialog */}
       <ImageViewerDialog
         images={viewingImages}

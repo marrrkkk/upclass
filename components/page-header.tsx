@@ -12,8 +12,9 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import { Home } from "lucide-react"
+import { Home, ChevronRight, Slash } from "lucide-react"
 import React from "react"
+import { cn } from "@/lib/utils"
 
 // Map route segments to display names
 const segmentNames: Record<string, string> = {
@@ -72,6 +73,13 @@ export function PageHeader({ user, userId }: PageHeaderProps) {
         }
       }
 
+      // Format label to be Capitalized if it's strictly a segment name
+      if (segmentNames[segment]) {
+        // already capitalized in map
+      } else if (label.length > 20) {
+        label = label.substring(0, 20) + "..."
+      }
+
       breadcrumbs.push({
         label,
         href: currentPath,
@@ -85,33 +93,50 @@ export function PageHeader({ user, userId }: PageHeaderProps) {
   const breadcrumbs = generateBreadcrumbs()
 
   return (
-    <div className="flex items-center justify-between w-full">
-      <Breadcrumb>
-        <BreadcrumbList>
-          {breadcrumbs.map((crumb, index) => (
-            <React.Fragment key={crumb.href}>
-              {index > 0 && <BreadcrumbSeparator />}
-              <BreadcrumbItem>
-                {crumb.isLast ? (
-                  <BreadcrumbPage>
-                    {index === 0 && <Home className="h-4 w-4 mr-1.5 inline" />}
-                    {crumb.label}
-                  </BreadcrumbPage>
-                ) : (
-                  <BreadcrumbLink asChild>
-                    <Link href={crumb.href}>
-                      {index === 0 && <Home className="h-4 w-4 mr-1.5 inline" />}
-                      {crumb.label}
-                    </Link>
-                  </BreadcrumbLink>
+    <div className="flex items-center justify-between w-full h-full">
+      <div className="flex items-center">
+        <Breadcrumb>
+          <BreadcrumbList>
+            {breadcrumbs.map((crumb, index) => (
+              <React.Fragment key={crumb.href}>
+                {index > 0 && (
+                  <BreadcrumbSeparator className="mx-2 text-muted-foreground/40">
+                    <Slash className="h-3 w-3 -rotate-12" />
+                  </BreadcrumbSeparator>
                 )}
-              </BreadcrumbItem>
-            </React.Fragment>
-          ))}
-        </BreadcrumbList>
-      </Breadcrumb>
-      <div className="flex items-center gap-3">
-        {rightSideContent}
+                <BreadcrumbItem>
+                  {crumb.isLast ? (
+                    <BreadcrumbPage className="font-semibold text-foreground tracking-tight flex items-center gap-2">
+                      {index === 0 && <Home className="h-4 w-4 text-muted-foreground" />}
+                      {crumb.label}
+                    </BreadcrumbPage>
+                  ) : (
+                    <BreadcrumbLink asChild>
+                      <Link
+                        href={crumb.href}
+                        className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2"
+                      >
+                        {index === 0 && <Home className="h-4 w-4" />}
+                        {!index && index === 0 ? null : crumb.label}
+                        {index === 0 ? "Home" : null}
+                      </Link>
+                    </BreadcrumbLink>
+                  )}
+                </BreadcrumbItem>
+              </React.Fragment>
+            ))}
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
+
+      <div className="flex items-center gap-4">
+        {rightSideContent && (
+          <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-4 duration-500">
+            {rightSideContent}
+            <div className="h-6 w-px bg-border/60 mx-2" />
+          </div>
+        )}
+
         {user && (
           <UserAvatarMenu
             name={user.name}

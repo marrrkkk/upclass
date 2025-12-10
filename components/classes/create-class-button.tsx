@@ -23,6 +23,7 @@ export function CreateClassButton() {
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+  const [selectedColor, setSelectedColor] = useState("#3b82f6")
 
   const handleCreate = async (formData: FormData) => {
     setError(null)
@@ -36,116 +37,134 @@ export function CreateClassButton() {
     })
   }
 
+  // Predefined premium colors
+  const premiumColors = [
+    "#3b82f6", // Blue
+    "#8b5cf6", // Violet
+    "#ec4899", // Pink
+    "#f43f5e", // Rose
+    "#f97316", // Orange
+    "#eab308", // Yellow
+    "#10b981", // Emerald
+    "#06b6d4", // Cyan
+  ]
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <button
-          className={cn(buttonVariants({ size: "sm" }), "gap-2")}
+          className={cn(buttonVariants({ size: "sm" }), "gap-2 shadow-sm transition-all hover:shadow-md")}
           type="button"
         >
           <Plus className="h-4 w-4" />
           Create class
         </button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>Create New Class</DialogTitle>
-          <DialogDescription>
-            Fill in the details to create a new class for your students.
+      <DialogContent className="sm:max-w-[550px] gap-0 p-0 overflow-hidden border-0 shadow-2xl">
+        <DialogHeader className="p-6 pb-2 bg-gradient-to-r from-muted/50 to-muted/10">
+          <DialogTitle className="text-xl font-semibold tracking-tight">Create New Class</DialogTitle>
+          <DialogDescription className="text-muted-foreground">
+            Set up a new space for your students to learn and collaborate.
           </DialogDescription>
         </DialogHeader>
-        <form action={handleCreate} className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+
+        <form action={handleCreate} className="p-6 space-y-6">
+          <div className="grid gap-5">
             <div className="space-y-2">
-              <Label htmlFor="title">Title</Label>
+              <Label htmlFor="title" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Class Name</Label>
               <Input
                 id="title"
                 name="title"
                 required
-                placeholder="e.g. Mastering UI Design"
+                placeholder="e.g. Advanced UI/UX Principles"
+                className="h-11 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors text-base"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="category">Category</Label>
-              <Input
-                id="category"
-                name="category"
-                placeholder="e.g. UI/UX"
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              name="description"
-              placeholder="What will learners get from this class?"
-              rows={3}
-            />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="schedule">Schedule</Label>
-              <Input
-                id="schedule"
-                name="schedule"
-                placeholder="e.g. Mon, Wed, Fri 10:00 AM"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="color-text">Color</Label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="color"
-                  id="color-picker"
-                  defaultValue="#3b82f6"
-                  className="h-10 w-20 cursor-pointer rounded-md border border-input"
-                  onChange={(e) => {
-                    const textInput = document.getElementById("color-text") as HTMLInputElement
-                    const hiddenInput = document.getElementById("color-hidden") as HTMLInputElement
-                    if (textInput) textInput.value = e.target.value
-                    if (hiddenInput) hiddenInput.value = e.target.value
-                  }}
-                />
+
+            <div className="grid sm:grid-cols-2 gap-5">
+              <div className="space-y-2">
+                <Label htmlFor="category" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Subject / Category</Label>
                 <Input
-                  type="text"
-                  id="color-text"
-                  defaultValue="#3b82f6"
-                  pattern="^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"
-                  placeholder="#3b82f6"
-                  className="flex-1"
-                  onChange={(e) => {
-                    const colorInput = document.getElementById("color-picker") as HTMLInputElement
-                    const hiddenInput = document.getElementById("color-hidden") as HTMLInputElement
-                    if (colorInput && /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(e.target.value)) {
-                      colorInput.value = e.target.value
-                      if (hiddenInput) hiddenInput.value = e.target.value
-                    }
-                  }}
+                  id="category"
+                  name="category"
+                  placeholder="e.g. Design"
+                  className="h-10 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors"
                 />
-                <input type="hidden" id="color-hidden" name="color" defaultValue="#3b82f6" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="schedule" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Schedule</Label>
+                <Input
+                  id="schedule"
+                  name="schedule"
+                  placeholder="e.g. Mon/Wed 10am"
+                  className="h-10 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors"
+                />
               </div>
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="description" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Description</Label>
+              <Textarea
+                id="description"
+                name="description"
+                placeholder="Briefly describe what students will learn..."
+                rows={3}
+                className="resize-none bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors"
+              />
+            </div>
+
+            <div className="space-y-3">
+              <Label htmlFor="color" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Theme Color</Label>
+              <div className="flex flex-wrap gap-3">
+                {premiumColors.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => setSelectedColor(color)}
+                    className={cn(
+                      "h-8 w-8 rounded-full border-2 transition-all hover:scale-110",
+                      selectedColor === color ? "border-foreground ring-2 ring-offset-2 ring-foreground/20" : "border-transparent"
+                    )}
+                    style={{ backgroundColor: color }}
+                    title={color}
+                  />
+                ))}
+                <div className="relative ml-2">
+                  <input
+                    type="color" // Hidden color input for custom selection if needed, though strictly simpler UI is better
+                    id="custom-color"
+                    onChange={(e) => setSelectedColor(e.target.value)}
+                    className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                  />
+                  <div className="flex items-center justify-center h-8 w-8 rounded-full border border-dashed border-muted-foreground/50 hover:bg-muted text-muted-foreground">
+                    <Plus className="h-4 w-4" />
+                  </div>
+                </div>
+              </div>
+              <input type="hidden" name="color" value={selectedColor} />
+            </div>
           </div>
 
-          {error ? (
-            <p className="text-sm text-destructive">{error}</p>
-          ) : null}
+          {error && (
+            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive font-medium border border-destructive/20 animate-in fade-in slide-in-from-bottom-2">
+              {error}
+            </div>
+          )}
 
-          <DialogFooter>
+          <DialogFooter className="pt-2">
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className={cn(buttonVariants({ variant: "ghost" }), "text-muted-foreground")}
+              className={cn(buttonVariants({ variant: "ghost" }), "text-muted-foreground hover:text-foreground")}
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={pending}
-              className={cn(buttonVariants())}
+              className={cn(buttonVariants(), "min-w-[100px] shadow-md hover:shadow-lg transition-all", pending && "opacity-80")}
             >
-              {pending ? "Creating..." : "Create"}
+              {pending ? "Creating..." : "Create Class"}
             </button>
           </DialogFooter>
         </form>

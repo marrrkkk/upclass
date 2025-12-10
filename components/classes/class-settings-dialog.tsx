@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { Settings } from "lucide-react"
+import { Settings, Plus } from "lucide-react"
 import { updateClass } from "@/app/actions/classes"
 import { buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -29,12 +29,14 @@ type ClassData = {
 
 type ClassSettingsDialogProps = {
   classData: ClassData
+  trigger?: React.ReactNode
 }
 
-export function ClassSettingsDialog({ classData }: ClassSettingsDialogProps) {
+export function ClassSettingsDialog({ classData, trigger }: ClassSettingsDialogProps) {
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+  const [selectedColor, setSelectedColor] = useState(classData.color || "#3b82f6")
 
   const handleUpdate = async (formData: FormData) => {
     setError(null)
@@ -48,118 +50,141 @@ export function ClassSettingsDialog({ classData }: ClassSettingsDialogProps) {
     })
   }
 
+  // Predefined premium colors
+  const premiumColors = [
+    "#3b82f6", // Blue
+    "#8b5cf6", // Violet
+    "#ec4899", // Pink
+    "#f43f5e", // Rose
+    "#f97316", // Orange
+    "#eab308", // Yellow
+    "#10b981", // Emerald
+    "#06b6d4", // Cyan
+  ]
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <button
-          className={cn(buttonVariants({ variant: "outline", size: "icon" }), "h-10 w-10")}
-          type="button"
-          title="Class settings"
-        >
-          <Settings className="h-4 w-4" />
-        </button>
+        {trigger ? (
+          trigger
+        ) : (
+          <button
+            className={cn(buttonVariants({ variant: "outline", size: "icon" }), "h-10 w-10 rounded-lg bg-background/50 backdrop-blur-sm border-white/20 hover:bg-white/10 transition-all")}
+            type="button"
+            title="Class settings"
+          >
+            <Settings className="h-5 w-5" />
+          </button>
+        )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>Class Settings</DialogTitle>
-          <DialogDescription>
+      <DialogContent className="sm:max-w-[550px] gap-0 p-0 overflow-hidden border-0 shadow-2xl">
+        <DialogHeader className="p-6 pb-2 bg-gradient-to-r from-muted/50 to-muted/10">
+          <DialogTitle className="text-xl font-semibold tracking-tight">Class Settings</DialogTitle>
+          <DialogDescription className="text-muted-foreground">
             Update your class information and appearance.
           </DialogDescription>
         </DialogHeader>
-        <form action={handleUpdate} className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+        <form action={handleUpdate} className="p-6 space-y-6">
+          <div className="grid gap-5">
             <div className="space-y-2">
-              <Label htmlFor="title">Title</Label>
+              <Label htmlFor="title" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Title</Label>
               <Input
                 id="title"
                 name="title"
                 required
                 defaultValue={classData.title}
                 placeholder="e.g. Mastering UI Design"
+                className="h-11 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors text-base"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="category">Category</Label>
-              <Input
-                id="category"
-                name="category"
-                defaultValue={classData.category || ""}
-                placeholder="e.g. UI/UX"
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              name="description"
-              defaultValue={classData.description || ""}
-              placeholder="What will learners get from this class?"
-              rows={3}
-            />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="schedule">Schedule</Label>
-              <Input
-                id="schedule"
-                name="schedule"
-                defaultValue={classData.schedule || ""}
-                placeholder="e.g. Mon, Wed, Fri 10:00 AM"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="settings-color-text">Color</Label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="color"
-                  id="settings-color-picker"
-                  defaultValue={classData.color || "#3b82f6"}
-                  className="h-10 w-20 cursor-pointer rounded-md border border-input"
-                  onChange={(e) => {
-                    const textInput = document.getElementById("settings-color-text") as HTMLInputElement
-                    const hiddenInput = document.getElementById("settings-color-hidden") as HTMLInputElement
-                    if (textInput) textInput.value = e.target.value
-                    if (hiddenInput) hiddenInput.value = e.target.value
-                  }}
-                />
+
+            <div className="grid sm:grid-cols-2 gap-5">
+              <div className="space-y-2">
+                <Label htmlFor="category" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Category</Label>
                 <Input
-                  type="text"
-                  id="settings-color-text"
-                  defaultValue={classData.color || "#3b82f6"}
-                  pattern="^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"
-                  placeholder="#3b82f6"
-                  className="flex-1"
-                  onChange={(e) => {
-                    const colorInput = document.getElementById("settings-color-picker") as HTMLInputElement
-                    const hiddenInput = document.getElementById("settings-color-hidden") as HTMLInputElement
-                    if (colorInput && /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(e.target.value)) {
-                      colorInput.value = e.target.value
-                      if (hiddenInput) hiddenInput.value = e.target.value
-                    }
-                  }}
+                  id="category"
+                  name="category"
+                  defaultValue={classData.category || ""}
+                  placeholder="e.g. UI/UX"
+                  className="h-10 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors"
                 />
-                <input type="hidden" id="settings-color-hidden" name="color" defaultValue={classData.color || "#3b82f6"} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="schedule" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Schedule</Label>
+                <Input
+                  id="schedule"
+                  name="schedule"
+                  defaultValue={classData.schedule || ""}
+                  placeholder="e.g. Mon, Wed, Fri 10:00 AM"
+                  className="h-10 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors"
+                />
               </div>
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="description" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Description</Label>
+              <Textarea
+                id="description"
+                name="description"
+                defaultValue={classData.description || ""}
+                placeholder="What will learners get from this class?"
+                rows={3}
+                className="resize-none bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors"
+              />
+            </div>
+
+            <div className="space-y-3">
+              <Label htmlFor="settings-color" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Theme Color</Label>
+              <div className="flex flex-wrap gap-3">
+                {premiumColors.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => setSelectedColor(color)}
+                    className={cn(
+                      "h-8 w-8 rounded-full border-2 transition-all hover:scale-110",
+                      selectedColor === color ? "border-foreground ring-2 ring-offset-2 ring-foreground/20" : "border-transparent"
+                    )}
+                    style={{ backgroundColor: color }}
+                    title={color}
+                  />
+                ))}
+                <div className="relative ml-2">
+                  <input
+                    type="color" // Hidden color input
+                    id="settings-custom-color"
+                    onChange={(e) => setSelectedColor(e.target.value)}
+                    className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                  />
+                  <div className="flex items-center justify-center h-8 w-8 rounded-full border border-dashed border-muted-foreground/50 hover:bg-muted text-muted-foreground">
+                    <Plus className="h-4 w-4" />
+                  </div>
+                </div>
+              </div>
+              <input type="hidden" name="color" value={selectedColor} />
+            </div>
           </div>
 
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && (
+            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive font-medium border border-destructive/20 animate-in fade-in slide-in-from-bottom-2">
+              {error}
+            </div>
+          )}
 
-          <DialogFooter>
+          <DialogFooter className="pt-2">
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className={cn(buttonVariants({ variant: "ghost" }), "text-muted-foreground")}
+              className={cn(buttonVariants({ variant: "ghost" }), "text-muted-foreground hover:text-foreground")}
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={pending}
-              className={cn(buttonVariants())}
+              className={cn(buttonVariants(), "min-w-[100px] shadow-md hover:shadow-lg transition-all", pending && "opacity-80")}
             >
-              {pending ? "Updating..." : "Update"}
+              {pending ? "Updating..." : "Save Changes"}
             </button>
           </DialogFooter>
         </form>

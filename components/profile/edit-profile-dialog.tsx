@@ -25,7 +25,7 @@ type EditProfileDialogProps = {
   user: {
     id: string
     name: string
-    email: string
+    email: string | null
     image: string | null
     bio: string | null
     role: "teacher" | "student" | null
@@ -106,31 +106,48 @@ export function EditProfileDialog({ user }: EditProfileDialogProps) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <button
-          className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-2")}
+          className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-2 shadow-sm transition-all hover:bg-muted text-foreground")}
           type="button"
         >
           Edit Profile
         </button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>Edit Profile</DialogTitle>
-          <DialogDescription>
-            Update your profile information.
+      <DialogContent className="sm:max-w-[500px] gap-0 p-0 overflow-hidden border-0 shadow-2xl">
+        <DialogHeader className="p-6 pb-2 bg-gradient-to-r from-muted/50 to-muted/10">
+          <DialogTitle className="text-xl font-semibold tracking-tight">Edit Profile</DialogTitle>
+          <DialogDescription className="text-muted-foreground">
+            Make changes to your personal profile.
           </DialogDescription>
         </DialogHeader>
-        <form action={handleSubmit} className="space-y-4">
+        <form action={handleSubmit} className="p-6 space-y-6">
           {/* Profile Picture */}
-          <div className="flex flex-col items-center gap-4">
-            <Avatar className="h-20 w-20">
-              <AvatarImage src={imageUrl || undefined} alt="Profile" />
-              <AvatarFallback className="bg-primary text-primary-foreground text-xl">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-            {selectedFile ? (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">{selectedFile.name}</span>
+          <div className="flex flex-col items-center gap-6 pb-2">
+            <div className="relative group">
+              <Avatar className="h-24 w-24 ring-4 ring-background shadow-lg transition-transform group-hover:scale-105">
+                <AvatarImage src={imageUrl || undefined} alt="Profile" className="object-cover" />
+                <AvatarFallback className="bg-gradient-to-br from-primary to-primary/60 text-primary-foreground text-2xl font-bold">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+
+              <label
+                className="absolute bottom-0 right-0 p-2 bg-primary text-primary-foreground rounded-full shadow-lg cursor-pointer hover:bg-primary/90 transition-colors transform group-hover:scale-110"
+                title="Change photo"
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+                <Upload className="h-4 w-4" />
+              </label>
+            </div>
+
+            {selectedFile && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground animate-in fade-in slide-in-from-top-1">
+                <span>{selectedFile.name}</span>
                 <button
                   type="button"
                   onClick={() => {
@@ -140,72 +157,60 @@ export function EditProfileDialog({ user }: EditProfileDialogProps) {
                       fileInputRef.current.value = ""
                     }
                   }}
-                  className="text-muted-foreground hover:text-foreground"
+                  className="p-1 rounded-full hover:bg-destructive/10 hover:text-destructive transition-colors"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
-            ) : (
-              <label className="cursor-pointer">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-                <span className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-2")}>
-                  <Upload className="h-4 w-4" />
-                  Change Photo
-                </span>
-              </label>
             )}
           </div>
 
-          {/* Name */}
-          <div className="space-y-2">
-            <Label htmlFor="name">Name *</Label>
-            <Input
-              id="name"
-              name="name"
-              required
-              defaultValue={user.name}
-              placeholder="Enter your name"
-            />
-          </div>
+          <div className="grid gap-5">
+            {/* Name */}
+            <div className="space-y-2">
+              <Label htmlFor="name" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Display Name</Label>
+              <Input
+                id="name"
+                name="name"
+                required
+                defaultValue={user.name}
+                placeholder="Enter your name"
+                className="h-11 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors text-base"
+              />
+            </div>
 
-          {/* Bio */}
-          <div className="space-y-2">
-            <Label htmlFor="bio">Bio</Label>
-            <Textarea
-              id="bio"
-              name="bio"
-              defaultValue={user.bio || ""}
-              placeholder="Tell us about yourself..."
-              rows={4}
-            />
-          </div>
+            {/* Bio */}
+            <div className="space-y-2">
+              <Label htmlFor="bio" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Bio</Label>
+              <Textarea
+                id="bio"
+                name="bio"
+                defaultValue={user.bio || ""}
+                placeholder="Tell us about yourself..."
+                rows={4}
+                className="resize-none bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors"
+              />
+            </div>
 
-          {/* Role Display (read-only) */}
-          {user.role && (
-            <div className="space-y-2 text-sm">
-              <span className="font-medium text-foreground">Role</span>
-              <div className="rounded-md border border-input bg-muted px-3 py-2 text-sm">
-                <span className="capitalize">{user.role}</span>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Role cannot be changed. Visit{" "}
-                  <a href="/onboard" className="text-primary hover:underline">
-                    onboarding page
-                  </a>{" "}
-                  to change role.
-                </p>
+            {/* Role Display (read-only) */}
+            {user.role && (
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Account Role</Label>
+                <div className="rounded-lg border border-muted-foreground/10 bg-muted/10 px-4 py-3 flex items-center justify-between">
+                  <span className="font-medium capitalize">{user.role}</span>
+                  <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">Read-only</span>
+                </div>
               </div>
+            )}
+          </div>
+
+          {error && (
+            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive font-medium border border-destructive/20 animate-in fade-in slide-in-from-bottom-2">
+              {error}
             </div>
           )}
 
-          {error && <p className="text-sm text-destructive">{error}</p>}
-
-          <DialogFooter>
+          <DialogFooter className="pt-2">
             <button
               type="button"
               onClick={() => {
@@ -217,14 +222,14 @@ export function EditProfileDialog({ user }: EditProfileDialogProps) {
                   fileInputRef.current.value = ""
                 }
               }}
-              className={cn(buttonVariants({ variant: "ghost" }), "text-muted-foreground")}
+              className={cn(buttonVariants({ variant: "ghost" }), "text-muted-foreground hover:text-foreground")}
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={pending || isUploading}
-              className={cn(buttonVariants())}
+              className={cn(buttonVariants(), "min-w-[100px] shadow-md hover:shadow-lg transition-all", (pending || isUploading) && "opacity-80")}
             >
               {pending || isUploading ? "Saving..." : "Save Changes"}
             </button>

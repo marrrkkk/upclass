@@ -2,13 +2,15 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { MessageSquare, Send, Search } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { MessageSquare, Send, Search, PlusCircle, Users } from "lucide-react"
+import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-// Using native input instead of Input component
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
 import { NewConversationDialog } from "@/components/messages/new-conversation-dialog"
+import { formatDistanceToNow, parseISO } from "date-fns"
 
 type Conversation = {
   userId: string
@@ -43,14 +45,18 @@ export function MessagesClient({ conversations: initialConversations, userId }: 
           filter: `receiver_id=eq.${userId}`,
         },
         () => {
-          // Reload conversations on new message
+          // In a real app, we'd fetch the latest conversation data here.
+          // For now, reloading ensures we get the fresh state from the server data prop if re-fetched,
+          // but a better approach is optimistic updates or re-fetching via router.refresh().
+          // Replacing window.location.reload() with router refresh is better UX but requires logic.
+          // We'll stick to the existing behavior for now but safeguard it.
           window.location.reload()
         },
       )
       .subscribe()
 
     return () => {
-      supabase.removeChannel(channel)
+      supabase?.removeChannel(channel)
     }
   }, [userId])
 
@@ -58,19 +64,12 @@ export function MessagesClient({ conversations: initialConversations, userId }: 
     conv.userName.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffMins = Math.floor(diffMs / 60000)
-    const diffHours = Math.floor(diffMs / 3600000)
-    const diffDays = Math.floor(diffMs / 86400000)
-
-    if (diffMins < 1) return "Just now"
-    if (diffMins < 60) return `${diffMins}m ago`
-    if (diffHours < 24) return `${diffHours}h ago`
-    if (diffDays < 7) return `${diffDays}d ago`
-    return date.toLocaleDateString()
+  const formatLastMessageTime = (dateString: string) => {
+    try {
+      return formatDistanceToNow(new Date(dateString), { addSuffix: true })
+    } catch (e) {
+      return "Just now"
+    }
   }
 
   const getInitials = (name: string) => {
@@ -83,77 +82,85 @@ export function MessagesClient({ conversations: initialConversations, userId }: 
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-6 h-[calc(100vh-8rem)]">
+      <div className="flex flex-row items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Messages</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Connect with other students and teachers
+          <h1 className="text-3xl font-bold tracking-tight">Messages</h1>
+          <p className="text-muted-foreground mt-1">
+            Connect with your classmates and teachers.
           </p>
         </div>
         <NewConversationDialog currentUserId={userId} />
       </div>
 
-      <div className="relative max-w-md">
-        <div className="relative flex items-center">
-          <Search className="absolute left-3 h-4 w-4 text-muted-foreground pointer-events-none" />
-          <input
+      <div className="flex flex-col gap-4 flex-1 overflow-hidden">
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <Input
             type="text"
             placeholder="Search conversations..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 rounded-md border border-input bg-background text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40"
+            className="pl-10 h-11 bg-muted/40 border-muted-foreground/20 focus-visible:bg-background transition-all"
           />
         </div>
-      </div>
 
-      {filteredConversations.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <MessageSquare className="h-12 w-12 text-muted-foreground" />
-            <p className="mt-4 text-sm text-muted-foreground">
-              {searchQuery ? "No conversations found" : "No messages yet"}
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-2">
-          {filteredConversations.map((conv) => (
-            <Link key={conv.userId} href={`/home/messages/${conv.userId}`}>
-              <Card className="transition-all hover:shadow-md cursor-pointer">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-4">
-                    <Avatar className="h-12 w-12">
+        <div className="flex-1 overflow-y-auto pr-1">
+          {filteredConversations.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center animate-in fade-in zoom-in-50 duration-500 h-full">
+              <div className="rounded-full bg-muted/50 p-6 mb-6">
+                <Users className="h-10 w-10 text-muted-foreground/50" />
+              </div>
+              <h3 className="text-xl font-semibold text-foreground">
+                {searchQuery ? "No conversations found" : "No messages yet"}
+              </h3>
+              <p className="mt-2 text-muted-foreground max-w-sm">
+                {searchQuery
+                  ? `We couldn't find any conversations matching "${searchQuery}"`
+                  : "Start a conversation to connect with others."}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {filteredConversations.map((conv) => (
+                <Link key={conv.userId} href={`/home/messages/${conv.userId}`}>
+                  <div className="group flex items-center gap-4 p-4 rounded-xl border border-transparent hover:bg-card hover:border-border hover:shadow-sm transition-all duration-200 cursor-pointer bg-card/40">
+                    <Avatar className="h-12 w-12 border border-border/50">
                       <AvatarImage src={conv.userImage || undefined} alt={conv.userName} />
-                      <AvatarFallback className="bg-blue-600 text-white">
+                      <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-medium">
                         {getInitials(conv.userName)}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold truncate">{conv.userName}</p>
-                          <p className="text-sm text-muted-foreground truncate mt-1">
-                            {conv.lastMessage}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {formatTime(conv.lastMessageTime)}
-                          </p>
-                        </div>
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="font-semibold text-foreground truncate">{conv.userName}</span>
+                        <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                          {formatLastMessageTime(conv.lastMessageTime)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className={cn(
+                          "text-sm truncate pr-4",
+                          conv.unreadCount > 0 ? "text-foreground font-medium" : "text-muted-foreground"
+                        )}>
+                          {conv.lastMessage}
+                        </p>
                         {conv.unreadCount > 0 && (
-                          <span className="rounded-full bg-blue-600 px-2 py-1 text-xs font-medium text-white">
+                          <Badge variant="default" className="h-5 min-w-[1.25rem] px-1.5 flex justify-center items-center rounded-full text-[10px] font-bold">
                             {conv.unreadCount}
-                          </span>
+                          </Badge>
                         )}
                       </div>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   )
 }
