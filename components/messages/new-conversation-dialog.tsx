@@ -4,6 +4,8 @@ import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { Plus, Search } from "lucide-react"
 import { buttonVariants } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Dialog,
   DialogContent,
@@ -61,7 +63,7 @@ export function NewConversationDialog({ currentUserId }: NewConversationDialogPr
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <button
-          className={cn(buttonVariants({ size: "sm" }), "gap-2 bg-blue-600 hover:bg-blue-700")}
+          className={cn(buttonVariants({ size: "sm" }), "gap-2")}
           type="button"
         >
           <Plus className="h-4 w-4" />
@@ -76,10 +78,12 @@ export function NewConversationDialog({ currentUserId }: NewConversationDialogPr
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          <div className="relative">
-            <div className="relative flex items-center">
-              <Search className="absolute left-3 h-4 w-4 text-muted-foreground pointer-events-none" />
-              <input
+          <div className="space-y-2">
+            <Label htmlFor="email">Email Address</Label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Input
+                id="email"
                 type="email"
                 placeholder="user@example.com"
                 value={email}
@@ -93,7 +97,7 @@ export function NewConversationDialog({ currentUserId }: NewConversationDialogPr
                     handleSearch()
                   }
                 }}
-                className="w-full pl-10 pr-4 py-2 rounded-md border border-input bg-background text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40"
+                className="pl-10"
                 disabled={pending}
               />
             </div>
@@ -116,10 +120,7 @@ export function NewConversationDialog({ currentUserId }: NewConversationDialogPr
             type="button"
             onClick={handleSearch}
             disabled={pending || !email.trim()}
-            className={cn(
-              buttonVariants(),
-              "bg-blue-600 hover:bg-blue-700 disabled:opacity-70",
-            )}
+            className={cn(buttonVariants())}
           >
             {pending ? "Searching..." : "Start Conversation"}
           </button>

@@ -6,6 +6,9 @@ import { Upload, X } from "lucide-react"
 import { updateProfile } from "@/app/actions/profile"
 import { buttonVariants } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
 import {
   Dialog,
   DialogContent,
@@ -121,7 +124,7 @@ export function EditProfileDialog({ user }: EditProfileDialogProps) {
           <div className="flex flex-col items-center gap-4">
             <Avatar className="h-20 w-20">
               <AvatarImage src={imageUrl || undefined} alt="Profile" />
-              <AvatarFallback className="bg-blue-600 text-white text-xl">
+              <AvatarFallback className="bg-primary text-primary-foreground text-xl">
                 {initials}
               </AvatarFallback>
             </Avatar>
@@ -160,28 +163,28 @@ export function EditProfileDialog({ user }: EditProfileDialogProps) {
           </div>
 
           {/* Name */}
-          <label className="space-y-2 text-sm font-medium text-foreground">
-            <span>Name *</span>
-            <input
+          <div className="space-y-2">
+            <Label htmlFor="name">Name *</Label>
+            <Input
+              id="name"
               name="name"
               required
               defaultValue={user.name}
               placeholder="Enter your name"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40"
             />
-          </label>
+          </div>
 
           {/* Bio */}
-          <label className="space-y-2 text-sm font-medium text-foreground">
-            <span>Bio</span>
-            <textarea
+          <div className="space-y-2">
+            <Label htmlFor="bio">Bio</Label>
+            <Textarea
+              id="bio"
               name="bio"
               defaultValue={user.bio || ""}
               placeholder="Tell us about yourself..."
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40"
               rows={4}
             />
-          </label>
+          </div>
 
           {/* Role Display (read-only) */}
           {user.role && (
@@ -191,7 +194,7 @@ export function EditProfileDialog({ user }: EditProfileDialogProps) {
                 <span className="capitalize">{user.role}</span>
                 <p className="text-xs text-muted-foreground mt-1">
                   Role cannot be changed. Visit{" "}
-                  <a href="/onboard" className="text-blue-600 hover:underline">
+                  <a href="/onboard" className="text-primary hover:underline">
                     onboarding page
                   </a>{" "}
                   to change role.
@@ -221,10 +224,7 @@ export function EditProfileDialog({ user }: EditProfileDialogProps) {
             <button
               type="submit"
               disabled={pending || isUploading}
-              className={cn(
-                buttonVariants(),
-                "bg-blue-600 hover:bg-blue-700 disabled:opacity-70",
-              )}
+              className={cn(buttonVariants())}
             >
               {pending || isUploading ? "Saving..." : "Save Changes"}
             </button>

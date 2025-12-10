@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation"
 import { BookOpen, Calendar, FileText, Plus, Upload } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { buttonVariants } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
 import {
   Dialog,
   DialogContent,
@@ -202,54 +205,55 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
               </DialogDescription>
             </DialogHeader>
             <form action={handleCreateClasswork} className="space-y-4">
-              <label className="space-y-2 text-sm font-medium text-foreground">
-                <span>Title</span>
-                <input
+              <div className="space-y-2">
+                <Label htmlFor="classwork-title">Title</Label>
+                <Input
+                  id="classwork-title"
                   name="title"
                   required
                   placeholder="e.g. Chapter 5 Quiz"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40"
                 />
-              </label>
-              <label className="space-y-2 text-sm font-medium text-foreground">
-                <span>Description</span>
-                <textarea
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="classwork-description">Description</Label>
+                <Textarea
+                  id="classwork-description"
                   name="description"
                   placeholder="Add instructions or details..."
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40"
                   rows={3}
                 />
-              </label>
+              </div>
               <div className="grid gap-4 sm:grid-cols-2">
-                <label className="space-y-2 text-sm font-medium text-foreground">
-                  <span>Type</span>
+                <div className="space-y-2">
+                  <Label htmlFor="classwork-type">Type</Label>
                   <select
+                    id="classwork-type"
                     name="type"
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40"
+                    className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs transition-all outline-none focus-visible:border-primary focus-visible:ring-primary/20 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <option value="assignment">Assignment</option>
                     <option value="quiz">Quiz</option>
                     <option value="material">Material</option>
                   </select>
-                </label>
-                <label className="space-y-2 text-sm font-medium text-foreground">
-                  <span>Points</span>
-                  <input
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="classwork-points">Points</Label>
+                  <Input
+                    id="classwork-points"
                     name="points"
                     type="number"
                     placeholder="e.g. 100"
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40"
                   />
-                </label>
+                </div>
               </div>
-              <label className="space-y-2 text-sm font-medium text-foreground">
-                <span>Due Date</span>
-                <input
+              <div className="space-y-2">
+                <Label htmlFor="classwork-dueDate">Due Date</Label>
+                <Input
+                  id="classwork-dueDate"
                   name="dueDate"
                   type="datetime-local"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40"
                 />
-              </label>
+              </div>
               {error && <p className="text-sm text-destructive">{error}</p>}
               <DialogFooter>
                 <button

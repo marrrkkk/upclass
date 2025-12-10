@@ -64,24 +64,66 @@ export function NotificationsSection({ userId }: NotificationsSectionProps) {
         },
         (payload) => {
           const updatedNotif = payload.new as any
-          if (updatedNotif.read === true) {
+          const oldNotif = payload.old as any
+
+          // Only update count if read status actually changed
+          if (oldNotif.read === false && updatedNotif.read === true) {
             // Decrement count when notification is marked as read
             setUnreadCount((prev) => Math.max(0, prev - 1))
-          } else if (updatedNotif.read === false) {
-            // Increment count if somehow marked as unread
+          } else if (oldNotif.read === true && updatedNotif.read === false) {
+            // Increment count if marked as unread
             setUnreadCount((prev) => prev + 1)
+          }
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          const deletedNotif = payload.old as any
+          if (deletedNotif.read === false) {
+            setUnreadCount((prev) => Math.max(0, prev - 1))
           }
         },
       )
       .subscribe()
 
     return () => {
-      supabase.removeChannel(channel)
+      supabase?.removeChannel(channel)
     }
   }, [userId])
 
   const pathname = usePathname()
   const isActive = pathname === "/home/notifications"
+
+  // Refetch count when notifications page becomes active
+  useEffect(() => {
+    if (!supabase || !userId || !isActive) return
+
+    const refetchCount = async () => {
+      try {
+        const { count, error } = await supabase
+          .from("notifications")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .eq("read", false)
+
+        if (!error && count !== null) {
+          setUnreadCount(count)
+        }
+      } catch (err) {
+        console.error("Error refetching unread count:", err)
+      }
+    }
+
+    refetchCount()
+  }, [isActive, userId])
+
 
   return (
     <Link

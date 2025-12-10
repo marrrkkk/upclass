@@ -47,7 +47,7 @@ export default async function HomeLayout({
       <div className="flex h-screen bg-background overflow-hidden">
         <Sidebar userId={session.user.id} />
         <main className="flex flex-1 flex-col overflow-y-auto">
-          <div className="border-b border-border px-8 flex items-center h-[4rem]">
+          <div className="border-b border-border px-8 flex items-center h-16 min-h-16 max-h-16">
             <PageHeader user={userInfo} userId={session.user.id} />
           </div>
           <div className="px-8 py-8">

@@ -54,6 +54,7 @@ export function ProfileClient({
   createdResources,
   isOwnProfile = false,
   currentUserId,
+  isPrivate = false,
 }: ProfileClientProps) {
   const initials = user.name
     .split(" ")

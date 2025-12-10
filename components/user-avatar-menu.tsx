@@ -59,12 +59,12 @@ export function UserAvatarMenu({ name, email, image, userId }: UserAvatarMenuPro
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          className="relative flex size-8 shrink-0 overflow-hidden rounded-full ring-2 ring-offset-2 ring-offset-background ring-blue-600 hover:ring-blue-700 transition-all focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2"
+          className="relative flex size-8 shrink-0 overflow-hidden rounded-full ring-2 ring-offset-2 ring-offset-background ring-primary hover:ring-primary/80 transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
           type="button"
         >
           <Avatar className="size-8">
             <AvatarImage src={image || undefined} alt={name || "User"} />
-            <AvatarFallback className="bg-blue-600 text-white font-medium">
+            <AvatarFallback className="bg-primary text-primary-foreground font-medium">
               {initials}
             </AvatarFallback>
           </Avatar>
@@ -73,7 +73,7 @@ export function UserAvatarMenu({ name, email, image, userId }: UserAvatarMenuPro
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel>
           <div className="flex flex-col space-y-1">
-            {name && <p className="text-sm font-medium leading-none">{name}</p>}
+            {name && <p className="text-sm font-medium leading-none text-foreground">{name}</p>}
             {email && (
               <p className="text-xs leading-none text-muted-foreground">{email}</p>
             )}

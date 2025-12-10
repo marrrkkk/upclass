@@ -5,6 +5,9 @@ import { Plus, Upload, X } from "lucide-react"
 
 import { createResource } from "@/app/actions/resources"
 import { buttonVariants } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
 import {
   Dialog,
   DialogContent,
@@ -95,7 +98,7 @@ export function CreateResourceButton() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <button
-          className={cn(buttonVariants({ size: "sm" }), "gap-2 bg-blue-600 hover:bg-blue-700")}
+          className={cn(buttonVariants({ size: "sm" }), "gap-2")}
           type="button"
         >
           <Plus className="h-4 w-4" />
@@ -111,41 +114,41 @@ export function CreateResourceButton() {
         </DialogHeader>
         <form action={handleCreate} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="space-y-2 text-sm font-medium text-foreground">
-              <span>Title</span>
-              <input
+            <div className="space-y-2">
+              <Label htmlFor="title">Title</Label>
+              <Input
+                id="title"
                 name="title"
                 required
                 placeholder="e.g. Introduction to React"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40"
               />
-            </label>
-            <label className="space-y-2 text-sm font-medium text-foreground">
-              <span>Category</span>
-              <input
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="category">Category</Label>
+              <Input
+                id="category"
                 name="category"
                 placeholder="e.g. Programming"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40"
               />
-            </label>
+            </div>
           </div>
-          <label className="space-y-2 text-sm font-medium text-foreground">
-            <span>Description</span>
-            <textarea
+          <div className="space-y-2">
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
               name="description"
               placeholder="Describe what this resource contains..."
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40"
               rows={3}
             />
-          </label>
+          </div>
 
           {/* File Upload */}
-          <label className="space-y-2 text-sm font-medium text-foreground">
-            <span>File</span>
+          <div className="space-y-2">
+            <Label>File</Label>
             {selectedFile ? (
               <div className="flex items-center justify-between rounded-md border border-input bg-background px-3 py-2">
                 <div className="flex items-center gap-2">
-                  <Upload className="h-4 w-4 text-blue-600" />
+                  <Upload className="h-4 w-4 text-primary" />
                   <span className="text-sm">{selectedFile.name}</span>
                 </div>
                 <button
@@ -183,7 +186,7 @@ export function CreateResourceButton() {
                 </label>
               </div>
             )}
-          </label>
+          </div>
 
           {error ? (
             <p className="text-sm text-destructive">{error}</p>
@@ -207,10 +210,7 @@ export function CreateResourceButton() {
             <button
               type="submit"
               disabled={pending || isUploading || !selectedFile}
-              className={cn(
-                buttonVariants(),
-                "bg-blue-600 hover:bg-blue-700 disabled:opacity-70",
-              )}
+              className={cn(buttonVariants())}
             >
               {pending || isUploading ? "Uploading..." : "Create"}
             </button>

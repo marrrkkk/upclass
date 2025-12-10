@@ -5,6 +5,9 @@ import { Plus } from "lucide-react"
 
 import { createClass } from "@/app/actions/classes"
 import { buttonVariants } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
 import {
   Dialog,
   DialogContent,
@@ -37,7 +40,7 @@ export function CreateClassButton() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <button
-          className={cn(buttonVariants({ size: "sm" }), "gap-2 bg-blue-600 hover:bg-blue-700")}
+          className={cn(buttonVariants({ size: "sm" }), "gap-2")}
           type="button"
         >
           <Plus className="h-4 w-4" />
@@ -53,44 +56,44 @@ export function CreateClassButton() {
         </DialogHeader>
         <form action={handleCreate} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="space-y-2 text-sm font-medium text-foreground">
-              <span>Title</span>
-              <input
+            <div className="space-y-2">
+              <Label htmlFor="title">Title</Label>
+              <Input
+                id="title"
                 name="title"
                 required
                 placeholder="e.g. Mastering UI Design"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40"
               />
-            </label>
-            <label className="space-y-2 text-sm font-medium text-foreground">
-              <span>Category</span>
-              <input
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="category">Category</Label>
+              <Input
+                id="category"
                 name="category"
                 placeholder="e.g. UI/UX"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40"
               />
-            </label>
+            </div>
           </div>
-          <label className="space-y-2 text-sm font-medium text-foreground">
-            <span>Description</span>
-            <textarea
+          <div className="space-y-2">
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
               name="description"
               placeholder="What will learners get from this class?"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40"
               rows={3}
             />
-          </label>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="space-y-2 text-sm font-medium text-foreground">
-              <span>Schedule</span>
-              <input
+            <div className="space-y-2">
+              <Label htmlFor="schedule">Schedule</Label>
+              <Input
+                id="schedule"
                 name="schedule"
                 placeholder="e.g. Mon, Wed, Fri 10:00 AM"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40"
               />
-            </label>
-            <label className="space-y-2 text-sm font-medium text-foreground">
-              <span>Color</span>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="color-text">Color</Label>
               <div className="flex items-center gap-3">
                 <input
                   type="color"
@@ -104,13 +107,13 @@ export function CreateClassButton() {
                     if (hiddenInput) hiddenInput.value = e.target.value
                   }}
                 />
-                <input
+                <Input
                   type="text"
                   id="color-text"
                   defaultValue="#3b82f6"
                   pattern="^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"
                   placeholder="#3b82f6"
-                  className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus:border-blue-500 focus:ring-2 focus:ring-blue-500/40"
+                  className="flex-1"
                   onChange={(e) => {
                     const colorInput = document.getElementById("color-picker") as HTMLInputElement
                     const hiddenInput = document.getElementById("color-hidden") as HTMLInputElement
@@ -122,7 +125,7 @@ export function CreateClassButton() {
                 />
                 <input type="hidden" id="color-hidden" name="color" defaultValue="#3b82f6" />
               </div>
-            </label>
+            </div>
           </div>
 
           {error ? (
@@ -140,10 +143,7 @@ export function CreateClassButton() {
             <button
               type="submit"
               disabled={pending}
-              className={cn(
-                buttonVariants(),
-                "bg-blue-600 hover:bg-blue-700 disabled:opacity-70",
-              )}
+              className={cn(buttonVariants())}
             >
               {pending ? "Creating..." : "Create"}
             </button>
