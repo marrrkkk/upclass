@@ -16,7 +16,8 @@ import {
   FileSpreadsheet,
   Presentation,
   FileIcon as FileIconLucide,
-  FileType
+  FileType,
+  Trash2
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -35,7 +36,8 @@ import {
 } from "@/components/ui/dialog"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import { updateResource } from "@/app/actions/resources"
+import { buttonVariants } from "@/components/ui/button"
+import { updateResource, deleteResource } from "@/app/actions/resources"
 import { AIChatDialog } from "@/components/resources/ai-chat-dialog"
 
 type ResourceData = {
@@ -102,11 +104,13 @@ export function ResourceDetailClient({ resource, isOwner, currentUserId, isAuthe
   const router = useRouter()
   const setPageTitle = usePageHeaderStore((state) => state.setPageTitle)
   const [editOpen, setEditOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [aiChatOpen, setAiChatOpen] = useState(false)
   const [title, setTitle] = useState(resource.title)
   const [description, setDescription] = useState(resource.description || "")
   const [category, setCategory] = useState(resource.category || "General")
   const [pending, startTransition] = useTransition()
+  const [deletePending, startDeleteTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
 
   // Determine styles based on file type
@@ -155,6 +159,19 @@ export function ResourceDetailClient({ resource, isOwner, currentUserId, isAuthe
 
   const handleDownload = () => {
     window.open(resource.fileUrl, "_blank")
+  }
+
+  const handleDelete = () => {
+    startDeleteTransition(async () => {
+      const res = await deleteResource(resource.id)
+      if (res.success) {
+        setDeleteDialogOpen(false)
+        router.push("/home/resources")
+      } else {
+        setError(res.error)
+        setDeleteDialogOpen(false)
+      }
+    })
   }
 
   const getInitials = (name: string) => {
@@ -230,14 +247,23 @@ export function ResourceDetailClient({ resource, isOwner, currentUserId, isAuthe
                 {resource.title}
               </h1>
               {isOwner && (
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="shrink-0"
-                  onClick={handleOpenEdit}
-                >
-                  <Edit className="h-4 w-4" />
-                </Button>
+                <div className="flex gap-2 shrink-0">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={handleOpenEdit}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => setDeleteDialogOpen(true)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               )}
             </div>
 
@@ -421,6 +447,63 @@ export function ResourceDetailClient({ resource, isOwner, currentUserId, isAuthe
           fileName: resource.fileName,
         }}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-[420px] gap-0 p-0 overflow-hidden border-0 shadow-2xl">
+          <DialogHeader className="p-6 pb-4 bg-gradient-to-r from-destructive/10 to-destructive/5 border-b border-destructive/20">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center">
+                <Trash2 className="h-5 w-5 text-destructive" />
+              </div>
+              <div>
+                <DialogTitle className="text-lg font-semibold">Delete Resource</DialogTitle>
+                <DialogDescription className="text-sm text-muted-foreground">
+                  This action cannot be undone
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="p-6 text-center space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Are you sure you want to permanently delete
+            </p>
+            <p className="text-lg font-semibold text-foreground truncate">
+              "{resource.title}"
+            </p>
+            <p className="text-xs text-muted-foreground">
+              The file and all associated data will be permanently removed.
+            </p>
+          </div>
+
+          <div className="px-6 py-4 bg-muted/30 border-t flex items-center justify-center gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+              disabled={deletePending}
+              className="min-w-[100px]"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deletePending}
+              className="min-w-[120px] gap-2"
+            >
+              {deletePending ? (
+                "Deleting..."
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -401,3 +401,273 @@ export async function toggleReaction(
   }
 }
 
+export async function updateAnnouncement(
+  announcementId: string,
+  content: string
+): Promise<ActionResponse> {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  })
+
+  if (!session?.user?.id) {
+    return { success: false, error: "Unauthorized" }
+  }
+
+  const announcementData = await db
+    .select()
+    .from(announcements)
+    .where(eq(announcements.id, announcementId))
+    .limit(1)
+
+  if (announcementData.length === 0) {
+    return { success: false, error: "Announcement not found" }
+  }
+
+  // Only author can edit
+  if (announcementData[0].authorId !== session.user.id) {
+    return { success: false, error: "Only the author can edit this announcement" }
+  }
+
+  try {
+    await db
+      .update(announcements)
+      .set({ content, updatedAt: new Date() })
+      .where(eq(announcements.id, announcementId))
+
+    revalidatePath(`/home/classes/${announcementData[0].classId}`)
+    return { success: true }
+  } catch (error) {
+    console.error("updateAnnouncement error", error)
+    return { success: false, error: "Failed to update announcement" }
+  }
+}
+
+export async function deleteAnnouncement(
+  announcementId: string
+): Promise<ActionResponse> {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  })
+
+  if (!session?.user?.id) {
+    return { success: false, error: "Unauthorized" }
+  }
+
+  const announcementData = await db
+    .select()
+    .from(announcements)
+    .where(eq(announcements.id, announcementId))
+    .limit(1)
+
+  if (announcementData.length === 0) {
+    return { success: false, error: "Announcement not found" }
+  }
+
+  // Check if user is author or teacher
+  const membership = await db
+    .select()
+    .from(classMembership)
+    .where(
+      and(
+        eq(classMembership.classId, announcementData[0].classId),
+        eq(classMembership.userId, session.user.id),
+      ),
+    )
+    .limit(1)
+
+  const isAuthor = announcementData[0].authorId === session.user.id
+  const isTeacher = membership.length > 0 && membership[0].role === "teacher"
+
+  if (!isAuthor && !isTeacher) {
+    return { success: false, error: "Only the author or a teacher can delete this announcement" }
+  }
+
+  try {
+    await db.delete(announcements).where(eq(announcements.id, announcementId))
+
+    revalidatePath(`/home/classes/${announcementData[0].classId}`)
+    return { success: true }
+  } catch (error) {
+    console.error("deleteAnnouncement error", error)
+    return { success: false, error: "Failed to delete announcement" }
+  }
+}
+
+export async function updateClasswork(
+  classworkId: string,
+  formData: FormData
+): Promise<ActionResponse> {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  })
+
+  if (!session?.user?.id) {
+    return { success: false, error: "Unauthorized" }
+  }
+
+  const classworkData = await db
+    .select()
+    .from(classwork)
+    .where(eq(classwork.id, classworkId))
+    .limit(1)
+
+  if (classworkData.length === 0) {
+    return { success: false, error: "Classwork not found" }
+  }
+
+  // Check if user is a teacher
+  const membership = await db
+    .select()
+    .from(classMembership)
+    .where(
+      and(
+        eq(classMembership.classId, classworkData[0].classId),
+        eq(classMembership.userId, session.user.id),
+        eq(classMembership.role, "teacher"),
+      ),
+    )
+    .limit(1)
+
+  if (membership.length === 0) {
+    return { success: false, error: "Only teachers can update classwork" }
+  }
+
+  const title = (formData.get("title") as string | null)?.trim()
+  const description = (formData.get("description") as string | null)?.trim()
+  const dueDate = formData.get("dueDate") as string | null
+  const points = formData.get("points") as string | null
+
+  if (!title) {
+    return { success: false, error: "Title is required" }
+  }
+
+  try {
+    await db
+      .update(classwork)
+      .set({
+        title,
+        description,
+        dueDate: dueDate ? new Date(dueDate) : null,
+        points,
+        updatedAt: new Date(),
+      })
+      .where(eq(classwork.id, classworkId))
+
+    revalidatePath(`/home/classes/${classworkData[0].classId}`)
+    return { success: true }
+  } catch (error) {
+    console.error("updateClasswork error", error)
+    return { success: false, error: "Failed to update classwork" }
+  }
+}
+
+export async function deleteClasswork(
+  classworkId: string
+): Promise<ActionResponse> {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  })
+
+  if (!session?.user?.id) {
+    return { success: false, error: "Unauthorized" }
+  }
+
+  const classworkData = await db
+    .select()
+    .from(classwork)
+    .where(eq(classwork.id, classworkId))
+    .limit(1)
+
+  if (classworkData.length === 0) {
+    return { success: false, error: "Classwork not found" }
+  }
+
+  // Check if user is a teacher
+  const membership = await db
+    .select()
+    .from(classMembership)
+    .where(
+      and(
+        eq(classMembership.classId, classworkData[0].classId),
+        eq(classMembership.userId, session.user.id),
+        eq(classMembership.role, "teacher"),
+      ),
+    )
+    .limit(1)
+
+  if (membership.length === 0) {
+    return { success: false, error: "Only teachers can delete classwork" }
+  }
+
+  try {
+    await db.delete(classwork).where(eq(classwork.id, classworkId))
+
+    revalidatePath(`/home/classes/${classworkData[0].classId}`)
+    return { success: true }
+  } catch (error) {
+    console.error("deleteClasswork error", error)
+    return { success: false, error: "Failed to delete classwork" }
+  }
+}
+
+export async function removeMember(
+  classId: string,
+  memberId: string
+): Promise<ActionResponse> {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  })
+
+  if (!session?.user?.id) {
+    return { success: false, error: "Unauthorized" }
+  }
+
+  // Check if current user is a teacher of this class
+  const membership = await db
+    .select()
+    .from(classMembership)
+    .where(
+      and(
+        eq(classMembership.classId, classId),
+        eq(classMembership.userId, session.user.id),
+        eq(classMembership.role, "teacher"),
+      ),
+    )
+    .limit(1)
+
+  if (membership.length === 0) {
+    return { success: false, error: "Only teachers can remove members" }
+  }
+
+  // Check if target is a student (can't remove teachers)
+  const targetMembership = await db
+    .select()
+    .from(classMembership)
+    .where(
+      and(
+        eq(classMembership.classId, classId),
+        eq(classMembership.userId, memberId),
+      ),
+    )
+    .limit(1)
+
+  if (targetMembership.length === 0) {
+    return { success: false, error: "Member not found" }
+  }
+
+  if (targetMembership[0].role === "teacher") {
+    return { success: false, error: "Cannot remove teachers from the class" }
+  }
+
+  try {
+    await db
+      .delete(classMembership)
+      .where(eq(classMembership.id, targetMembership[0].id))
+
+    revalidatePath(`/home/classes/${classId}`)
+    return { success: true }
+  } catch (error) {
+    console.error("removeMember error", error)
+    return { success: false, error: "Failed to remove member" }
+  }
+}

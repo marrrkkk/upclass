@@ -2,13 +2,16 @@
 
 import { useState, useTransition, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { MessageSquare, Plus, Heart, SmilePlus } from "lucide-react"
+import { MessageSquare, Plus, Heart, SmilePlus, MoreVertical, Edit, Trash2 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { buttonVariants } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
@@ -16,9 +19,10 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { createAnnouncement, toggleReaction } from "@/app/actions/class-detail"
+import { createAnnouncement, toggleReaction, updateAnnouncement, deleteAnnouncement } from "@/app/actions/class-detail"
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
 
@@ -56,7 +60,8 @@ const REACTION_EMOJIS: Record<string, { emoji: string, label: string }> = {
   angry: { emoji: "😡", label: "Angry" },
 }
 
-function AnnouncementCard({ announcement, userId, classColor }: { announcement: AnnouncementData, userId?: string, classColor: string }) {
+function AnnouncementCard({ announcement, userId, classColor, userRole }: { announcement: AnnouncementData, userId?: string, classColor: string, userRole: "teacher" | "student" | null }) {
+  const router = useRouter()
   // Find user's current reaction
   const initialUserReaction = userId ? announcement.reactions.find(r => r.userId === userId)?.reaction : null
 
@@ -65,6 +70,16 @@ function AnnouncementCard({ announcement, userId, classColor }: { announcement: 
     hasReacted: !!initialUserReaction,
     userReaction: initialUserReaction || null
   })
+
+  const [editOpen, setEditOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [editContent, setEditContent] = useState(announcement.content)
+  const [editPending, startEditTransition] = useTransition()
+  const [deletePending, startDeleteTransition] = useTransition()
+
+  const isAuthor = userId === announcement.author.id
+  const canEdit = isAuthor
+  const canDelete = isAuthor || userRole === "teacher"
 
   // Sync state with prop changes
   useEffect(() => {
@@ -119,105 +134,240 @@ function AnnouncementCard({ announcement, userId, classColor }: { announcement: 
 
   const authorInitial = announcement.author.name.charAt(0).toUpperCase()
 
+  const handleEdit = () => {
+    startEditTransition(async () => {
+      const res = await updateAnnouncement(announcement.id, editContent)
+      if (res.success) {
+        setEditOpen(false)
+        router.refresh()
+      }
+    })
+  }
+
+  const handleDelete = () => {
+    startDeleteTransition(async () => {
+      const res = await deleteAnnouncement(announcement.id)
+      if (res.success) {
+        setDeleteOpen(false)
+        router.refresh()
+      }
+    })
+  }
+
   return (
-    <Card className="group transition-all hover:shadow-md border-border/60 overflow-hidden relative border-l-[6px]" style={{ borderLeftColor: classColor }}>
-      <CardHeader className="pb-3 pl-5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Avatar className="h-10 w-10 border">
-              <AvatarImage src={announcement.author.image || undefined} alt={announcement.author.name} />
-              <AvatarFallback className="bg-primary/10 text-primary">{authorInitial}</AvatarFallback>
-            </Avatar>
-            <div>
-              <p className="font-semibold text-sm leading-none">{announcement.author.name}</p>
-              <p className="text-xs text-muted-foreground mt-1">{formatDate(announcement.createdAt)}</p>
-            </div>
-          </div>
-          <button className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-muted rounded-full text-muted-foreground">
-            <div className="h-1 w-1 bg-current rounded-full mb-0.5" />
-            <div className="h-1 w-1 bg-current rounded-full mb-0.5" />
-            <div className="h-1 w-1 bg-current rounded-full" />
-          </button>
-        </div>
-      </CardHeader>
-      <CardContent className="pl-5">
-        <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">{announcement.content}</p>
-      </CardContent>
-      <div className="px-6 py-3 border-t bg-muted/5 flex items-center justify-between pl-5">
-        <div className="flex items-center gap-1">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                disabled={!userId}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all group/rx focus:outline-none",
-                  reactionState.hasReacted
-                    ? "bg-blue-50 text-blue-600 hover:bg-blue-100"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-                title="Add reaction"
-              >
-                {reactionState.hasReacted && reactionState.userReaction ? (
-                  <>
-                    <span className="text-base leading-none">{REACTION_EMOJIS[reactionState.userReaction]?.emoji || "👍"}</span>
-                    <span className="capitalize">{REACTION_EMOJIS[reactionState.userReaction]?.label || "Liked"}</span>
-                  </>
-                ) : (
-                  <>
-                    <SmilePlus className="h-4 w-4 stroke-current opacity-70 group-hover/rx:opacity-100" />
-                    <span>Reaction</span>
-                  </>
-                )}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="flex gap-1 p-1 min-w-0">
-              {Object.entries(REACTION_EMOJIS).map(([key, { emoji, label }]) => (
-                <DropdownMenuItem
-                  key={key}
-                  onClick={() => handleReaction(key)}
-                  className={cn(
-                    "flex items-center justify-center p-2 rounded-full cursor-pointer hover:bg-muted text-xl transition-transform hover:scale-125 focus:bg-muted",
-                    reactionState.userReaction === key && "bg-blue-50 ring-1 ring-blue-200"
-                  )}
-                  title={label}
-                >
-                  {emoji}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {(() => {
-            // Calculate top 3 reactions from the actual props (not optimistic state for accuracy)
-            const reactionCounts: Record<string, number> = {}
-            announcement.reactions.forEach(r => {
-              reactionCounts[r.reaction] = (reactionCounts[r.reaction] || 0) + 1
-            })
-
-            const sortedReactions = Object.entries(reactionCounts)
-              .sort((a, b) => b[1] - a[1])
-              .slice(0, 3)
-
-            const totalCount = announcement.reactions.length
-
-            if (totalCount === 0) return null
-
-            return (
-              <div className="flex items-center gap-1.5 ml-2 text-xs text-muted-foreground bg-muted/50 px-2.5 py-1 rounded-full cursor-default" title={`${totalCount} reaction${totalCount !== 1 ? 's' : ''}`}>
-                <div className="flex -space-x-1">
-                  {sortedReactions.map(([type]) => (
-                    <span key={type} className="text-sm leading-none">
-                      {REACTION_EMOJIS[type]?.emoji || "👍"}
-                    </span>
-                  ))}
-                </div>
-                <span className="font-medium">{totalCount}</span>
+    <>
+      <Card className="group transition-all hover:shadow-md border-border/60 overflow-hidden relative border-l-[6px]" style={{ borderLeftColor: classColor }}>
+        <CardHeader className="pb-3 pl-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Avatar className="h-10 w-10 border">
+                <AvatarImage src={announcement.author.image || undefined} alt={announcement.author.name} />
+                <AvatarFallback className="bg-primary/10 text-primary">{authorInitial}</AvatarFallback>
+              </Avatar>
+              <div>
+                <p className="font-semibold text-sm leading-none">{announcement.author.name}</p>
+                <p className="text-xs text-muted-foreground mt-1">{formatDate(announcement.createdAt)}</p>
               </div>
-            )
-          })()}
+            </div>
+            {(canEdit || canDelete) && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-muted rounded-full text-muted-foreground focus:outline-none">
+                    <MoreVertical className="h-4 w-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {canEdit && (
+                    <DropdownMenuItem onClick={() => { setEditContent(announcement.content); setEditOpen(true); }}>
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit
+                    </DropdownMenuItem>
+                  )}
+                  {canDelete && (
+                    <>
+                      {canEdit && <DropdownMenuSeparator />}
+                      <DropdownMenuItem onClick={() => setDeleteOpen(true)} className="text-destructive focus:text-destructive">
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="pl-5">
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">{announcement.content}</p>
+        </CardContent>
+        <div className="px-6 py-3 border-t bg-muted/5 flex items-center justify-between pl-5">
+          <div className="flex items-center gap-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  disabled={!userId}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all group/rx focus:outline-none",
+                    reactionState.hasReacted
+                      ? "bg-blue-50 text-blue-600 hover:bg-blue-100"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                  title="Add reaction"
+                >
+                  {reactionState.hasReacted && reactionState.userReaction ? (
+                    <>
+                      <span className="text-base leading-none">{REACTION_EMOJIS[reactionState.userReaction]?.emoji || "👍"}</span>
+                      <span className="capitalize">{REACTION_EMOJIS[reactionState.userReaction]?.label || "Liked"}</span>
+                    </>
+                  ) : (
+                    <>
+                      <SmilePlus className="h-4 w-4 stroke-current opacity-70 group-hover/rx:opacity-100" />
+                      <span>Reaction</span>
+                    </>
+                  )}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="flex gap-1 p-1 min-w-0">
+                {Object.entries(REACTION_EMOJIS).map(([key, { emoji, label }]) => (
+                  <DropdownMenuItem
+                    key={key}
+                    onClick={() => handleReaction(key)}
+                    className={cn(
+                      "flex items-center justify-center p-2 rounded-full cursor-pointer hover:bg-muted text-xl transition-transform hover:scale-125 focus:bg-muted",
+                      reactionState.userReaction === key && "bg-blue-50 ring-1 ring-blue-200"
+                    )}
+                    title={label}
+                  >
+                    {emoji}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {(() => {
+              // Calculate top 3 reactions from the actual props (not optimistic state for accuracy)
+              const reactionCounts: Record<string, number> = {}
+              announcement.reactions.forEach(r => {
+                reactionCounts[r.reaction] = (reactionCounts[r.reaction] || 0) + 1
+              })
+
+              const sortedReactions = Object.entries(reactionCounts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 3)
+
+              const totalCount = announcement.reactions.length
+
+              if (totalCount === 0) return null
+
+              return (
+                <div className="flex items-center gap-1.5 ml-2 text-xs text-muted-foreground bg-muted/50 px-2.5 py-1 rounded-full cursor-default" title={`${totalCount} reaction${totalCount !== 1 ? 's' : ''}`}>
+                  <div className="flex -space-x-1">
+                    {sortedReactions.map(([type]) => (
+                      <span key={type} className="text-sm leading-none">
+                        {REACTION_EMOJIS[type]?.emoji || "👍"}
+                      </span>
+                    ))}
+                  </div>
+                  <span className="font-medium">{totalCount}</span>
+                </div>
+              )
+            })()}
+          </div>
         </div>
-      </div>
-    </Card>
+      </Card>
+
+      {/* Edit Announcement Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="sm:max-w-[550px] gap-0 p-0 overflow-hidden border-0 shadow-2xl">
+          <DialogHeader className="p-6 pb-2 bg-gradient-to-r from-muted/50 to-muted/10 border-b border-border/50">
+            <DialogTitle className="text-xl font-semibold tracking-tight flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                <Edit className="h-5 w-5" />
+              </div>
+              Edit Announcement
+            </DialogTitle>
+          </DialogHeader>
+          <div className="p-6 pb-4">
+            <Textarea
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              placeholder="Announcement content..."
+              className="min-h-[180px] resize-none"
+            />
+          </div>
+          <DialogFooter className="px-6 py-4 bg-muted/30 border-t">
+            <button
+              type="button"
+              onClick={() => setEditOpen(false)}
+              className={cn(buttonVariants({ variant: "ghost" }), "text-muted-foreground hover:text-foreground")}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleEdit}
+              disabled={editPending || !editContent.trim()}
+              className={cn(buttonVariants(), "min-w-[100px] shadow-md hover:shadow-lg transition-all")}
+              style={{ backgroundColor: classColor }}
+            >
+              {editPending ? "Saving..." : "Save"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Announcement Dialog */}
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent className="sm:max-w-[420px] gap-0 p-0 overflow-hidden border-0 shadow-2xl">
+          <DialogHeader className="p-6 pb-4 bg-gradient-to-r from-destructive/10 to-destructive/5 border-b border-destructive/20">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center">
+                <Trash2 className="h-5 w-5 text-destructive" />
+              </div>
+              <div>
+                <DialogTitle className="text-lg font-semibold">Delete Announcement</DialogTitle>
+                <DialogDescription className="text-sm text-muted-foreground">
+                  This action cannot be undone
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="p-6 text-center space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Are you sure you want to delete this announcement?
+            </p>
+            <p className="text-sm text-foreground/80 line-clamp-2 italic">
+              "{announcement.content.length > 100 ? announcement.content.slice(0, 100) + '...' : announcement.content}"
+            </p>
+          </div>
+
+          <div className="px-6 py-4 bg-muted/30 border-t flex items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => setDeleteOpen(false)}
+              disabled={deletePending}
+              className={cn(buttonVariants({ variant: "outline" }), "min-w-[100px]")}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deletePending}
+              className={cn(buttonVariants({ variant: "destructive" }), "min-w-[120px] gap-2")}
+            >
+              {deletePending ? "Deleting..." : (
+                <>
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </>
+              )}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
 
@@ -412,6 +562,7 @@ export function StreamTab({ classId, userId, userRole, announcements, classColor
                 announcement={announcement}
                 userId={userId}
                 classColor={classColor}
+                userRole={userRole}
               />
             ))}
           </div>

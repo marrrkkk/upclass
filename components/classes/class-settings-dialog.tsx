@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { Settings, Plus } from "lucide-react"
-import { updateClass } from "@/app/actions/classes"
+import { useRouter } from "next/navigation"
+import { Settings, Plus, Trash2 } from "lucide-react"
+import { updateClass, deleteClass } from "@/app/actions/classes"
 import { buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -33,9 +34,12 @@ type ClassSettingsDialogProps = {
 }
 
 export function ClassSettingsDialog({ classData, trigger }: ClassSettingsDialogProps) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+  const [deletePending, startDeleteTransition] = useTransition()
   const [selectedColor, setSelectedColor] = useState(classData.color || "#3b82f6")
 
   const handleUpdate = async (formData: FormData) => {
@@ -47,6 +51,20 @@ export function ClassSettingsDialog({ classData, trigger }: ClassSettingsDialogP
         return
       }
       setOpen(false)
+    })
+  }
+
+  const handleDelete = () => {
+    startDeleteTransition(async () => {
+      const res = await deleteClass(classData.id)
+      if (!res.success) {
+        setError(res.error)
+        setDeleteDialogOpen(false)
+        return
+      }
+      setDeleteDialogOpen(false)
+      setOpen(false)
+      router.push("/home/classes")
     })
   }
 
@@ -171,6 +189,24 @@ export function ClassSettingsDialog({ classData, trigger }: ClassSettingsDialogP
             </div>
           )}
 
+          {/* Danger Zone */}
+          <div className="border-t border-destructive/20 pt-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-destructive">Danger Zone</p>
+                <p className="text-xs text-muted-foreground">Permanently delete this class</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDeleteDialogOpen(true)}
+                className={cn(buttonVariants({ variant: "destructive", size: "sm" }), "gap-2")}
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete Class
+              </button>
+            </div>
+          </div>
+
           <DialogFooter className="pt-2">
             <button
               type="button"
@@ -189,7 +225,63 @@ export function ClassSettingsDialog({ classData, trigger }: ClassSettingsDialogP
           </DialogFooter>
         </form>
       </DialogContent>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-[420px] gap-0 p-0 overflow-hidden border-0 shadow-2xl">
+          <DialogHeader className="p-6 pb-4 bg-gradient-to-r from-destructive/10 to-destructive/5 border-b border-destructive/20">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center">
+                <Trash2 className="h-5 w-5 text-destructive" />
+              </div>
+              <div>
+                <DialogTitle className="text-lg font-semibold">Delete Class</DialogTitle>
+                <DialogDescription className="text-sm text-muted-foreground">
+                  This action cannot be undone
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="p-6 text-center space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Are you sure you want to permanently delete
+            </p>
+            <p className="text-lg font-semibold text-foreground truncate">
+              "{classData.title}"
+            </p>
+            <p className="text-xs text-muted-foreground">
+              All announcements, classwork, quizzes, and student submissions will be deleted.
+            </p>
+          </div>
+
+          <div className="px-6 py-4 bg-muted/30 border-t flex items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => setDeleteDialogOpen(false)}
+              disabled={deletePending}
+              className={cn(buttonVariants({ variant: "outline" }), "min-w-[100px]")}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deletePending}
+              className={cn(buttonVariants({ variant: "destructive" }), "min-w-[120px] gap-2")}
+            >
+              {deletePending ? (
+                "Deleting..."
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4" />
+                  Delete Class
+                </>
+              )}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   )
 }
-

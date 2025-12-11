@@ -1,10 +1,27 @@
 "use client"
 
+import { useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Users } from "lucide-react"
+import { Users, Trash2, MoreVertical, UserMinus } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent } from "@/components/ui/card"
+import { buttonVariants } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
+import { removeMember } from "@/app/actions/class-detail"
 
 type MemberData = {
   id: string
@@ -15,12 +32,31 @@ type MemberData = {
 }
 
 type PeopleTabProps = {
+  classId: string
+  userId?: string
+  userRole: "teacher" | "student" | null
   members: MemberData[]
 }
 
-export function PeopleTab({ members }: PeopleTabProps) {
+export function PeopleTab({ classId, userId, userRole, members }: PeopleTabProps) {
+  const router = useRouter()
   const teachers = members.filter((m) => m.role === "teacher")
   const students = members.filter((m) => m.role === "student")
+
+  const [removeMemberOpen, setRemoveMemberOpen] = useState<string | null>(null)
+  const [removePending, startRemoveTransition] = useTransition()
+
+  const memberToRemove = members.find(m => m.id === removeMemberOpen)
+
+  const handleRemoveMember = (memberId: string) => {
+    startRemoveTransition(async () => {
+      const res = await removeMember(classId, memberId)
+      if (res.success) {
+        setRemoveMemberOpen(null)
+        router.refresh()
+      }
+    })
+  }
 
   return (
     <div className="flex flex-col gap-8 max-w-4xl mx-auto">
@@ -72,23 +108,93 @@ export function PeopleTab({ members }: PeopleTabProps) {
             {students.map((member) => {
               const initial = member.name.charAt(0).toUpperCase()
               return (
-                <Link key={member.id} href={`/home/user/${member.id}`} className="block group">
-                  <div className="flex items-center gap-4 p-3 rounded-lg hover:bg-muted/50 transition-colors border-b last:border-0 border-transparent hover:border-border/40">
+                <div key={member.id} className="group flex items-center gap-4 p-3 rounded-lg hover:bg-muted/50 transition-colors border-b last:border-0 border-transparent hover:border-border/40">
+                  <Link href={`/home/user/${member.id}`} className="flex-1 flex items-center gap-4 min-w-0">
                     <Avatar className="h-10 w-10 border border-border">
                       <AvatarImage src={member.image || undefined} alt={member.name} />
                       <AvatarFallback className="bg-muted text-muted-foreground">{initial}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate group-hover:text-primary transition-colors">{member.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{member.email}</p>
                     </div>
-                  </div>
-                </Link>
+                  </Link>
+
+                  {userRole === "teacher" && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-muted rounded-full text-muted-foreground focus:outline-none">
+                          <MoreVertical className="h-4 w-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setRemoveMemberOpen(member.id)} className="text-destructive focus:text-destructive">
+                          <UserMinus className="h-4 w-4 mr-2" />
+                          Remove from class
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </div>
               )
             })}
           </div>
         )}
       </div>
+
+      {/* Remove Member Dialog */}
+      <Dialog open={!!removeMemberOpen} onOpenChange={(open) => !open && setRemoveMemberOpen(null)}>
+        <DialogContent className="sm:max-w-[420px] gap-0 p-0 overflow-hidden border-0 shadow-2xl">
+          <DialogHeader className="p-6 pb-4 bg-gradient-to-r from-destructive/10 to-destructive/5 border-b border-destructive/20">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center">
+                <UserMinus className="h-5 w-5 text-destructive" />
+              </div>
+              <div>
+                <DialogTitle className="text-lg font-semibold">Remove Student</DialogTitle>
+                <DialogDescription className="text-sm text-muted-foreground">
+                  This action cannot be undone
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="p-6 text-center space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Are you sure you want to remove this student from the class?
+            </p>
+            {memberToRemove && (
+              <div className="flex items-center justify-center gap-3">
+                <Avatar className="h-12 w-12 border border-border">
+                  <AvatarImage src={memberToRemove.image || undefined} alt={memberToRemove.name} />
+                  <AvatarFallback className="bg-muted text-muted-foreground">{memberToRemove.name.charAt(0).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <div className="text-left">
+                  <p className="font-semibold text-foreground">{memberToRemove.name}</p>
+                  <p className="text-xs text-muted-foreground">{memberToRemove.email}</p>
+                </div>
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              The student will no longer have access to this class.
+            </p>
+          </div>
+
+          <div className="px-6 py-4 bg-muted/30 border-t flex items-center justify-center gap-3">
+            <button type="button" onClick={() => setRemoveMemberOpen(null)} disabled={removePending} className={cn(buttonVariants({ variant: "outline" }), "min-w-[100px]")}>
+              Cancel
+            </button>
+            <button type="button" onClick={() => memberToRemove && handleRemoveMember(memberToRemove.id)} disabled={removePending} className={cn(buttonVariants({ variant: "destructive" }), "min-w-[120px] gap-2")}>
+              {removePending ? "Removing..." : (
+                <>
+                  <UserMinus className="h-4 w-4" />
+                  Remove
+                </>
+              )}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
-

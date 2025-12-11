@@ -33,7 +33,12 @@ export default async function ClassDetailPage({
   const isAuthenticated = !!session?.user?.id
   const userId = session?.user?.id
 
-  // Get class data - allow public viewing
+  // Require authentication to view classes
+  if (!isAuthenticated || !userId) {
+    redirect("/sign-in")
+  }
+
+  // Get class data
   const classData = await db
     .select({
       id: classes.id,
@@ -52,28 +57,26 @@ export default async function ClassDetailPage({
     notFound()
   }
 
-  // Check if user is a member (only if authenticated)
-  let membership: Array<{ role: string }> = []
-  let userRole: "teacher" | "student" | null = null
+  // Check if user is a member of this class
+  const membership = await db
+    .select({
+      role: classMembership.role,
+    })
+    .from(classMembership)
+    .where(
+      and(
+        eq(classMembership.classId, id),
+        eq(classMembership.userId, userId),
+      ),
+    )
+    .limit(1)
 
-  if (isAuthenticated && userId) {
-    membership = await db
-      .select({
-        role: classMembership.role,
-      })
-      .from(classMembership)
-      .where(
-        and(
-          eq(classMembership.classId, id),
-          eq(classMembership.userId, userId),
-        ),
-      )
-      .limit(1)
-
-    if (membership.length > 0) {
-      userRole = membership[0].role as "teacher" | "student"
-    }
+  // If user is not a member, redirect to classes page
+  if (membership.length === 0) {
+    redirect("/home/classes")
   }
+
+  const userRole = membership[0].role as "teacher" | "student"
 
   // Get announcements with author info - allow public viewing
   const announcementsData = await db

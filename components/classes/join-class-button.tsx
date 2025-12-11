@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import { UserPlus } from "lucide-react"
 import { joinClass } from "@/app/actions/classes"
 import { buttonVariants } from "@/components/ui/button"
@@ -18,6 +19,7 @@ import {
 import { cn } from "@/lib/utils"
 
 export function JoinClassButton() {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
@@ -31,6 +33,10 @@ export function JoinClassButton() {
         return
       }
       setOpen(false)
+      // Redirect to the class page
+      if (res.classId) {
+        router.push(`/home/classes/${res.classId}`)
+      }
     })
   }
 

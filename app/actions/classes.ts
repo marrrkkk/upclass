@@ -9,7 +9,7 @@ import { auth } from "@/lib/auth"
 import { classes, classMembership, user } from "@/db/schema"
 
 type ActionResponse =
-  | { success: true }
+  | { success: true; classId?: string }
   | { success: false; error: string }
 
 export async function createClass(formData: FormData): Promise<ActionResponse> {
@@ -43,7 +43,7 @@ export async function createClass(formData: FormData): Promise<ActionResponse> {
   }
 
   const classId = crypto.randomUUID()
-  
+
   // Generate a unique 6-character alphanumeric code
   const generateClassCode = (): string => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -55,7 +55,7 @@ export async function createClass(formData: FormData): Promise<ActionResponse> {
   }
 
   let classCode = generateClassCode()
-  
+
   // Ensure code is unique (retry if needed)
   let codeExists = true
   while (codeExists) {
@@ -158,7 +158,7 @@ export async function joinClass(formData: FormData): Promise<ActionResponse> {
     revalidatePath("/home/classes")
     revalidatePath("/home")
 
-    return { success: true }
+    return { success: true, classId }
   } catch (error) {
     console.error("joinClass error", error)
     return { success: false, error: "Failed to join class" }
@@ -222,3 +222,40 @@ export async function updateClass(classId: string, formData: FormData): Promise<
   }
 }
 
+export async function deleteClass(classId: string): Promise<ActionResponse> {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  })
+
+  if (!session?.user?.id) {
+    return { success: false, error: "Unauthorized" }
+  }
+
+  // Check if user is the owner of the class
+  const classData = await db
+    .select()
+    .from(classes)
+    .where(eq(classes.id, classId))
+    .limit(1)
+
+  if (classData.length === 0) {
+    return { success: false, error: "Class not found" }
+  }
+
+  if (classData[0].ownerId !== session.user.id) {
+    return { success: false, error: "Only the class owner can delete the class" }
+  }
+
+  try {
+    // Delete the class (cascade will handle related data like memberships, announcements, etc.)
+    await db.delete(classes).where(eq(classes.id, classId))
+
+    revalidatePath("/home/classes")
+    revalidatePath("/home")
+
+    return { success: true }
+  } catch (error) {
+    console.error("deleteClass error", error)
+    return { success: false, error: "Failed to delete class" }
+  }
+}

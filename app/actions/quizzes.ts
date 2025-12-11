@@ -226,7 +226,7 @@ export async function submitQuiz(quizId: string, formData: FormData): Promise<Ac
           ans.selectedOptionIds &&
           ans.selectedOptionIds.length === 1 &&
           ans.selectedOptionIds.includes(correctOpts[0].id)
-        isCorrect = isCorrectChoice
+        isCorrect = isCorrectChoice ?? null
         awarded = isCorrect ? Number(q.points) : 0
       } else if (q.type === "multiple_select") {
         const correctOpts = (optionMap.get(q.id) || []).filter((o) => o.isCorrect).map((o) => o.id)
@@ -269,3 +269,51 @@ export async function submitQuiz(quizId: string, formData: FormData): Promise<Ac
   }
 }
 
+export async function deleteQuiz(
+  quizId: string
+): Promise<ActionResponse> {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  })
+
+  if (!session?.user?.id) {
+    return { success: false, error: "Unauthorized" }
+  }
+
+  const quizData = await db
+    .select()
+    .from(quizzes)
+    .where(eq(quizzes.id, quizId))
+    .limit(1)
+
+  if (quizData.length === 0) {
+    return { success: false, error: "Quiz not found" }
+  }
+
+  // Check if user is a teacher
+  const membership = await db
+    .select()
+    .from(classMembership)
+    .where(
+      and(
+        eq(classMembership.classId, quizData[0].classId),
+        eq(classMembership.userId, session.user.id),
+        eq(classMembership.role, "teacher"),
+      ),
+    )
+    .limit(1)
+
+  if (membership.length === 0) {
+    return { success: false, error: "Only teachers can delete quizzes" }
+  }
+
+  try {
+    await db.delete(quizzes).where(eq(quizzes.id, quizId))
+
+    revalidatePath(`/home/classes/${quizData[0].classId}`)
+    return { success: true }
+  } catch (err) {
+    console.error("deleteQuiz error", err)
+    return { success: false, error: "Failed to delete quiz" }
+  }
+}

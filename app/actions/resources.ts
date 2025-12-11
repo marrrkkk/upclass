@@ -134,3 +134,39 @@ export async function updateResource(formData: FormData): Promise<ActionResponse
   }
 }
 
+export async function deleteResource(resourceId: string): Promise<ActionResponse> {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  })
+
+  if (!session?.user?.id) {
+    return { success: false, error: "Unauthorized" }
+  }
+
+  try {
+    // Verify user is the owner
+    const existingResource = await db
+      .select()
+      .from(resources)
+      .where(eq(resources.id, resourceId))
+      .limit(1)
+
+    if (existingResource.length === 0) {
+      return { success: false, error: "Resource not found" }
+    }
+
+    if (existingResource[0].ownerId !== session.user.id) {
+      return { success: false, error: "Unauthorized: You can only delete your own resources" }
+    }
+
+    await db.delete(resources).where(eq(resources.id, resourceId))
+
+    revalidatePath("/home/resources")
+    revalidatePath("/home")
+
+    return { success: true }
+  } catch (error) {
+    console.error("deleteResource error", error)
+    return { success: false, error: "Failed to delete resource" }
+  }
+}

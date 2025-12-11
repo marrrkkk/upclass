@@ -14,7 +14,8 @@ import {
   Calendar,
   FileQuestion,
   MoreVertical,
-  Clock
+  Clock,
+  Edit
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -33,7 +34,14 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
-import { createQuiz, submitQuiz } from "@/app/actions/quizzes"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { createQuiz, submitQuiz, deleteQuiz } from "@/app/actions/quizzes"
 
 type QuizTabProps = {
   classId: string
@@ -110,6 +118,10 @@ export function QuizTab({ classId, userId, userRole, quizzes, classColor }: Quiz
       ],
     },
   ])
+
+  // Delete quiz state
+  const [deleteQuizOpen, setDeleteQuizOpen] = useState<string | null>(null)
+  const [deletePending, startDeleteTransition] = useTransition()
 
   // Taking quiz
   const activeQuiz = quizzes.find((q) => q.id === takeQuizId)
@@ -260,6 +272,18 @@ export function QuizTab({ classId, userId, userRole, quizzes, classColor }: Quiz
       }
       setTakeQuizId(null)
       router.refresh()
+    })
+  }
+
+  const handleDeleteQuiz = (quizId: string) => {
+    startDeleteTransition(async () => {
+      const res = await deleteQuiz(quizId)
+      if (res.success) {
+        setDeleteQuizOpen(null)
+        router.refresh()
+      } else {
+        setError(res.error)
+      }
     })
   }
 
@@ -589,6 +613,22 @@ export function QuizTab({ classId, userId, userRole, quizzes, classColor }: Quiz
                         {isDue ? "Missing" : `Due ${new Date(quiz.dueDate).toLocaleDateString()}`}
                       </Badge>
                     )}
+
+                    {userRole === "teacher" && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-muted rounded-full text-muted-foreground focus:outline-none">
+                            <MoreVertical className="h-4 w-4" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => setDeleteQuizOpen(quiz.id)} className="text-destructive focus:text-destructive">
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </div>
                 </CardHeader>
 
@@ -779,7 +819,57 @@ export function QuizTab({ classId, userId, userRole, quizzes, classColor }: Quiz
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Delete Quiz Dialog */}
+      {deleteQuizOpen && (() => {
+        const quiz = quizzes.find(q => q.id === deleteQuizOpen)
+        if (!quiz) return null
+        return (
+          <Dialog open={!!deleteQuizOpen} onOpenChange={(open) => !open && setDeleteQuizOpen(null)}>
+            <DialogContent className="sm:max-w-[420px] gap-0 p-0 overflow-hidden border-0 shadow-2xl">
+              <DialogHeader className="p-6 pb-4 bg-gradient-to-r from-destructive/10 to-destructive/5 border-b border-destructive/20">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center">
+                    <Trash2 className="h-5 w-5 text-destructive" />
+                  </div>
+                  <div>
+                    <DialogTitle className="text-lg font-semibold">Delete Quiz</DialogTitle>
+                    <DialogDescription className="text-sm text-muted-foreground">
+                      This action cannot be undone
+                    </DialogDescription>
+                  </div>
+                </div>
+              </DialogHeader>
+
+              <div className="p-6 text-center space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Are you sure you want to delete this quiz?
+                </p>
+                <p className="text-lg font-semibold text-foreground truncate">
+                  "{quiz.title}"
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  All questions and student attempts will also be deleted.
+                </p>
+              </div>
+
+              <div className="px-6 py-4 bg-muted/30 border-t flex items-center justify-center gap-3">
+                <button type="button" onClick={() => setDeleteQuizOpen(null)} disabled={deletePending} className={cn(buttonVariants({ variant: "outline" }), "min-w-[100px]")}>
+                  Cancel
+                </button>
+                <button type="button" onClick={() => handleDeleteQuiz(quiz.id)} disabled={deletePending} className={cn(buttonVariants({ variant: "destructive" }), "min-w-[120px] gap-2")}>
+                  {deletePending ? "Deleting..." : (
+                    <>
+                      <Trash2 className="h-4 w-4" />
+                      Delete
+                    </>
+                  )}
+                </button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )
+      })()}
     </div>
   )
 }
-

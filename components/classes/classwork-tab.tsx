@@ -13,7 +13,9 @@ import {
   MoreVertical,
   AlertCircle,
   FileQuestion,
-  File
+  File,
+  Edit,
+  Trash2
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { buttonVariants } from "@/components/ui/button"
@@ -34,9 +36,10 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { createClasswork, submitClasswork, gradeSubmission } from "@/app/actions/class-detail"
+import { createClasswork, submitClasswork, gradeSubmission, updateClasswork, deleteClasswork } from "@/app/actions/class-detail"
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
 
@@ -85,6 +88,12 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
   const [gradeOpen, setGradeOpen] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+
+  // Edit/Delete state for classwork items
+  const [editClassworkOpen, setEditClassworkOpen] = useState<string | null>(null)
+  const [deleteClassworkOpen, setDeleteClassworkOpen] = useState<string | null>(null)
+  const [editPending, startEditTransition] = useTransition()
+  const [deletePending, startDeleteTransition] = useTransition()
 
   // Set up realtime subscriptions for classwork and submissions
   useEffect(() => {
@@ -179,6 +188,30 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
         return
       }
       setGradeOpen(null)
+    })
+  }
+
+  const handleEditClasswork = async (classworkId: string, formData: FormData) => {
+    startEditTransition(async () => {
+      const res = await updateClasswork(classworkId, formData)
+      if (res.success) {
+        setEditClassworkOpen(null)
+        router.refresh()
+      } else {
+        setError(res.error)
+      }
+    })
+  }
+
+  const handleDeleteClasswork = async (classworkId: string) => {
+    startDeleteTransition(async () => {
+      const res = await deleteClasswork(classworkId)
+      if (res.success) {
+        setDeleteClassworkOpen(null)
+        router.refresh()
+      } else {
+        setError(res.error)
+      }
     })
   }
 
@@ -385,6 +418,27 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
                         <Clock className="h-3.5 w-3.5" />
                         Due {formatDate(item.dueDate)}
                       </Badge>
+                    )}
+
+                    {userRole === "teacher" && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-muted rounded-full text-muted-foreground focus:outline-none">
+                            <MoreVertical className="h-4 w-4" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => setEditClassworkOpen(item.id)}>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => setDeleteClassworkOpen(item.id)} className="text-destructive focus:text-destructive">
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     )}
                   </div>
                 </CardHeader>
@@ -726,7 +780,105 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
           })}
         </div>
       )}
+
+      {/* Edit Classwork Dialog */}
+      {editClassworkOpen && (() => {
+        const item = classwork.find(c => c.id === editClassworkOpen)
+        if (!item) return null
+        return (
+          <Dialog open={!!editClassworkOpen} onOpenChange={(open) => !open && setEditClassworkOpen(null)}>
+            <DialogContent className="sm:max-w-[550px] gap-0 p-0 overflow-hidden border-0 shadow-2xl">
+              <DialogHeader className="p-6 pb-2 bg-gradient-to-r from-muted/50 to-muted/10 border-b border-border/50">
+                <DialogTitle className="text-xl font-semibold tracking-tight flex items-center gap-2">
+                  <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                    <Edit className="h-5 w-5" />
+                  </div>
+                  Edit Classwork
+                </DialogTitle>
+              </DialogHeader>
+              <form action={(fd) => handleEditClasswork(item.id, fd)} className="p-6 space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-title">Title</Label>
+                  <Input id="edit-title" name="title" defaultValue={item.title} required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-description">Description</Label>
+                  <Textarea id="edit-description" name="description" defaultValue={item.description || ""} className="min-h-[100px] resize-none" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-dueDate">Due Date</Label>
+                    <Input id="edit-dueDate" name="dueDate" type="datetime-local" defaultValue={item.dueDate ? new Date(item.dueDate).toISOString().slice(0, 16) : ""} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-points">Points</Label>
+                    <Input id="edit-points" name="points" type="number" defaultValue={item.points || ""} />
+                  </div>
+                </div>
+                <DialogFooter className="pt-4">
+                  <button type="button" onClick={() => setEditClassworkOpen(null)} className={cn(buttonVariants({ variant: "ghost" }))}>
+                    Cancel
+                  </button>
+                  <button type="submit" disabled={editPending} className={cn(buttonVariants(), "min-w-[100px]")} style={{ backgroundColor: classColor }}>
+                    {editPending ? "Saving..." : "Save"}
+                  </button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        )
+      })()}
+
+      {/* Delete Classwork Dialog */}
+      {deleteClassworkOpen && (() => {
+        const item = classwork.find(c => c.id === deleteClassworkOpen)
+        if (!item) return null
+        return (
+          <Dialog open={!!deleteClassworkOpen} onOpenChange={(open) => !open && setDeleteClassworkOpen(null)}>
+            <DialogContent className="sm:max-w-[420px] gap-0 p-0 overflow-hidden border-0 shadow-2xl">
+              <DialogHeader className="p-6 pb-4 bg-gradient-to-r from-destructive/10 to-destructive/5 border-b border-destructive/20">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center">
+                    <Trash2 className="h-5 w-5 text-destructive" />
+                  </div>
+                  <div>
+                    <DialogTitle className="text-lg font-semibold">Delete Classwork</DialogTitle>
+                    <DialogDescription className="text-sm text-muted-foreground">
+                      This action cannot be undone
+                    </DialogDescription>
+                  </div>
+                </div>
+              </DialogHeader>
+
+              <div className="p-6 text-center space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Are you sure you want to delete this classwork?
+                </p>
+                <p className="text-lg font-semibold text-foreground truncate">
+                  "{item.title}"
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  All student submissions will also be deleted.
+                </p>
+              </div>
+
+              <div className="px-6 py-4 bg-muted/30 border-t flex items-center justify-center gap-3">
+                <button type="button" onClick={() => setDeleteClassworkOpen(null)} disabled={deletePending} className={cn(buttonVariants({ variant: "outline" }), "min-w-[100px]")}>
+                  Cancel
+                </button>
+                <button type="button" onClick={() => handleDeleteClasswork(item.id)} disabled={deletePending} className={cn(buttonVariants({ variant: "destructive" }), "min-w-[120px] gap-2")}>
+                  {deletePending ? "Deleting..." : (
+                    <>
+                      <Trash2 className="h-4 w-4" />
+                      Delete
+                    </>
+                  )}
+                </button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )
+      })()}
     </div>
   )
 }
-

@@ -356,7 +356,7 @@ export function ClassDetailClient({
             classColor={classColor}
           />
         )}
-        {activeTab === "people" && <PeopleTab members={members} />}
+        {activeTab === "people" && <PeopleTab classId={classData.id} userId={userId} userRole={userRole} members={members} />}
       </div>
     </div>
   )
