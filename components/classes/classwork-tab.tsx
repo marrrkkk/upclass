@@ -711,7 +711,7 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
                                     </div>
 
                                     <form action={(fd) => handleGrade(gradingSub.id, fd)} className="space-y-6 pt-2">
-                                      <div className="grid gap-6 sm:grid-cols-3">
+                                      <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
                                         <div className="space-y-2">
                                           <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Grade</Label>
                                           <div className="relative">

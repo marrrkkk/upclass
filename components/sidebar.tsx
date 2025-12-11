@@ -26,17 +26,30 @@ const navItems = [
 
 type SidebarProps = {
   userId?: string
+  className?: string
+  onNavigate?: () => void
+  onClose?: () => void
 }
 
-export function Sidebar({ userId }: SidebarProps = {}) {
+export function Sidebar({ userId, className, onNavigate, onClose }: SidebarProps = {}) {
   const pathname = usePathname()
   const currentPath = pathname || "/home"
 
   return (
-    <aside className="flex w-64 flex-col border-r bg-card/50 backdrop-blur-xl h-screen sticky top-0 group z-30">
+    <aside
+      id="app-sidebar"
+      className={cn(
+        "flex flex-col border-r bg-card/50 backdrop-blur-xl group z-30 transform-gpu will-change-transform",
+        className
+      )}
+    >
       {/* Header */}
       <div className="flex items-center justify-between p-4 h-[4rem] border-b border-border/40">
-        <Link href="/home" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
+        <Link
+          href="/home"
+          className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
+          onClick={onNavigate}
+        >
           <div className="bg-primary/10 p-1.5 rounded-lg text-primary">
             <ArrowUpRight className="h-6 w-6" strokeWidth={3} />
           </div>
@@ -46,6 +59,9 @@ export function Sidebar({ userId }: SidebarProps = {}) {
           variant="ghost"
           size="icon"
           className="h-8 w-8 text-muted-foreground hover:text-foreground md:hidden"
+          onClick={onClose}
+          aria-label="Close navigation"
+          type="button"
         >
           <PanelLeftClose className="h-4 w-4" />
         </Button>
@@ -72,6 +88,7 @@ export function Sidebar({ userId }: SidebarProps = {}) {
                       ? "bg-primary text-primary-foreground shadow-md"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   )}
+                  onClick={onNavigate}
                 >
                   <Icon className={cn(
                     "h-4 w-4 transition-transform group-hover/item:scale-110",
@@ -114,6 +131,7 @@ export function Sidebar({ userId }: SidebarProps = {}) {
                   ? "bg-primary text-primary-foreground shadow-md"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
+              onClick={onNavigate}
             >
               <Settings className={cn(
                 "h-4 w-4 transition-transform group-hover/item:rotate-90 duration-500",
@@ -135,6 +153,7 @@ export function Sidebar({ userId }: SidebarProps = {}) {
               ? "bg-muted border-border shadow-sm"
               : "hover:bg-muted/50 hover:border-border/50"
           )}
+          onClick={onNavigate}
         >
           <div className="h-9 w-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white shadow-sm">
             <User className="h-5 w-5" />

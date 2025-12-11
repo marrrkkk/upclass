@@ -176,6 +176,7 @@ export function ClassDetailClient({
         className="relative w-full rounded-b-xl overflow-hidden shadow-sm"
         style={{
           background: `linear-gradient(135deg, ${classColor} 0%, ${classColor}dd 100%)`,
+          minHeight: "200px",
           height: "240px"
         }}
       >
@@ -183,8 +184,8 @@ export function ClassDetailClient({
         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_1px_1px,white_1px,transparent_0)] [background-size:24px_24px]" />
 
         {/* Content Container */}
-        <div className="absolute bottom-0 left-0 w-full p-8 text-white">
-          <div className="flex items-end justify-between gap-4">
+        <div className="absolute bottom-0 left-0 w-full p-4 sm:p-6 md:p-8 text-white">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
             <div className="space-y-2 max-w-2xl">
               <div className="flex items-center gap-2 mb-2">
                 {classData.category && (
@@ -209,10 +210,10 @@ export function ClassDetailClient({
             </div>
 
             {/* Actions */}
-            <div className="flex flex-col items-end gap-3">
+            <div className="flex flex-col gap-3 sm:items-end">
               {userRole === "teacher" && (
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-2 rounded-lg bg-white/10 p-2 backdrop-blur-md border border-white/20">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                  <div className="flex items-center gap-2 rounded-lg bg-white/10 p-2 backdrop-blur-md border border-white/20 w-full sm:w-auto">
                     <div className="px-2">
                       <p className="text-[10px] font-medium text-blue-100 uppercase tracking-wider">Class Code</p>
                       <p className="font-mono text-xl font-bold">{classData.code}</p>
@@ -254,10 +255,10 @@ export function ClassDetailClient({
 
       {/* Tabs Navigation */}
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b w-full">
-        <div className="flex items-center gap-8 px-4">
+        <div className="flex items-center gap-6 px-4 overflow-x-auto whitespace-nowrap">
           <button
             className={cn(
-              "relative py-4 text-sm font-medium transition-colors hover:text-foreground",
+              "relative py-3 text-sm font-medium transition-colors hover:text-foreground flex-shrink-0",
               activeTab === "stream"
                 ? "text-primary"
                 : "text-muted-foreground"
@@ -274,7 +275,7 @@ export function ClassDetailClient({
           </button>
           <button
             className={cn(
-              "relative py-4 text-sm font-medium transition-colors hover:text-foreground",
+              "relative py-3 text-sm font-medium transition-colors hover:text-foreground flex-shrink-0",
               activeTab === "classwork"
                 ? "text-primary"
                 : "text-muted-foreground"
@@ -291,7 +292,7 @@ export function ClassDetailClient({
           </button>
           <button
             className={cn(
-              "relative py-4 text-sm font-medium transition-colors hover:text-foreground",
+              "relative py-3 text-sm font-medium transition-colors hover:text-foreground flex-shrink-0",
               activeTab === "quizzes"
                 ? "text-primary"
                 : "text-muted-foreground"
@@ -308,7 +309,7 @@ export function ClassDetailClient({
           </button>
           <button
             className={cn(
-              "relative py-4 text-sm font-medium transition-colors hover:text-foreground",
+              "relative py-3 text-sm font-medium transition-colors hover:text-foreground flex-shrink-0",
               activeTab === "people"
                 ? "text-primary"
                 : "text-muted-foreground"

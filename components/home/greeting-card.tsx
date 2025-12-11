@@ -64,17 +64,17 @@ export function GreetingCard({ userName, role }: GreetingCardProps) {
             <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
             <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/10 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
 
-            <CardContent className="py-8 px-8 relative z-10 text-white">
-                <div className="flex items-center justify-between">
-                    <div className="space-y-2">
+            <CardContent className="py-8 px-6 sm:px-8 relative z-10 text-white">
+                <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="space-y-2 max-w-3xl">
                         <div className="flex items-center gap-3 mb-1">
                             <span className="p-2 rounded-full bg-white/20 backdrop-blur-md shadow-inner">{icon}</span>
                             <span className="text-sm font-medium text-blue-100 uppercase tracking-wider">Welcome Back</span>
                         </div>
-                        <h1 className="text-4xl font-bold tracking-tight text-white drop-shadow-sm">
+                        <h1 className="text-4xl font-bold tracking-tight text-white drop-shadow-sm leading-tight">
                             {greeting}, {firstName}!
                         </h1>
-                        <p className="text-blue-100 text-lg max-w-xl font-light leading-relaxed">
+                        <p className="text-blue-100 text-lg max-w-xl font-light leading-relaxed text-balance">
                             {motivationalMessage}
                         </p>
                     </div>

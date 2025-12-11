@@ -406,7 +406,7 @@ export function QuizTab({ classId, userId, userRole, quizzes, classColor }: Quiz
                         </CardHeader>
 
                         <CardContent className="pl-6 p-4 pt-6 space-y-6">
-                          <div className="grid gap-6 sm:grid-cols-3">
+                          <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
                             <div className="space-y-1.5">
                               <Label className="text-xs text-muted-foreground">Question Type</Label>
                               <select

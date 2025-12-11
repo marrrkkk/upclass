@@ -196,7 +196,7 @@ export function ResourceDetailClient({ resource, isOwner, currentUserId, isAuthe
         </Link>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Column: Preview & File Visual */}
         <div className="lg:col-span-2 space-y-6">
           <div className={cn("relative overflow-hidden rounded-2xl border bg-card shadow-sm group", fileInfo.bgColor)}>
