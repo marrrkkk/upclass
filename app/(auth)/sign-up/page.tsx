@@ -2,7 +2,7 @@ import SocialButton from "@/components/auth/social-button"
 import { ArrowUpRight } from "lucide-react"
 import Link from "next/link"
 
-export default function SignInPage() {
+export default function SignUpPage() {
     return (
         <div className="flex min-h-screen w-full flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-background relative overflow-hidden">
             {/* Background Effects */}
@@ -22,10 +22,10 @@ export default function SignInPage() {
                     </Link>
 
                     <h2 className="mt-2 text-2xl font-bold tracking-tight text-foreground">
-                        Welcome back
+                        Create an account
                     </h2>
                     <p className="mt-2 text-sm text-muted-foreground max-w-sm">
-                        Sign in to your account to continue managing your classes and tracking student progress.
+                        Join UpClass today to start your learning journey.
                     </p>
                 </div>
 
@@ -35,7 +35,7 @@ export default function SignInPage() {
                             provider="google"
                             className="w-full h-11 text-sm font-medium shadow-sm hover:shadow active:scale-[0.98] transition-all border-muted-foreground/20"
                         >
-                            Continue with Google
+                            Sign up with Google
                         </SocialButton>
 
                         <div className="relative">
@@ -45,7 +45,7 @@ export default function SignInPage() {
                         </div>
 
                         <div className="text-center text-xs text-muted-foreground">
-                            By continuing, you agree to our{" "}
+                            By creating an account, you agree to our{" "}
                             <Link href="/terms" className="underline underline-offset-4 hover:text-primary transition-colors">
                                 Terms of Service
                             </Link>{" "}
@@ -59,7 +59,7 @@ export default function SignInPage() {
                 </div>
 
                 <p className="text-center text-xs text-muted-foreground">
-                    Need help? <Link href="/contact" className="font-medium text-primary hover:text-primary/80 transition-colors">Contact Support</Link>
+                    Already have an account? <Link href="/sign-in" className="font-medium text-primary hover:text-primary/80 transition-colors">Sign in</Link>
                 </p>
             </div>
         </div>

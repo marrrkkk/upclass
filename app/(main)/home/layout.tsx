@@ -50,7 +50,7 @@ export default async function HomeLayout({
       <div className="flex h-screen bg-background overflow-hidden">
         <Sidebar userId={userId} />
         <main className="flex flex-1 flex-col overflow-y-auto">
-          <div className="border-b border-border px-8 flex items-center h-16 min-h-16 max-h-16">
+          <div className="sticky top-0 z-50 bg-background border-b border-border px-8 flex items-center h-16 min-h-16 max-h-16 shrink-0">
             {isAuthenticated && userInfo ? (
               <PageHeader user={userInfo} userId={userId} />
             ) : (

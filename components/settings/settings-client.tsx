@@ -20,8 +20,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useUploadThing } from "@/lib/uploadthing"
 import { updateSettings, deleteAccount } from "@/app/actions/settings"
 import { cn } from "@/lib/utils"
-// Ensure Separator is available or use a div
-// import { Separator } from "@/components/ui/separator" 
+import { ImageCropper } from "./image-cropper"
 
 type UserData = {
   id: string
@@ -59,6 +58,10 @@ export function SettingsClient({ userData }: SettingsClientProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { startUpload, isUploading } = useUploadThing("imageUploader")
 
+  // Cropping State
+  const [cropModalOpen, setCropModalOpen] = useState(false)
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null)
+
   // Notification state
   const [emailNotifications, setEmailNotifications] = useState(userData.emailNotifications)
   const [pushNotifications, setPushNotifications] = useState(userData.pushNotifications)
@@ -77,13 +80,25 @@ export function SettingsClient({ userData }: SettingsClientProps) {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      setSelectedFile(file)
       const reader = new FileReader()
       reader.onloadend = () => {
-        setImageUrl(reader.result as string)
+        setCropImageSrc(reader.result as string)
+        setCropModalOpen(true)
       }
       reader.readAsDataURL(file)
     }
+    // Reset inputs so the same file can be selected again if needed
+    e.target.value = ""
+  }
+
+  const handleCropComplete = (croppedBlob: Blob) => {
+    // Convert Blob to File
+    const file = new File([croppedBlob], "avatar.jpg", { type: "image/jpeg" })
+    setSelectedFile(file)
+
+    // Create preview
+    const previewUrl = URL.createObjectURL(croppedBlob)
+    setImageUrl(previewUrl)
   }
 
   const handleSaveProfile = async () => {
@@ -106,7 +121,8 @@ export function SettingsClient({ userData }: SettingsClientProps) {
           setError("Failed to upload image")
           return
         }
-      } else if (imageUrl && !imageUrl.startsWith("data:")) {
+      } else if (imageUrl && !imageUrl.startsWith("blob:") && !imageUrl.startsWith("data:")) {
+        // Only append existing URL if it's not a local preview blob
         formData.append("image", imageUrl)
       }
 
@@ -196,22 +212,6 @@ export function SettingsClient({ userData }: SettingsClientProps) {
       .toUpperCase()
       .slice(0, 2)
   }
-
-  const NavItem = ({ id, icon: Icon, label }: { id: string; icon: any; label: string }) => (
-    <button
-      type="button"
-      onClick={() => setActiveTab(id)}
-      className={cn(
-        "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
-        activeTab === id
-          ? "bg-primary text-primary-foreground shadow-md"
-          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-      )}
-    >
-      <Icon className="h-4 w-4" />
-      {label}
-    </button>
-  )
 
   return (
     <div className="max-w-6xl mx-auto flex flex-col gap-8 pb-10">
@@ -669,6 +669,13 @@ export function SettingsClient({ userData }: SettingsClientProps) {
           </div>
         </div>
       </div>
+
+      <ImageCropper
+        open={cropModalOpen}
+        onOpenChange={setCropModalOpen}
+        imageSrc={cropImageSrc}
+        onComplete={handleCropComplete}
+      />
     </div>
   )
 }
