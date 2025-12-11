@@ -2,12 +2,25 @@
 
 import { useState, useTransition, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { BookOpen, Calendar, FileText, Plus, Upload } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  BookOpen,
+  Calendar,
+  FileText,
+  Plus,
+  Upload,
+  CheckCircle,
+  Clock,
+  MoreVertical,
+  AlertCircle,
+  FileQuestion,
+  File
+} from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { Badge } from "@/components/ui/badge"
 import {
   Dialog,
   DialogContent,
@@ -17,6 +30,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { createClasswork, submitClasswork, gradeSubmission } from "@/app/actions/class-detail"
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
@@ -52,8 +71,8 @@ type SubmissionData = {
 
 type ClassworkTabProps = {
   classId: string
-  userId: string
-  userRole: "teacher" | "student"
+  userId?: string
+  userRole: "teacher" | "student" | null
   classwork: ClassworkData[]
   submissions: SubmissionData[]
   classColor: string
@@ -166,12 +185,11 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
   const formatDate = (dateString: string | null) => {
     if (!dateString) return null
     const date = new Date(dateString)
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    return date.toLocaleDateString("en-US", { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
   }
 
   const getSubmissionForClasswork = (classworkId: string) => {
     // For students, only return their own submission
-    // For teachers, this function isn't used (they see all submissions)
     return submissions.find((s) => s.classworkId === classworkId && s.studentId === userId)
   }
 
@@ -179,386 +197,503 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
     return submissions.filter((s) => s.classworkId === classworkId)
   }
 
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case 'assignment': return <FileText className="h-5 w-5" />
+      case 'quiz': return <FileQuestion className="h-5 w-5" />
+      case 'material': return <BookOpen className="h-5 w-5" />
+      default: return <File className="h-5 w-5" />
+    }
+  }
+
   return (
-    <div className="flex flex-col gap-4">
-      {/* Create Classwork Button (only for teachers) */}
-      {userRole === "teacher" && (
-        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger asChild>
-            <button
-              className={cn(buttonVariants({ size: "sm" }), "w-fit gap-2 text-white shadow-md hover:shadow-lg transition-all")}
-              style={{ backgroundColor: classColor }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.opacity = "0.9"
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.opacity = "1"
-              }}
-              type="button"
-            >
-              <Plus className="h-4 w-4" />
-              Create classwork
-            </button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[550px] gap-0 p-0 overflow-hidden border-0 shadow-2xl">
-            <DialogHeader className="p-6 pb-2 bg-gradient-to-r from-muted/50 to-muted/10">
-              <DialogTitle className="text-xl font-semibold tracking-tight">Create Classwork</DialogTitle>
-              <DialogDescription className="text-muted-foreground">
-                Create an assignment, quiz, or material for your students.
-              </DialogDescription>
-            </DialogHeader>
-            <form action={handleCreateClasswork} className="p-6 space-y-6">
-              <div className="grid gap-5">
-                <div className="space-y-2">
-                  <Label htmlFor="classwork-title" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Title</Label>
-                  <Input
-                    id="classwork-title"
-                    name="title"
-                    required
-                    placeholder="e.g. Chapter 5 Quiz"
-                    className="h-11 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors text-base"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="classwork-description" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Description</Label>
-                  <Textarea
-                    id="classwork-description"
-                    name="description"
-                    placeholder="Add instructions or details..."
-                    rows={3}
-                    className="resize-none bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors"
-                  />
-                </div>
-                <div className="grid gap-5 sm:grid-cols-2">
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold tracking-tight">Classwork</h2>
+
+        {/* Create Classwork Button (only for teachers) */}
+        {userRole === "teacher" && (
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+            <DialogTrigger asChild>
+              <button
+                className={cn(buttonVariants({ size: "sm" }), "gap-2 shadow-sm hover:shadow-md transition-all text-white font-medium")}
+                style={{ backgroundColor: classColor }}
+              >
+                <Plus className="h-4 w-4" />
+                Create
+              </button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[600px] border-none shadow-2xl p-0 overflow-hidden bg-background">
+              <DialogHeader className="px-6 py-4 border-b bg-muted/30">
+                <DialogTitle className="flex items-center gap-2 text-xl">
+                  <div className="p-2 rounded-full bg-primary/10 text-primary">
+                    <BookOpen className="h-5 w-5" />
+                  </div>
+                  Create Classwork
+                </DialogTitle>
+                <DialogDescription>
+                  Create a new assignment, quiz, or material for your students.
+                </DialogDescription>
+              </DialogHeader>
+
+              <form action={handleCreateClasswork} className="p-6 space-y-6">
+                <div className="grid gap-6">
                   <div className="space-y-2">
-                    <Label htmlFor="classwork-type" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Type</Label>
-                    <div className="relative">
+                    <Label htmlFor="classwork-title" className="text-xs font-semibold uppercase text-muted-foreground/80 tracking-wider">Title</Label>
+                    <Input
+                      id="classwork-title"
+                      name="title"
+                      required
+                      placeholder="e.g. History of Rome Essay"
+                      className="h-11 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors text-base"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="classwork-description" className="text-xs font-semibold uppercase text-muted-foreground/80 tracking-wider">Description</Label>
+                    <Textarea
+                      id="classwork-description"
+                      name="description"
+                      placeholder="Add instructions, guidelines, and other details..."
+                      rows={4}
+                      className="resize-none bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors leading-relaxed"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="classwork-type" className="text-xs font-semibold uppercase text-muted-foreground/80 tracking-wider">Type</Label>
                       <select
                         id="classwork-type"
                         name="type"
-                        className="h-10 w-full appearance-none rounded-md border border-muted-foreground/20 bg-muted/20 px-3 py-2 text-sm shadow-sm transition-colors focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                        className="flex h-10 w-full rounded-md border border-muted-foreground/20 bg-muted/20 px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         <option value="assignment">Assignment</option>
                         <option value="quiz">Quiz</option>
                         <option value="material">Material</option>
                       </select>
-                      {/* Custom arrow could go here */}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="classwork-points" className="text-xs font-semibold uppercase text-muted-foreground/80 tracking-wider">Points</Label>
+                      <Input
+                        id="classwork-points"
+                        name="points"
+                        type="number"
+                        placeholder="100"
+                        className="h-10 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors"
+                      />
                     </div>
                   </div>
+
                   <div className="space-y-2">
-                    <Label htmlFor="classwork-points" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Max Points</Label>
+                    <Label htmlFor="classwork-dueDate" className="text-xs font-semibold uppercase text-muted-foreground/80 tracking-wider">Due Date</Label>
                     <Input
-                      id="classwork-points"
-                      name="points"
-                      type="number"
-                      placeholder="e.g. 100"
+                      id="classwork-dueDate"
+                      name="dueDate"
+                      type="datetime-local"
                       className="h-10 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors"
                     />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="classwork-dueDate" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Due Date</Label>
-                  <Input
-                    id="classwork-dueDate"
-                    name="dueDate"
-                    type="datetime-local"
-                    className="h-10 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors"
-                  />
-                </div>
-              </div>
 
-              {error && (
-                <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive font-medium border border-destructive/20 animate-in fade-in slide-in-from-bottom-2">
-                  {error}
-                </div>
-              )}
+                {error && (
+                  <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive font-medium border border-destructive/20 flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4" />
+                    {error}
+                  </div>
+                )}
 
-              <DialogFooter className="pt-2">
-                <button
-                  type="button"
-                  onClick={() => setCreateOpen(false)}
-                  className={cn(buttonVariants({ variant: "ghost" }), "text-muted-foreground hover:text-foreground")}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={pending}
-                  className={cn(buttonVariants(), "text-white disabled:opacity-70 shadow-md hover:shadow-lg transition-all min-w-[100px]")}
-                  style={{ backgroundColor: classColor }}
-                  onMouseEnter={(e) => {
-                    if (!pending) e.currentTarget.style.opacity = "0.9"
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.opacity = "1"
-                  }}
-                >
-                  {pending ? "Creating..." : "Create"}
-                </button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-      )}
+                <DialogFooter className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setCreateOpen(false)}
+                    className={cn(buttonVariants({ variant: "ghost" }), "text-muted-foreground hover:text-foreground")}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={pending}
+                    className={cn(buttonVariants(), "text-white min-w-[100px] shadow-sm")}
+                    style={{ backgroundColor: classColor }}
+                  >
+                    {pending ? "Creating..." : "Create"}
+                  </button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
 
       {/* Classwork List */}
       {classwork.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <BookOpen className="h-12 w-12 text-muted-foreground" />
-            <p className="mt-4 text-sm text-muted-foreground">No classwork yet</p>
+        <Card className="border-dashed bg-muted/10 border-2">
+          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="p-4 rounded-full bg-muted/50 mb-4">
+              <BookOpen className="h-8 w-8 text-muted-foreground/60" />
+            </div>
+            <h3 className="text-lg font-medium">No classwork yet</h3>
+            <p className="mt-2 text-sm text-muted-foreground max-w-sm">
+              {userRole === "teacher"
+                ? "Assignments, quizzes, and materials you create will appear here."
+                : "Check back later for new assignments from your teacher."}
+            </p>
           </CardContent>
         </Card>
       ) : (
-        <div className="flex flex-col gap-4">
+        <div className="grid gap-4">
           {classwork.map((item) => {
             const submission = getSubmissionForClasswork(item.id)
             const allSubmissions = getSubmissionsForClasswork(item.id)
+            const isDueSoon = item.dueDate && new Date(item.dueDate) > new Date() && new Date(item.dueDate).getTime() - new Date().getTime() < 24 * 60 * 60 * 1000
 
             return (
-              <Card key={item.id}>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg">{item.title}</CardTitle>
-                      {item.description && (
-                        <p className="mt-2 text-sm text-muted-foreground">{item.description}</p>
-                      )}
+              <Card key={item.id} className="group border-border/60 hover:border-border transition-all hover:shadow-sm overflow-hidden border-l-[6px]" style={{ borderLeftColor: classColor }}>
+                <CardHeader className="pl-5 pb-3">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3">
+                      <div
+                        className="mt-1 p-2 rounded-lg bg-muted text-muted-foreground group-hover:bg-primary/5 group-hover:text-primary transition-colors duration-300"
+                        style={{ '--primary': classColor } as any}
+                      >
+                        {getTypeIcon(item.type)}
+                      </div>
+                      <div className="space-y-1">
+                        <CardTitle className="text-lg font-semibold group-hover:text-primary transition-colors" style={{ '--primary': classColor } as any}>
+                          {item.title}
+                        </CardTitle>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                          {item.points && (
+                            <span className="flex items-center gap-1 font-medium bg-muted/50 px-1.5 py-0.5 rounded text-foreground/70">
+                              {item.points} pts
+                            </span>
+                          )}
+                          <span className="capitalize">{item.type}</span>
+                          <span className="text-muted-foreground/40">•</span>
+                          <span>Posted {new Date(item.createdAt).toLocaleDateString()}</span>
+                        </div>
+                      </div>
                     </div>
-                    <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
-                      {item.type}
-                    </span>
+
+                    {item.dueDate && (
+                      <Badge variant="outline" className={cn(
+                        "flex shrink-0 items-center gap-1.5 font-normal px-2.5 py-1",
+                        isDueSoon ? "border-amber-200 bg-amber-50 text-amber-700" : "bg-muted/30"
+                      )}>
+                        <Clock className="h-3.5 w-3.5" />
+                        Due {formatDate(item.dueDate)}
+                      </Badge>
+                    )}
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                    {item.points && (
-                      <div className="flex items-center gap-1">
-                        <FileText className="h-4 w-4" />
-                        <span>{item.points} points</span>
-                      </div>
-                    )}
-                    {item.dueDate && (
-                      <div className="flex items-center gap-1">
-                        <Calendar className="h-4 w-4" />
-                        <span>Due {formatDate(item.dueDate)}</span>
-                      </div>
-                    )}
-                  </div>
 
-                  {userRole === "student" ? (
-                    <div className="space-y-2">
-                      {submission ? (
-                        <div className="rounded-md border bg-muted/50 p-3">
-                          <p className="text-sm font-medium">
-                            Status:{" "}
-                            <span
-                              className={cn(
-                                submission.status === "graded"
-                                  ? "text-green-600"
-                                  : submission.status === "submitted"
-                                    ? "text-blue-600"
-                                    : "text-muted-foreground",
-                              )}
-                            >
-                              {submission.status.charAt(0).toUpperCase() + submission.status.slice(1)}
-                            </span>
-                          </p>
-                          {submission.grade && (
-                            <p className="mt-1 text-sm">
-                              Grade: <span className="font-semibold">{submission.grade}</span>
-                              {item.points && ` / ${item.points}`}
-                            </p>
-                          )}
-                          {submission.feedback && (
-                            <p className="mt-2 text-sm text-muted-foreground">{submission.feedback}</p>
-                          )}
-                        </div>
-                      ) : (
-                        <Dialog open={submitOpen === item.id} onOpenChange={(open) => setSubmitOpen(open ? item.id : null)}>
-                          <DialogTrigger asChild>
-                            <button
-                              className={cn(buttonVariants({ size: "sm" }), "gap-2 text-white shadow-sm hover:shadow-md transition-all")}
-                              style={{ backgroundColor: classColor }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.opacity = "0.9"
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.opacity = "1"
-                              }}
-                              type="button"
-                            >
-                              <Upload className="h-4 w-4" />
-                              Submit
-                            </button>
-                          </DialogTrigger>
-                          <DialogContent className="sm:max-w-[500px] gap-0 p-0 overflow-hidden border-0 shadow-2xl">
-                            <DialogHeader className="p-6 pb-2 bg-gradient-to-r from-muted/50 to-muted/10">
-                              <DialogTitle className="text-xl font-semibold tracking-tight">Submit Assignment</DialogTitle>
-                              <DialogDescription className="text-muted-foreground">
-                                Submit your work for &quot;{item.title}&quot;
-                              </DialogDescription>
-                            </DialogHeader>
-                            <form action={(fd) => handleSubmit(item.id, fd)} className="p-6 space-y-6">
-                              <div className="space-y-4">
-                                <div className="space-y-2">
-                                  <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Your Work</Label>
-                                  <textarea
-                                    name="content"
-                                    placeholder="Write your submission content or comments here..."
-                                    className="w-full rounded-md border border-muted-foreground/20 bg-muted/20 px-4 py-3 text-sm outline-none focus:bg-background focus:ring-1 focus:ring-primary transition-all resize-none"
-                                    rows={5}
-                                  />
-                                </div>
-                                <div className="grid gap-4">
-                                  <div className="space-y-2">
-                                    <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">File URL (Optional)</Label>
-                                    <Input
-                                      name="fileUrl"
-                                      type="url"
-                                      placeholder="https://drive.google.com/..."
-                                      className="h-10 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors"
-                                    />
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">File Name (Optional)</Label>
-                                    <Input
-                                      name="fileName"
-                                      placeholder="Project_Details.pdf"
-                                      className="h-10 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors"
-                                    />
-                                  </div>
-                                </div>
-                              </div>
-
-                              {error && (
-                                <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive font-medium border border-destructive/20 animate-in fade-in slide-in-from-bottom-2">
-                                  {error}
-                                </div>
-                              )}
-
-                              <DialogFooter className="pt-2">
-                                <button
-                                  type="button"
-                                  onClick={() => setSubmitOpen(null)}
-                                  className={cn(buttonVariants({ variant: "ghost" }), "text-muted-foreground hover:text-foreground")}
-                                >
-                                  Cancel
-                                </button>
-                                <button
-                                  type="submit"
-                                  disabled={pending}
-                                  className={cn(buttonVariants(), "text-white disabled:opacity-70 shadow-md hover:shadow-lg transition-all min-w-[100px]")}
-                                  style={{ backgroundColor: classColor }}
-                                  onMouseEnter={(e) => {
-                                    if (!pending) e.currentTarget.style.opacity = "0.9"
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    e.currentTarget.style.opacity = "1"
-                                  }}
-                                >
-                                  {pending ? "Submitting..." : "Submit"}
-                                </button>
-                              </DialogFooter>
-                            </form>
-                          </DialogContent>
-                        </Dialog>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium">
-                        Submissions: {allSubmissions.length}
+                <CardContent className="pl-5 pt-0">
+                  <div className="ml-[3.25rem] space-y-4">
+                    {item.description && (
+                      <p className="text-sm text-muted-foreground line-clamp-2group-hover:line-clamp-none transition-all duration-300 leading-relaxed">
+                        {item.description}
                       </p>
-                      {allSubmissions.length > 0 && (
-                        <div className="space-y-2">
-                          {allSubmissions.map((sub) => (
-                            <div key={sub.id} className="rounded-md border bg-muted/50 p-3">
-                              <div className="flex items-center justify-between">
-                                <p className="font-medium">{sub.student.name}</p>
-                                <span
-                                  className={cn(
-                                    "rounded-full px-2 py-1 text-xs",
-                                    sub.status === "graded"
-                                      ? "bg-green-100 text-green-700"
-                                      : sub.status === "submitted"
-                                        ? "bg-blue-100 text-blue-700"
-                                        : "bg-gray-100 text-gray-700",
-                                  )}
-                                >
-                                  {sub.status}
+                    )}
+
+                    <div className="pt-2 flex items-center justify-between">
+                      {userRole === "student" ? (
+                        <>
+                          {submission ? (
+                            <div className="flex items-center gap-3">
+                              <Badge variant={submission.status === 'graded' ? 'default' : 'secondary'} className={cn(
+                                "flex items-center gap-1.5 px-2.5 py-1",
+                                submission.status === 'graded' ? "bg-green-100 text-green-700 hover:bg-green-100 border-transparent shadow-none" : "",
+                                submission.status === 'submitted' ? "bg-blue-100 text-blue-700 hover:bg-blue-100 border-transparent" : ""
+                              )}>
+                                <CheckCircle className="h-3.5 w-3.5" />
+                                {submission.status === 'graded' ? 'Graded' : 'Submitted'}
+                              </Badge>
+
+                              {submission.grade && (
+                                <span className="text-sm font-semibold">
+                                  {submission.grade} / {item.points}
                                 </span>
-                              </div>
-                              {sub.content && (
-                                <p className="mt-2 text-sm text-muted-foreground">{sub.content}</p>
                               )}
-                              {sub.fileUrl && (
-                                <a
-                                  href={sub.fileUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="mt-2 text-sm text-blue-600 hover:underline"
-                                >
-                                  {sub.fileName || "View file"}
-                                </a>
+
+                              <button
+                                className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-4"
+                                onClick={() => setSubmitOpen(item.id)}
+                              >
+                                View Details
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setSubmitOpen(item.id)}
+                              className={cn(buttonVariants({ size: "sm" }), "h-8 px-4 font-medium text-xs gap-1.5 text-white shadow-sm")}
+                              style={{ backgroundColor: classColor }}
+                            >
+                              <Upload className="h-3.5 w-3.5" />
+                              Submit Work
+                            </button>
+                          )}
+
+                          {/* Student Submission Dialog */}
+                          <Dialog open={submitOpen === item.id} onOpenChange={(open) => setSubmitOpen(open ? item.id : null)}>
+                            <DialogContent className="sm:max-w-[550px] gap-0 p-0 overflow-hidden border-none shadow-2xl">
+                              <DialogHeader className="p-6 pb-4 border-b bg-muted/30">
+                                <DialogTitle className="text-xl">
+                                  {submission ? "Submission Details" : "Submit Assignment"}
+                                </DialogTitle>
+                                <DialogDescription className="mt-1.5">
+                                  {item.title}
+                                </DialogDescription>
+                              </DialogHeader>
+
+                              {submission && submission.status !== 'new' && (
+                                <div className="p-6 pb-0 space-y-4">
+                                  <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/30 border">
+                                    <div className="flex-1 space-y-1">
+                                      <p className="text-xs font-semibold uppercase text-muted-foreground">Status</p>
+                                      <div className="flex items-center gap-2">
+                                        <Badge variant="outline" className={cn(
+                                          submission.status === 'graded' ? "bg-green-50 text-green-700 border-green-200" : "bg-blue-50 text-blue-700 border-blue-200"
+                                        )}>
+                                          {submission.status.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                                        </Badge>
+                                        <span className="text-sm text-muted-foreground">
+                                          on {formatDate(submission.submittedAt)}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    {submission.grade && (
+                                      <div className="text-right">
+                                        <p className="text-2xl font-bold">{submission.grade}</p>
+                                        <p className="text-xs text-muted-foreground uppercase font-medium">Out of {item.points}</p>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {submission.feedback && (
+                                    <div className="space-y-2">
+                                      <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Teacher Feedback</Label>
+                                      <div className="p-4 rounded-lg bg-blue-50/50 text-blue-900/80 text-sm leading-relaxed border border-blue-100">
+                                        {submission.feedback}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
                               )}
-                              {sub.status !== "graded" && (
-                                <Dialog
-                                  open={gradeOpen === sub.id}
-                                  onOpenChange={(open) => setGradeOpen(open ? sub.id : null)}
-                                >
-                                  <DialogTrigger asChild>
-                                    <button
-                                      className={cn(buttonVariants({ size: "sm" }), "mt-2 gap-2 text-white shadow-sm hover:shadow-md transition-all")}
-                                      style={{ backgroundColor: classColor }}
-                                      onMouseEnter={(e) => {
-                                        e.currentTarget.style.opacity = "0.9"
-                                      }}
-                                      onMouseLeave={(e) => {
-                                        e.currentTarget.style.opacity = "1"
-                                      }}
-                                      type="button"
-                                    >
-                                      Grade
-                                    </button>
-                                  </DialogTrigger>
-                                  <DialogContent className="sm:max-w-[500px] gap-0 p-0 overflow-hidden border-0 shadow-2xl">
-                                    <DialogHeader className="p-6 pb-2 bg-gradient-to-r from-muted/50 to-muted/10">
-                                      <DialogTitle className="text-xl font-semibold tracking-tight">Grade Submission</DialogTitle>
-                                      <DialogDescription className="text-muted-foreground">
-                                        Evaluating {sub.student.name}&apos;s work.
-                                      </DialogDescription>
-                                    </DialogHeader>
-                                    <form action={(fd) => handleGrade(sub.id, fd)} className="p-6 space-y-6">
-                                      <div className="space-y-4">
+
+                              <form action={(fd) => handleSubmit(item.id, fd)} className="p-6 space-y-6">
+                                {/* Only show input if not graded yet */}
+                                {!submission?.grade ? (
+                                  <>
+                                    <div className="space-y-4">
+                                      <div className="space-y-2">
+                                        <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">
+                                          {submission ? "Edit Content" : "Your Work"}
+                                        </Label>
+                                        <Textarea
+                                          name="content"
+                                          defaultValue={submission?.content || ""}
+                                          placeholder="Type your response here..."
+                                          className="w-full min-h-[120px] rounded-md border-muted-foreground/20 bg-muted/20 focus-visible:bg-background transition-colors resize-none leading-relaxed"
+                                        />
+                                      </div>
+
+                                      <div className="grid gap-4">
                                         <div className="space-y-2">
-                                          <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Score</Label>
-                                          <Input
-                                            name="grade"
-                                            required
-                                            type="number"
-                                            placeholder={`Out of ${item.points || 100}`}
-                                            className="h-11 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors text-lg font-medium"
-                                          />
+                                          <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Attachment</Label>
+                                          <div className="grid gap-3">
+                                            <Input
+                                              name="fileUrl"
+                                              type="url"
+                                              defaultValue={submission?.fileUrl || ""}
+                                              placeholder="Link to file (Google Drive, Dropbox, etc.)"
+                                              className="h-10 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors"
+                                            />
+                                            <Input
+                                              name="fileName"
+                                              defaultValue={submission?.fileName || ""}
+                                              placeholder="Display name for file (optional)"
+                                              className="h-10 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors"
+                                            />
+                                          </div>
                                         </div>
+                                      </div>
+                                    </div>
+
+                                    {error && (
+                                      <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive font-medium border border-destructive/20">
+                                        {error}
+                                      </div>
+                                    )}
+
+                                    <DialogFooter className="pt-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => setSubmitOpen(null)}
+                                        className={cn(buttonVariants({ variant: "ghost" }), "text-muted-foreground hover:text-foreground")}
+                                      >
+                                        Close
+                                      </button>
+                                      <button
+                                        type="submit"
+                                        disabled={pending}
+                                        className={cn(buttonVariants(), "text-white min-w-[100px] shadow-sm")}
+                                        style={{ backgroundColor: classColor }}
+                                      >
+                                        {pending ? "Submitting..." : (submission ? "Update" : "Submit")}
+                                      </button>
+                                    </DialogFooter>
+                                  </>
+                                ) : (
+                                  <DialogFooter>
+                                    <button
+                                      type="button"
+                                      onClick={() => setSubmitOpen(null)}
+                                      className={cn(buttonVariants({ variant: "outline" }))}
+                                    >
+                                      Close
+                                    </button>
+                                  </DialogFooter>
+                                )}
+                              </form>
+                            </DialogContent>
+                          </Dialog>
+                        </>
+                      ) : (
+                        <div className="w-full">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-medium text-muted-foreground">{allSubmissions.length} submissions</span>
+                            {/* Filter or view all button could go here */}
+                          </div>
+
+                          {allSubmissions.length > 0 ? (
+                            <div className="space-y-2 mt-3">
+                              {allSubmissions.slice(0, 3).map(sub => (
+                                <div key={sub.id} className="flex items-center justify-between p-2 rounded-md bg-muted/30 border text-sm group/sub hover:bg-muted/60 transition-colors cursor-pointer" onClick={() => setGradeOpen(sub.id)}>
+                                  <div className="flex items-center gap-2">
+                                    <div className="h-6 w-6 rounded-full bg-muted-foreground/20 flex items-center justify-center text-xs font-semibold overflow-hidden">
+                                      {sub.student.image ? (
+                                        <img src={sub.student.image} alt={sub.student.name} className="h-full w-full object-cover" />
+                                      ) : sub.student.name[0]}
+                                    </div>
+                                    <span className="font-medium">{sub.student.name}</span>
+                                  </div>
+                                  <div className="flex items-center gap-3">
+                                    {sub.grade ? (
+                                      <span className="font-semibold text-xs bg-muted px-1.5 py-0.5 rounded text-muted-foreground">{sub.grade}/{item.points}</span>
+                                    ) : (
+                                      <span className="text-xs text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded border border-orange-100">Needs Grading</span>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                              {allSubmissions.length > 3 && (
+                                <p className="text-xs text-muted-foreground text-center pt-1">
+                                  + {allSubmissions.length - 3} more submissions
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="p-4 rounded-lg bg-muted/20 border border-dashed text-center">
+                              <p className="text-xs text-muted-foreground">No students have submitted work yet.</p>
+                            </div>
+                          )}
+
+                          {/* Grading Dialog */}
+                          <Dialog open={!!gradeOpen} onOpenChange={(open) => !open && setGradeOpen(null)}>
+                            {(() => {
+                              const gradingSub = allSubmissions.find(s => s.id === gradeOpen)
+                              if (!gradingSub) return null
+
+                              return (
+                                <DialogContent className="sm:max-w-[600px] gap-0 p-0 border-none shadow-2xl">
+                                  <DialogHeader className="p-6 border-b bg-muted/30">
+                                    <div className="flex items-center justify-between">
+                                      <div>
+                                        <DialogTitle className="text-lg">Grading</DialogTitle>
+                                        <DialogDescription className="mt-1">
+                                          {item.title}
+                                        </DialogDescription>
+                                      </div>
+                                      <div className="flex items-center gap-2 pr-4">
+                                        <div className="h-8 w-8 rounded-full bg-muted-foreground/10 flex items-center justify-center overflow-hidden">
+                                          {gradingSub.student.image ? (
+                                            <img src={gradingSub.student.image} alt={gradingSub.student.name} className="h-full w-full object-cover" />
+                                          ) : (
+                                            <span className="text-xs font-bold">{gradingSub.student.name[0]}</span>
+                                          )}
+                                        </div>
+                                        <span className="font-medium text-sm">{gradingSub.student.name}</span>
+                                      </div>
+                                    </div>
+                                  </DialogHeader>
+
+                                  <div className="p-6 space-y-6">
+                                    {/* Student Content Display */}
+                                    <div className="space-y-2">
+                                      <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Student Submission</Label>
+                                      <div className="p-4 rounded-lg bg-muted/30 border text-sm min-h-[80px]">
+                                        {gradingSub.content ? (
+                                          <p className="whitespace-pre-wrap leading-relaxed">{gradingSub.content}</p>
+                                        ) : (
+                                          <p className="text-muted-foreground italic">No text content submitted.</p>
+                                        )}
+
+                                        {gradingSub.fileUrl && (
+                                          <div className="mt-4 pt-4 border-t flex items-center gap-2">
+                                            <a
+                                              href={gradingSub.fileUrl}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="flex items-center gap-2 text-primary hover:underline bg-background p-2 rounded border shadow-sm transition-colors"
+                                            >
+                                              <File className="h-4 w-4" />
+                                              <span className="font-medium">{gradingSub.fileName || "Attached File"}</span>
+                                            </a>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    <form action={(fd) => handleGrade(gradingSub.id, fd)} className="space-y-6 pt-2">
+                                      <div className="grid gap-6 sm:grid-cols-3">
                                         <div className="space-y-2">
+                                          <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Grade</Label>
+                                          <div className="relative">
+                                            <Input
+                                              name="grade"
+                                              required
+                                              type="number"
+                                              defaultValue={gradingSub.grade || ""}
+                                              placeholder="0"
+                                              className="h-11 text-lg font-medium bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors pr-12"
+                                            />
+                                            <span className="absolute right-3 top-3 text-sm text-muted-foreground">
+                                              / {item.points}
+                                            </span>
+                                          </div>
+                                        </div>
+
+                                        <div className="space-y-2 sm:col-span-2">
                                           <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Feedback</Label>
-                                          <textarea
+                                          <Textarea
                                             name="feedback"
-                                            placeholder="Provide constructive feedback..."
-                                            className="w-full rounded-md border border-muted-foreground/20 bg-muted/20 px-4 py-3 text-sm outline-none focus:bg-background focus:ring-1 focus:ring-primary transition-all resize-none"
-                                            rows={4}
+                                            defaultValue={gradingSub.feedback || ""}
+                                            placeholder="Write feedback for the student..."
+                                            rows={3}
+                                            className="resize-none bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors"
                                           />
                                         </div>
                                       </div>
 
                                       {error && (
-                                        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive font-medium border border-destructive/20 animate-in fade-in slide-in-from-bottom-2">
+                                        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive font-medium border border-destructive/20">
                                           {error}
                                         </div>
                                       )}
 
-                                      <DialogFooter className="pt-2">
+                                      <DialogFooter>
                                         <button
                                           type="button"
                                           onClick={() => setGradeOpen(null)}
@@ -569,37 +704,22 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
                                         <button
                                           type="submit"
                                           disabled={pending}
-                                          className={cn(buttonVariants(), "text-white disabled:opacity-70 shadow-md hover:shadow-lg transition-all min-w-[100px]")}
+                                          className={cn(buttonVariants(), "text-white shadow-sm")}
                                           style={{ backgroundColor: classColor }}
-                                          onMouseEnter={(e) => {
-                                            if (!pending) e.currentTarget.style.opacity = "0.9"
-                                          }}
-                                          onMouseLeave={(e) => {
-                                            e.currentTarget.style.opacity = "1"
-                                          }}
                                         >
-                                          {pending ? "Grading..." : "Submit Grade"}
+                                          {pending ? "Saving..." : "Save Grade"}
                                         </button>
                                       </DialogFooter>
                                     </form>
-                                  </DialogContent>
-                                </Dialog>
-                              )}
-                              {sub.grade && (
-                                <p className="mt-2 text-sm">
-                                  Grade: <span className="font-semibold">{sub.grade}</span>
-                                  {item.points && ` / ${item.points}`}
-                                </p>
-                              )}
-                              {sub.feedback && (
-                                <p className="mt-1 text-sm text-muted-foreground">{sub.feedback}</p>
-                              )}
-                            </div>
-                          ))}
+                                  </div>
+                                </DialogContent>
+                              )
+                            })()}
+                          </Dialog>
                         </div>
                       )}
                     </div>
-                  )}
+                  </div>
                 </CardContent>
               </Card>
             )

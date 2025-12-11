@@ -211,3 +211,51 @@ These changes align with the goal of creating a "Wow" factor and a premium user 
   - **Empty States**: Friendly usage prompts when no content is available.
 - **Responsiveness**:
   - Optimized layout for mobile (hero adjustments, stacked grid) and desktop (sidebar + main content).
+
+### 16. **Classwork & Quizzes UI Redesign**
+**Objective:** Elevate the assignment and assessment experience with a premium, engaging, and consistent interface.
+
+**Changes Implemented:**
+- **Shared Card Design:**
+  - **Side Accents**: Implemented "bookmark-style" colored side borders (using the class color) for unified visual branding across Classwork and Quizzes.
+  - **Clean Typography**: Refined font weights and spacing for titles and metadata.
+  - **Dynamic Badges**:
+    - **Status**: Visual pills for "Draft," "Published," "Graded," "Submitted."
+    - **Time/Due Dates**: Smart indicators for "Due Soon," "Missing," and time limits.
+    - **Interactive Elements**: Hover states that trigger subtle shadows and color shifts.
+- **Classwork Creator (`classwork-tab.tsx`)**:
+  - **Dialog Overhaul**:
+    - Added a header with a subtle gradient background and descriptive iconography.
+    - Improved form field hierarchy with clearer labels and better spacing.
+    - Included dedicated "Grade" and "Feedback" sections for teachers within the submission view.
+  - **Student View**:
+    - "Submit" dialog now feels like a focused workspace with clear prompts for text or file links.
+    - Visual feedback for submission status (e.g., green checkmarks for completion).
+- **Quiz Engine (`quiz-tab.tsx`)**:
+  - **Builder UI**:
+    - Completely redesigned the quiz creation dialog with a "Questions List" view.
+    - Questions are now distinct cards with clear edit/remove actions.
+    - Improved checkbox/radio input styling for option management.
+  - **Take Quiz Experience**:
+    - Dialog-based "Focus Mode" for taking quizzes.
+    - Clear question presentation with point values and type indicators.
+    - Auto-saving answer inputs (visual only for now, functional logic retained).
+- **Interactive Details**:
+  - **Tooltips & Empty States**: Added robust, illustrated empty states for when no work is assigned.
+  - **Transitions**: Smooth fade-in effects for loading lists and opening dialogs.
+
+### 17. **Stream UI Redesign** (`stream-tab.tsx`)
+**Objective:** Transform the stream into an engaging, social-feed-style space for class communication.
+
+**Changes Implemented:**
+- **Reaction System**:
+  - Replaced the legacy comment system with a modern **Reaction** feature (Heart/Like).
+  - Implemented real-time updates for reaction counts.
+  - Added visual highlighting for user's own reactions.
+- **Visual Overhaul**:
+  - Removed clutter (comment inputs) to focus on content.
+  - Enhanced announcement cards with cleaner typography and author avatars.
+  - Added a responsive **Upcoming Work** sidebar for better utility on large screens.
+- **Interaction**:
+  - "Create Announcement" input mimics popular social media composers for familiarity.
+  - Optimistic UI updates for instant reaction feedback.

@@ -21,6 +21,11 @@ type ClassData = {
   schedule: string | null
 }
 
+type AnnouncementReaction = {
+  userId: string
+  reaction: string
+}
+
 type AnnouncementData = {
   id: string
   content: string
@@ -30,6 +35,7 @@ type AnnouncementData = {
     name: string
     image: string | null
   }
+  reactions: AnnouncementReaction[]
 }
 
 type ClassworkData = {
@@ -325,6 +331,7 @@ export function ClassDetailClient({
         {activeTab === "stream" && (
           <StreamTab
             classId={classData.id}
+            userId={userId}
             userRole={userRole}
             announcements={announcements}
             classColor={classColor}

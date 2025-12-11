@@ -2,9 +2,22 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { Plus, Timer, Lock, CheckCircle, HelpCircle, XCircle } from "lucide-react"
+import {
+  Plus,
+  Timer,
+  Lock,
+  CheckCircle,
+  HelpCircle,
+  XCircle,
+  Trash2,
+  Settings2,
+  Calendar,
+  FileQuestion,
+  MoreVertical,
+  Clock
+} from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { buttonVariants } from "@/components/ui/button"
 import {
   Dialog,
@@ -18,6 +31,8 @@ import {
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { Badge } from "@/components/ui/badge"
+import { Switch } from "@/components/ui/switch"
 import { createQuiz, submitQuiz } from "@/app/actions/quizzes"
 
 type QuizTabProps = {
@@ -129,6 +144,11 @@ export function QuizTab({ classId, userId, userRole, quizzes, classColor }: Quiz
     ])
   }
 
+  const handleRemoveQuestion = (id: string) => {
+    if (questions.length <= 1) return;
+    setQuestions((prev) => prev.filter(q => q.id !== id));
+  }
+
   const handleQuestionChange = (id: string, update: Partial<DraftQuestion>) => {
     setQuestions((prev) => prev.map((q) => (q.id === id ? { ...q, ...update } : q)))
   }
@@ -158,6 +178,19 @@ export function QuizTab({ classId, userId, userRole, quizzes, classColor }: Quiz
           }
           : q,
       ),
+    )
+  }
+
+  const removeOption = (qId: string, optId: string) => {
+    setQuestions((prev) =>
+      prev.map((q) => {
+        if (q.id !== qId) return q;
+        if (q.options.length <= 1) return q;
+        return {
+          ...q,
+          options: q.options.filter(o => o.id !== optId)
+        }
+      })
     )
   }
 
@@ -191,6 +224,16 @@ export function QuizTab({ classId, userId, userRole, quizzes, classColor }: Quiz
       setDescription("")
       setDueDate(null)
       setTimeLimitSeconds("")
+      setQuestions([{
+        id: crypto.randomUUID(),
+        prompt: "",
+        type: "single_choice",
+        points: 1,
+        options: [
+          { id: crypto.randomUUID(), text: "Option 1", isCorrect: true },
+          { id: crypto.randomUUID(), text: "Option 2", isCorrect: false },
+        ],
+      }])
       router.refresh()
     })
   }
@@ -220,381 +263,519 @@ export function QuizTab({ classId, userId, userRole, quizzes, classColor }: Quiz
     })
   }
 
-  const renderStatusPill = (q: typeof quizzes[number]) => {
-    if (q.status === "draft") {
-      return (
-        <span className="rounded-full bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 text-xs font-medium">
-          Draft
-        </span>
-      )
-    }
-    return (
-      <span className="rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 text-xs font-medium">
-        Published
-      </span>
-    )
-  }
-
   return (
-    <div className="flex flex-col gap-4">
-      {userRole === "teacher" && (
-        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger asChild>
-            <button
-              className={cn(buttonVariants({ size: "sm" }), "w-fit gap-2 text-white shadow-md hover:shadow-lg transition-all")}
-              style={{ backgroundColor: classColor }}
-              type="button"
-            >
-              <Plus className="h-4 w-4" />
-              New Quiz
-            </button>
-          </DialogTrigger>
-          <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl gap-0 p-0">
-            <DialogHeader className="p-6 pb-2">
-              <DialogTitle>Create Quiz</DialogTitle>
-              <DialogDescription>Draft a quiz and publish when ready. Students can submit only once.</DialogDescription>
-            </DialogHeader>
-            <div className="p-6 space-y-6">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Title</Label>
-                  <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Quiz title" />
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold tracking-tight">Quizzes</h2>
+
+        {userRole === "teacher" && (
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+            <DialogTrigger asChild>
+              <button
+                className={cn(buttonVariants({ size: "sm" }), "gap-2 shadow-sm hover:shadow-md transition-all text-white font-medium")}
+                style={{ backgroundColor: classColor }}
+              >
+                <Plus className="h-4 w-4" />
+                New Quiz
+              </button>
+            </DialogTrigger>
+            <DialogContent className="max-h-[90vh] overflow-hidden flex flex-col sm:max-w-5xl gap-0 p-0 border-none shadow-2xl bg-background">
+              <DialogHeader className="px-6 py-4 border-b bg-muted/30 shrink-0">
+                <div className="flex items-center justify-between">
+                  <DialogTitle className="flex items-center gap-2 text-xl">
+                    <div className="p-2 rounded-full bg-primary/10 text-primary">
+                      <FileQuestion className="h-5 w-5" />
+                    </div>
+                    Create Quiz
+                  </DialogTitle>
                 </div>
-                <div className="space-y-2">
-                  <Label>Status</Label>
-                  <select
-                    className="h-10 w-full rounded-md border border-muted-foreground/20 bg-muted/20 px-3 text-sm"
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value as any)}
-                  >
-                    <option value="draft">Draft</option>
-                    <option value="published">Published</option>
-                  </select>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Description</Label>
-                <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
-              </div>
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div className="space-y-2">
-                  <Label>Due Date (optional)</Label>
-                  <Input type="datetime-local" value={dueDate || ""} onChange={(e) => setDueDate(e.target.value || null)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Time Limit (seconds, optional)</Label>
-                  <Input
-                    type="number"
-                    value={timeLimitSeconds}
-                    onChange={(e) => setTimeLimitSeconds(e.target.value)}
-                    placeholder="e.g. 900"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Questions</Label>
-                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                    <span>{questions.length} total</span>
-                    <button
-                      type="button"
-                      className={cn(buttonVariants({ size: "sm", variant: "outline" }), "h-8 px-3")}
-                      onClick={handleAddQuestion}
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      Add question
-                    </button>
+                <DialogDescription>Draft a quiz and publish when ready.</DialogDescription>
+              </DialogHeader>
+
+              <div className="flex-1 overflow-y-auto p-6 space-y-8 bg-muted/5">
+                {/* Quiz Settings */}
+                <div className="p-5 rounded-xl border bg-card shadow-sm space-y-6">
+                  <div className="flex items-center gap-2 mb-2 pb-2 border-b">
+                    <Settings2 className="h-4 w-4 text-muted-foreground" />
+                    <h3 className="text-sm font-semibold uppercase text-muted-foreground tracking-wider">Quiz Settings</h3>
+                  </div>
+
+                  <div className="grid gap-6 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label className="text-xs font-semibold text-muted-foreground">Title</Label>
+                      <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Quiz title" className="font-medium" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs font-semibold text-muted-foreground">Status</Label>
+                      <select
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        value={status}
+                        onChange={(e) => setStatus(e.target.value as any)}
+                      >
+                        <option value="draft">Draft</option>
+                        <option value="published">Published</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs font-semibold text-muted-foreground">Description</Label>
+                    <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="resize-none" />
+                  </div>
+
+                  <div className="grid gap-6 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label className="text-xs font-semibold text-muted-foreground">Due Date (Optional)</Label>
+                      <Input type="datetime-local" value={dueDate || ""} onChange={(e) => setDueDate(e.target.value || null)} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs font-semibold text-muted-foreground flex items-center gap-2">
+                        Time Limit (Optional)
+                        <span className="text-[10px] font-normal px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Seconds</span>
+                      </Label>
+                      <Input
+                        type="number"
+                        value={timeLimitSeconds}
+                        onChange={(e) => setTimeLimitSeconds(e.target.value)}
+                        placeholder="e.g. 900 for 15 mins"
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="space-y-4">
-                {questions.map((q, idx) => (
-                  <Card key={q.id} className="border-muted-foreground/20">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base">Question {idx + 1}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <Input
-                        value={q.prompt}
-                        onChange={(e) => handleQuestionChange(q.id, { prompt: e.target.value })}
-                        placeholder="Question prompt"
-                      />
-                      <div className="grid gap-3 sm:grid-cols-3">
-                        <div className="space-y-1">
-                          <Label>Type</Label>
-                          <select
-                            className="h-10 w-full rounded-md border border-muted-foreground/20 bg-muted/20 px-3 text-sm"
-                            value={q.type}
-                            onChange={(e) =>
-                              handleQuestionChange(q.id, { type: e.target.value as DraftQuestion["type"] })
-                            }
-                          >
-                            <option value="single_choice">Multiple Choice</option>
-                            <option value="multiple_select">Multiple Select</option>
-                            <option value="true_false">True / False</option>
-                            <option value="short_answer">Short Answer</option>
-                          </select>
+                {/* Questions List */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="flex items-center justify-center h-6 w-6 rounded-full bg-primary/10 text-xs font-bold text-primary">{questions.length}</span>
+                      <h3 className="font-semibold text-lg">Questions</h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleAddQuestion}
+                      className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5 bg-background shadow-sm")}
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add Question
+                    </button>
+                  </div>
+
+                  <div className="space-y-6">
+                    {questions.map((q, idx) => (
+                      <Card key={q.id} className="border bg-card overflow-hidden shadow-sm relative group">
+                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-muted-foreground/20 group-hover:bg-primary transition-colors duration-300" />
+
+                        <div className="absolute right-4 top-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => handleRemoveQuestion(q.id)} className="text-muted-foreground hover:text-destructive transition-colors p-2">
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         </div>
-                        <div className="space-y-1">
-                          <Label>Points</Label>
+
+                        <CardHeader className="pl-6 py-4 bg-muted/10 border-b flex flex-row items-center gap-4 space-y-0">
+                          <span className="text-sm font-semibold text-muted-foreground">Q{idx + 1}</span>
                           <Input
-                            type="number"
-                            value={q.points}
-                            onChange={(e) => handleQuestionChange(q.id, { points: Number(e.target.value || 0) })}
+                            value={q.prompt}
+                            onChange={(e) => handleQuestionChange(q.id, { prompt: e.target.value })}
+                            placeholder="Enter your question here..."
+                            className="flex-1 bg-transparent border-transparent hover:bg-background hover:border-input focus:bg-background focus:border-input transition-all font-medium text-base h-9 shadow-none"
                           />
-                        </div>
-                        <div className="space-y-1">
-                          <Label>Options</Label>
-                          <div className="text-xs text-muted-foreground">
-                            {q.type === "short_answer" ? "Short answers are manual grade." : "Mark correct choice(s)."}
-                          </div>
-                        </div>
-                      </div>
+                        </CardHeader>
 
-                      {q.type !== "short_answer" && (
-                        <div className="space-y-2">
-                          {q.options.map((opt) => (
-                            <div key={opt.id} className="flex items-center gap-2">
-                              <input
-                                type={q.type === "multiple_select" ? "checkbox" : "radio"}
-                                name={`correct-${q.id}`}
-                                checked={opt.isCorrect}
-                                onChange={(e) => {
-                                  if (q.type === "multiple_select") {
-                                    handleOptionChange(q.id, opt.id, opt.text, e.target.checked)
-                                  } else {
-                                    handleQuestionChange(q.id, {
-                                      options: q.options.map((o) => ({ ...o, isCorrect: o.id === opt.id })),
-                                    })
-                                  }
-                                }}
-                              />
+                        <CardContent className="pl-6 p-4 pt-6 space-y-6">
+                          <div className="grid gap-6 sm:grid-cols-3">
+                            <div className="space-y-1.5">
+                              <Label className="text-xs text-muted-foreground">Question Type</Label>
+                              <select
+                                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                value={q.type}
+                                onChange={(e) =>
+                                  handleQuestionChange(q.id, { type: e.target.value as DraftQuestion["type"] })
+                                }
+                              >
+                                <option value="single_choice">Multiple Choice</option>
+                                <option value="multiple_select">Multiple Select</option>
+                                <option value="true_false">True / False</option>
+                                <option value="short_answer">Short Answer</option>
+                              </select>
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-xs text-muted-foreground">Points</Label>
                               <Input
-                                value={opt.text}
-                                onChange={(e) => handleOptionChange(q.id, opt.id, e.target.value)}
-                                className="flex-1"
+                                type="number"
+                                value={q.points}
+                                onChange={(e) => handleQuestionChange(q.id, { points: Number(e.target.value || 0) })}
+                                className="h-9"
                               />
                             </div>
-                          ))}
-                          <button
-                            type="button"
-                            className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "w-fit")}
-                            onClick={() => addOption(q.id)}
-                          >
-                            Add option
-                          </button>
+                          </div>
+
+                          {q.type !== "short_answer" && (
+                            <div className="space-y-3 bg-muted/20 p-4 rounded-lg border border-dashed">
+                              <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider mb-2 block">Answer Options</Label>
+                              {q.options.map((opt) => (
+                                <div key={opt.id} className="flex items-center gap-3">
+                                  <div className="flex items-center h-9">
+                                    <input
+                                      type={q.type === "multiple_select" ? "checkbox" : "radio"}
+                                      name={`correct-${q.id}`}
+                                      checked={opt.isCorrect}
+                                      onChange={(e) => {
+                                        if (q.type === "multiple_select") {
+                                          handleOptionChange(q.id, opt.id, opt.text, e.target.checked)
+                                        } else {
+                                          handleQuestionChange(q.id, {
+                                            options: q.options.map((o) => ({ ...o, isCorrect: o.id === opt.id })),
+                                          })
+                                        }
+                                      }}
+                                      className="h-4 w-4 accent-primary cursor-pointer"
+                                    />
+                                  </div>
+                                  <Input
+                                    value={opt.text}
+                                    onChange={(e) => handleOptionChange(q.id, opt.id, e.target.value)}
+                                    className="flex-1 h-9 bg-background"
+                                    placeholder="Option text"
+                                  />
+                                  {q.options.length > 1 && (
+                                    <button onClick={() => removeOption(q.id, opt.id)} className="text-muted-foreground hover:text-destructive p-1">
+                                      <XCircle className="h-4 w-4" />
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                              <button
+                                type="button"
+                                className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "h-8 text-xs")}
+                                onClick={() => addOption(q.id)}
+                              >
+                                <Plus className="h-3 w-3 mr-1.5" />
+                                Add Option
+                              </button>
+                            </div>
+                          )}
+
+                          {q.type === "short_answer" && (
+                            <div className="bg-muted/20 p-4 rounded-lg border border-dashed text-sm text-muted-foreground italic flex items-center gap-2">
+                              <HelpCircle className="h-4 w-4" />
+                              Students will type their answer. Grading will be manual.
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+
+                {error && (
+                  <div className="rounded-md bg-destructive/10 p-4 text-sm text-destructive border border-destructive/20 flex items-center gap-2">
+                    <XCircle className="h-4 w-4" />
+                    {error}
+                  </div>
+                )}
+              </div>
+
+              <DialogFooter className="p-6 pt-4 border-t bg-background shrink-0 flex items-center justify-between sm:justify-between w-full">
+                <div className="text-xs text-muted-foreground font-medium">
+                  {questions.length} Questions • {questions.reduce((acc, q) => acc + q.points, 0)} Total Points
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    className={cn(buttonVariants({ variant: "ghost" }))}
+                    onClick={() => setCreateOpen(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className={cn(buttonVariants({ variant: "outline" }), "shadow-sm")}
+                    onClick={() => handleCreate(false)}
+                    disabled={pending}
+                  >
+                    {pending ? "Saving..." : "Save Draft"}
+                  </button>
+                  <button
+                    type="button"
+                    className={cn(buttonVariants(), "text-white shadow-md min-w-[100px]")}
+                    style={{ backgroundColor: classColor }}
+                    onClick={() => handleCreate(true)}
+                    disabled={pending}
+                  >
+                    {pending ? "Publishing..." : "Publish Quiz"}
+                  </button>
+                </div>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
+
+      {/* Quizzes list */}
+      {publishedQuizzes.length === 0 && userRole !== "teacher" ? (
+        <Card className="border-dashed bg-muted/10 border-2">
+          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="p-4 rounded-full bg-muted/50 mb-4">
+              <FileQuestion className="h-8 w-8 text-muted-foreground/60" />
+            </div>
+            <h3 className="text-lg font-medium">No quizzes available</h3>
+            <p className="mt-2 text-sm text-muted-foreground max-w-sm">
+              Check back later for new quizzes.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4">
+          {quizzes.length === 0 && userRole === "teacher" && (
+            <Card className="border-dashed bg-muted/10 border-2">
+              <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="p-4 rounded-full bg-muted/50 mb-4">
+                  <FileQuestion className="h-8 w-8 text-muted-foreground/60" />
+                </div>
+                <h3 className="text-lg font-medium">No quizzes created</h3>
+                <p className="mt-2 text-sm text-muted-foreground max-w-sm">
+                  Create your first quiz to assess your students.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {quizzes.map((quiz) => {
+            if (userRole === "student" && quiz.status === "draft") return null; // Students don't see drafts
+
+            const hasAttempt = !!quiz.attempt
+            const isDue = quiz.dueDate && new Date(quiz.dueDate) < new Date() && !hasAttempt
+
+            return (
+              <Card key={quiz.id} className="group border-border/60 hover:border-border transition-all hover:shadow-sm overflow-hidden border-l-[6px]" style={{ borderLeftColor: classColor }}>
+                <CardHeader className="pl-5 pb-3">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-4">
+                      <div
+                        className="mt-1 p-2 rounded-lg bg-muted text-muted-foreground group-hover:bg-primary/5 group-hover:text-primary transition-colors duration-300"
+                        style={{ '--primary': classColor } as any}
+                      >
+                        <FileQuestion className="h-5 w-5" />
+                      </div>
+                      <div className="space-y-1">
+                        <CardTitle className="text-lg font-semibold group-hover:text-primary transition-colors" style={{ '--primary': classColor } as any}>
+                          {quiz.title}
+                        </CardTitle>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                          {quiz.status === 'draft' && (
+                            <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700 px-1.5 py-0 h-5">Draft</Badge>
+                          )}
+                          {quiz.totalPoints && (
+                            <span className="font-medium">{quiz.totalPoints} pts</span>
+                          )}
+                          <span className="text-muted-foreground/40">•</span>
+                          <span>{quiz.questions.length} Questions</span>
+                          {quiz.timeLimitSeconds && (
+                            <>
+                              <span className="text-muted-foreground/40">•</span>
+                              <span className="flex items-center gap-1"><Timer className="h-3 w-3" /> {Math.round(Number(quiz.timeLimitSeconds) / 60)} mins</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {quiz.dueDate && (
+                      <Badge variant="outline" className={cn(
+                        "flex shrink-0 items-center gap-1.5 font-normal px-2.5 py-1",
+                        isDue ? "border-red-200 bg-red-50 text-red-700" : "bg-muted/30"
+                      )}>
+                        <Clock className="h-3.5 w-3.5" />
+                        {isDue ? "Missing" : `Due ${new Date(quiz.dueDate).toLocaleDateString()}`}
+                      </Badge>
+                    )}
+                  </div>
+                </CardHeader>
+
+                <CardContent className="pl-5 pt-0">
+                  <div className="ml-[3.75rem] space-y-4">
+                    {quiz.description && (
+                      <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+                        {quiz.description}
+                      </p>
+                    )}
+
+                    <div className="pt-2 flex items-center justify-between">
+                      {quiz.attempt ? (
+                        <div className="flex items-center gap-3">
+                          <Badge variant="default" className="bg-green-100 text-green-700 hover:bg-green-100 border-transparent shadow-none px-2.5 py-1 gap-1.5">
+                            <CheckCircle className="h-3.5 w-3.5" />
+                            Completed
+                          </Badge>
+                          <span className="text-sm font-semibold">
+                            Score: {quiz.attempt.score} / {quiz.totalPoints}
+                          </span>
+                        </div>
+                      ) : (
+                        <>
+                          {userRole === 'student' && quiz.status === 'published' && (
+                            <button
+                              className={cn(buttonVariants({ size: "sm" }), "h-8 px-4 font-medium text-xs gap-1.5 text-white shadow-sm")}
+                              style={{ backgroundColor: classColor }}
+                              onClick={() => setTakeQuizId(quiz.id)}
+                            >
+                              Take Quiz
+                            </button>
+                          )}
+                          {userRole === 'teacher' && (
+                            <div className="text-sm text-muted-foreground">
+                              {/* Teacher specific stats could go here */}
+                              <span className="italic">Visible to students</span>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Take quiz dialog */}
+      <Dialog open={!!takeQuizId} onOpenChange={(open) => setTakeQuizId(open ? takeQuizId : null)}>
+        <DialogContent className="max-h-[95vh] overflow-hidden flex flex-col sm:max-w-4xl gap-0 p-0 border-none shadow-2xl bg-background">
+          {activeQuiz ? (
+            <>
+              <DialogHeader className="p-6 pb-4 border-b bg-muted/30 shrink-0">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <DialogTitle className="text-xl">{activeQuiz.title}</DialogTitle>
+                    <DialogDescription className="mt-1 flex items-center gap-4">
+                      <span className="flex items-center gap-1.5"><FileQuestion className="h-3.5 w-3.5" /> {activeQuiz.questions.length} Questions</span>
+                      {activeQuiz.timeLimitSeconds && (
+                        <span className="flex items-center gap-1.5"><Timer className="h-3.5 w-3.5" /> {Math.round(Number(activeQuiz.timeLimitSeconds) / 60)} mins limit</span>
+                      )}
+                      <span>• One attempt only</span>
+                    </DialogDescription>
+                  </div>
+                  {activeQuiz.timeLimitSeconds && (
+                    <Badge variant="outline" className="text-base px-3 py-1 bg-background font-mono">
+                      {/* Timer logic handles display naturally via hook if needed, for distinct display we need state */}
+                      <Timer className="h-4 w-4 mr-2" />
+                      {Math.floor(Number(activeQuiz.timeLimitSeconds) / 60)}:00
+                    </Badge>
+                  )}
+                </div>
+              </DialogHeader>
+
+              <div className="flex-1 overflow-y-auto p-6 space-y-8 bg-muted/5">
+                {activeQuiz.questions.map((q, idx) => (
+                  <Card key={q.id} className="border shadow-sm overflow-hidden">
+                    <CardHeader className="bg-muted/10 border-b pb-3 pt-4 px-5">
+                      <div className="flex items-start justify-between">
+                        <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Question {idx + 1}</span>
+                        <span className="text-xs font-medium px-2 py-0.5 rounded bg-muted text-muted-foreground">{q.points} Points</span>
+                      </div>
+                      <h3 className="text-lg font-medium mt-1 leading-snug">{q.prompt}</h3>
+                    </CardHeader>
+                    <CardContent className="p-5 pt-6">
+                      {q.type === "short_answer" ? (
+                        <Textarea
+                          placeholder="Type your answer here..."
+                          value={answers[q.id]?.text || ""}
+                          onChange={(e) =>
+                            setAnswers((prev) => ({
+                              ...prev,
+                              [q.id]: { ...prev[q.id], text: e.target.value },
+                            }))
+                          }
+                          className="min-h-[120px] resize-none text-base"
+                        />
+                      ) : (
+                        <div className="space-y-3">
+                          {q.options.map((opt) => {
+                            const selected = answers[q.id]?.selected || []
+                            const isChecked = selected.includes(opt.id)
+                            return (
+                              <label
+                                key={opt.id}
+                                className={cn(
+                                  "flex items-center gap-3 p-3 rounded-lg border transition-all cursor-pointer hover:bg-muted/50",
+                                  isChecked ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "border-muted"
+                                )}
+                              >
+                                <div className="flex items-center justify-center shrink-0">
+                                  <input
+                                    type={q.type === "multiple_select" ? "checkbox" : "radio"}
+                                    name={`q-${q.id}`}
+                                    checked={isChecked}
+                                    onChange={(e) => {
+                                      if (q.type === "multiple_select") {
+                                        const next = e.target.checked
+                                          ? [...selected, opt.id]
+                                          : selected.filter((id) => id !== opt.id)
+                                        setAnswers((prev) => ({
+                                          ...prev,
+                                          [q.id]: { ...prev[q.id], selected: next },
+                                        }))
+                                      } else {
+                                        setAnswers((prev) => ({
+                                          ...prev,
+                                          [q.id]: { ...prev[q.id], selected: [opt.id] },
+                                        }))
+                                      }
+                                    }}
+                                    className={cn(
+                                      "h-4 w-4 accent-primary",
+                                      q.type === "single_choice" ? "" : "rounded-sm"
+                                    )}
+                                  />
+                                </div>
+                                <span className="text-sm font-medium">{opt.text}</span>
+                              </label>
+                            )
+                          })}
                         </div>
                       )}
                     </CardContent>
                   </Card>
                 ))}
-              </div>
-
-              {error && (
-                <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive border border-destructive/20">
-                  {error}
-                </div>
-              )}
-            </div>
-            <DialogFooter className="p-6 pt-0 flex items-center gap-3">
-              <button
-                type="button"
-                className={cn(buttonVariants({ variant: "ghost" }))}
-                onClick={() => setCreateOpen(false)}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className={cn(buttonVariants({ variant: "secondary" }), "shadow-sm")}
-                onClick={() => handleCreate(false)}
-                disabled={pending}
-              >
-                {pending ? "Saving..." : "Save draft"}
-              </button>
-              <button
-                type="button"
-                className={cn(buttonVariants(), "text-white shadow-md")}
-                style={{ backgroundColor: classColor }}
-                onClick={() => handleCreate(true)}
-                disabled={pending}
-              >
-                {pending ? "Publishing..." : "Publish"}
-              </button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {/* Quizzes list */}
-      {publishedQuizzes.length === 0 && userRole !== "teacher" && (
-        <Card className="border-dashed">
-          <CardContent className="py-10 text-center text-muted-foreground">
-            No quizzes yet.
-          </CardContent>
-        </Card>
-      )}
-
-      <div className="grid gap-4">
-        {quizzes.map((quiz) => {
-          const hasAttempt = !!quiz.attempt
-          return (
-            <Card key={quiz.id}>
-              <CardHeader className="flex flex-row items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <CardTitle className="text-lg">{quiz.title}</CardTitle>
-                  {quiz.description && (
-                    <p className="text-sm text-muted-foreground">{quiz.description}</p>
-                  )}
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                    <span>{quiz.status === "published" ? "Published" : "Draft"}</span>
-                    {quiz.timeLimitSeconds && (
-                      <span className="inline-flex items-center gap-1">
-                        <Timer className="h-3.5 w-3.5" />
-                        {quiz.timeLimitSeconds} sec
-                      </span>
-                    )}
-                    {quiz.totalPoints && <span>{quiz.totalPoints} pts</span>}
-                    {quiz.dueDate && <span>Due {new Date(quiz.dueDate).toLocaleDateString()}</span>}
-                  </div>
-                </div>
-                {renderStatusPill(quiz)}
-              </CardHeader>
-              <CardContent className="flex flex-col gap-3">
-                <div className="text-sm text-muted-foreground">
-                  {quiz.questions.length} questions
-                </div>
-                {quiz.attempt && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <CheckCircle className="h-4 w-4 text-emerald-500" />
-                    Submitted — Score: {quiz.attempt.score ?? "—"}
-                  </div>
-                )}
-                {!quiz.attempt && quiz.status === "published" && userRole === "student" && (
-                  <button
-                    className={cn(buttonVariants({ size: "sm" }), "w-fit gap-2 text-white")}
-                    style={{ backgroundColor: classColor }}
-                    onClick={() => setTakeQuizId(quiz.id)}
-                  >
-                    Take Quiz
-                  </button>
-                )}
-                {userRole === "teacher" && quiz.status === "draft" && (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Lock className="h-4 w-4" />
-                    Draft - publish to make available
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )
-        })}
-      </div>
-
-      {/* Take quiz dialog */}
-      <Dialog open={!!takeQuizId} onOpenChange={(open) => setTakeQuizId(open ? takeQuizId : null)}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl gap-0 p-0">
-          {activeQuiz ? (
-            <>
-              <DialogHeader className="p-6 pb-2">
-                <DialogTitle>{activeQuiz.title}</DialogTitle>
-                <DialogDescription>
-                  {activeQuiz.timeLimitSeconds
-                    ? `Time limit: ${activeQuiz.timeLimitSeconds} seconds. You can submit only once.`
-                    : "You can submit only once."}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="p-6 space-y-5">
-                {activeQuiz.questions.map((q, idx) => (
-                  <div key={q.id} className="rounded-lg border p-4 space-y-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-semibold">Q{idx + 1}. {q.prompt}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {q.type.replace("_", " ")} • {q.points} pts
-                        </p>
-                      </div>
-                      {q.type === "short_answer" && (
-                        <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1">
-                          <HelpCircle className="h-3 w-3" /> Manual grade
-                        </span>
-                      )}
-                    </div>
-                    {q.type === "short_answer" && (
-                      <Textarea
-                        placeholder="Your answer"
-                        value={answers[q.id]?.text || ""}
-                        onChange={(e) =>
-                          setAnswers((prev) => ({
-                            ...prev,
-                            [q.id]: { ...prev[q.id], text: e.target.value },
-                          }))
-                        }
-                      />
-                    )}
-                    {q.type !== "short_answer" && (
-                      <div className="space-y-2">
-                        {q.options.map((opt) => {
-                          const selected = answers[q.id]?.selected || []
-                          const isChecked = selected.includes(opt.id)
-                          return (
-                            <label key={opt.id} className="flex items-center gap-2 text-sm">
-                              <input
-                                type={q.type === "multiple_select" ? "checkbox" : "radio"}
-                                name={`q-${q.id}`}
-                                checked={isChecked}
-                                onChange={(e) => {
-                                  if (q.type === "multiple_select") {
-                                    const next = e.target.checked
-                                      ? [...selected, opt.id]
-                                      : selected.filter((id) => id !== opt.id)
-                                    setAnswers((prev) => ({
-                                      ...prev,
-                                      [q.id]: { ...prev[q.id], selected: next },
-                                    }))
-                                  } else {
-                                    setAnswers((prev) => ({
-                                      ...prev,
-                                      [q.id]: { ...prev[q.id], selected: [opt.id] },
-                                    }))
-                                  }
-                                }}
-                              />
-                              <span>{opt.text}</span>
-                            </label>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </div>
-                ))}
 
                 {error && (
-                  <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive border border-destructive/20">
+                  <div className="rounded-md bg-destructive/10 p-4 text-sm text-destructive border border-destructive/20 flex items-center gap-2 font-medium">
+                    <XCircle className="h-4 w-4" />
                     {error}
                   </div>
                 )}
               </div>
-              <DialogFooter className="p-6 pt-0 flex items-center gap-3">
-                <button
-                  type="button"
-                  className={cn(buttonVariants({ variant: "ghost" }))}
-                  onClick={() => setTakeQuizId(null)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className={cn(buttonVariants(), "text-white")}
-                  style={{ backgroundColor: classColor }}
-                  disabled={pending}
-                  onClick={handleSubmitQuiz}
-                >
-                  {pending ? "Submitting..." : "Submit once"}
-                </button>
+
+              <DialogFooter className="p-6 pt-4 border-t bg-background shrink-0 flex justify-between w-full sm:justify-between items-center bg-muted/10">
+                <div className="text-xs text-muted-foreground w-full">
+                  Answers save automatically when submitting.
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    className={cn(buttonVariants({ variant: "ghost" }))}
+                    onClick={() => setTakeQuizId(null)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className={cn(buttonVariants(), "text-white shadow-md min-w-[120px]")}
+                    style={{ backgroundColor: classColor }}
+                    disabled={pending}
+                    onClick={handleSubmitQuiz}
+                  >
+                    {pending ? "Submitting..." : "Submit Quiz"}
+                  </button>
+                </div>
               </DialogFooter>
             </>
           ) : (
-            <div className="p-6 text-center text-muted-foreground">No quiz selected.</div>
+            <div className="p-12 text-center text-muted-foreground flex flex-col items-center gap-2">
+              <XCircle className="h-10 w-10 opacity-20" />
+              <p>Quiz data could not be loaded.</p>
+            </div>
           )}
         </DialogContent>
       </Dialog>

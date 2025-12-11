@@ -2,22 +2,30 @@
 
 import { useState, useTransition, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { MessageSquare, Plus, Send } from "lucide-react"
+import { MessageSquare, Plus, Heart, SmilePlus } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { buttonVariants } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
-import { createAnnouncement } from "@/app/actions/class-detail"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { createAnnouncement, toggleReaction } from "@/app/actions/class-detail"
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
+
+type AnnouncementReaction = {
+  userId: string
+  reaction: string
+}
 
 type AnnouncementData = {
   id: string
@@ -28,16 +36,192 @@ type AnnouncementData = {
     name: string
     image: string | null
   }
+  reactions: AnnouncementReaction[]
 }
 
 type StreamTabProps = {
   classId: string
-  userRole: "teacher" | "student"
+  userId?: string
+  userRole: "teacher" | "student" | null
   announcements: AnnouncementData[]
   classColor: string
 }
 
-export function StreamTab({ classId, userRole, announcements, classColor }: StreamTabProps) {
+const REACTION_EMOJIS: Record<string, { emoji: string, label: string }> = {
+  like: { emoji: "👍", label: "Like" },
+  love: { emoji: "❤️", label: "Love" },
+  haha: { emoji: "😂", label: "Haha" },
+  wow: { emoji: "😮", label: "Wow" },
+  sad: { emoji: "😢", label: "Sad" },
+  angry: { emoji: "😡", label: "Angry" },
+}
+
+function AnnouncementCard({ announcement, userId, classColor }: { announcement: AnnouncementData, userId?: string, classColor: string }) {
+  // Find user's current reaction
+  const initialUserReaction = userId ? announcement.reactions.find(r => r.userId === userId)?.reaction : null
+
+  const [reactionState, setReactionState] = useState({
+    count: announcement.reactions.length,
+    hasReacted: !!initialUserReaction,
+    userReaction: initialUserReaction || null
+  })
+
+  // Sync state with prop changes
+  useEffect(() => {
+    const freshUserReaction = userId ? announcement.reactions.find(r => r.userId === userId)?.reaction : null
+    setReactionState({
+      count: announcement.reactions.length,
+      hasReacted: !!freshUserReaction,
+      userReaction: freshUserReaction || null
+    })
+  }, [announcement.reactions, userId])
+
+  const handleReaction = async (type: string) => {
+    if (!userId) return
+
+    const isTogglingOff = reactionState.userReaction === type
+
+    // Optimistic update
+    setReactionState(prev => {
+      let newCount = prev.count
+      if (!prev.hasReacted) newCount++ // New reaction
+      else if (isTogglingOff) newCount-- // Removing reaction
+      // If switching, count stays same
+
+      return {
+        hasReacted: !isTogglingOff,
+        userReaction: isTogglingOff ? null : type,
+        count: Math.max(0, newCount)
+      }
+    })
+
+    try {
+      await toggleReaction(announcement.id, type)
+    } catch (error) {
+      console.error("Failed to toggle reaction", error)
+    }
+  }
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+
+    if (diffMins < 1) return "Just now"
+    if (diffMins < 60) return `${diffMins}m ago`
+    if (diffHours < 24) return `${diffHours}h ago`
+    if (diffDays < 7) return `${diffDays}d ago`
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+  }
+
+  const authorInitial = announcement.author.name.charAt(0).toUpperCase()
+
+  return (
+    <Card className="group transition-all hover:shadow-md border-border/60 overflow-hidden relative border-l-[6px]" style={{ borderLeftColor: classColor }}>
+      <CardHeader className="pb-3 pl-5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Avatar className="h-10 w-10 border">
+              <AvatarImage src={announcement.author.image || undefined} alt={announcement.author.name} />
+              <AvatarFallback className="bg-primary/10 text-primary">{authorInitial}</AvatarFallback>
+            </Avatar>
+            <div>
+              <p className="font-semibold text-sm leading-none">{announcement.author.name}</p>
+              <p className="text-xs text-muted-foreground mt-1">{formatDate(announcement.createdAt)}</p>
+            </div>
+          </div>
+          <button className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-muted rounded-full text-muted-foreground">
+            <div className="h-1 w-1 bg-current rounded-full mb-0.5" />
+            <div className="h-1 w-1 bg-current rounded-full mb-0.5" />
+            <div className="h-1 w-1 bg-current rounded-full" />
+          </button>
+        </div>
+      </CardHeader>
+      <CardContent className="pl-5">
+        <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">{announcement.content}</p>
+      </CardContent>
+      <div className="px-6 py-3 border-t bg-muted/5 flex items-center justify-between pl-5">
+        <div className="flex items-center gap-1">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                disabled={!userId}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all group/rx focus:outline-none",
+                  reactionState.hasReacted
+                    ? "bg-blue-50 text-blue-600 hover:bg-blue-100"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+                title="Add reaction"
+              >
+                {reactionState.hasReacted && reactionState.userReaction ? (
+                  <>
+                    <span className="text-base leading-none">{REACTION_EMOJIS[reactionState.userReaction]?.emoji || "👍"}</span>
+                    <span className="capitalize">{REACTION_EMOJIS[reactionState.userReaction]?.label || "Liked"}</span>
+                  </>
+                ) : (
+                  <>
+                    <SmilePlus className="h-4 w-4 stroke-current opacity-70 group-hover/rx:opacity-100" />
+                    <span>Reaction</span>
+                  </>
+                )}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="flex gap-1 p-1 min-w-0">
+              {Object.entries(REACTION_EMOJIS).map(([key, { emoji, label }]) => (
+                <DropdownMenuItem
+                  key={key}
+                  onClick={() => handleReaction(key)}
+                  className={cn(
+                    "flex items-center justify-center p-2 rounded-full cursor-pointer hover:bg-muted text-xl transition-transform hover:scale-125 focus:bg-muted",
+                    reactionState.userReaction === key && "bg-blue-50 ring-1 ring-blue-200"
+                  )}
+                  title={label}
+                >
+                  {emoji}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {(() => {
+            // Calculate top 3 reactions from the actual props (not optimistic state for accuracy)
+            const reactionCounts: Record<string, number> = {}
+            announcement.reactions.forEach(r => {
+              reactionCounts[r.reaction] = (reactionCounts[r.reaction] || 0) + 1
+            })
+
+            const sortedReactions = Object.entries(reactionCounts)
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 3)
+
+            const totalCount = announcement.reactions.length
+
+            if (totalCount === 0) return null
+
+            return (
+              <div className="flex items-center gap-1.5 ml-2 text-xs text-muted-foreground bg-muted/50 px-2.5 py-1 rounded-full cursor-default" title={`${totalCount} reaction${totalCount !== 1 ? 's' : ''}`}>
+                <div className="flex -space-x-1">
+                  {sortedReactions.map(([type]) => (
+                    <span key={type} className="text-sm leading-none">
+                      {REACTION_EMOJIS[type]?.emoji || "👍"}
+                    </span>
+                  ))}
+                </div>
+                <span className="font-medium">{totalCount}</span>
+              </div>
+            )
+          })()}
+        </div>
+      </div>
+    </Card>
+  )
+}
+
+export function StreamTab({ classId, userId, userRole, announcements, classColor }: StreamTabProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -57,8 +241,19 @@ export function StreamTab({ classId, userRole, announcements, classColor }: Stre
           table: "announcements",
           filter: `class_id=eq.${classId}`,
         },
-        (payload) => {
-          // Refresh the page data when announcements change
+        () => {
+          router.refresh()
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "announcement_reactions"
+        },
+        () => {
+          // We could try to be more specific with filter but global refresh is safer for now
           router.refresh()
         }
       )
@@ -81,29 +276,13 @@ export function StreamTab({ classId, userRole, announcements, classColor }: Stre
     })
   }
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffMins = Math.floor(diffMs / 60000)
-    const diffHours = Math.floor(diffMs / 3600000)
-    const diffDays = Math.floor(diffMs / 86400000)
 
-    if (diffMins < 1) return "Just now"
-    if (diffMins < 60) return `${diffMins}m ago`
-    if (diffHours < 24) return `${diffHours}h ago`
-    if (diffDays < 7) return `${diffDays}d ago`
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-  }
-
-  // Determine if we should show the 2-column layout
-  const showSidebar = true // We can make this conditional based on props later
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6 items-start">
-      {/* Sidebar - Upcoming Work */}
-      <div className="hidden lg:block space-y-4">
-        <Card className="border-l-4" style={{ borderLeftColor: classColor }}>
+    <div className="max-w-4xl mx-auto w-full">
+      {/* Sidebar - Upcoming Work (Hidden for now to allow full width stream) */}
+      {/* <div className="hidden lg:block space-y-4">
+        <Card className="border-l-[6px]" style={{ borderLeftColor: classColor }}>
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
               <h3 className="font-semibold text-sm">Upcoming</h3>
@@ -116,8 +295,7 @@ export function StreamTab({ classId, userRole, announcements, classColor }: Stre
                 className="text-xs font-medium hover:underline"
                 style={{ color: classColor }}
                 onClick={() => {
-                  // Navigate to classwork tab via parent or router
-                  // For now this is just a visual link
+                  // Navigate logic
                 }}
               >
                 View all
@@ -125,12 +303,12 @@ export function StreamTab({ classId, userRole, announcements, classColor }: Stre
             </div>
           </CardContent>
         </Card>
-      </div>
+      </div> */}
 
       {/* Main Feed */}
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 w-full">
         {/* Create Announcement Input */}
-        <Card className="shadow-sm overflow-hidden">
+        <Card className="shadow-sm overflow-hidden border-border/60 border-l-[6px]" style={{ borderLeftColor: classColor }}>
           {userRole === "teacher" ? (
             <div
               className="p-4 cursor-pointer transition-colors hover:bg-muted/30"
@@ -185,7 +363,6 @@ export function StreamTab({ classId, userRole, announcements, classColor }: Stre
             )}
             <div className="bg-muted/30 px-6 py-4 flex items-center justify-between border-t backdrop-blur-sm">
               <div className="flex items-center gap-2">
-                {/* Add attachment buttons here in future */}
                 <button type="button" className="p-2 rounded-full hover:bg-muted transition-all text-muted-foreground hover:text-foreground" title="Add attachment">
                   <div className="h-5 w-5 border-2 border-dashed border-current rounded-sm flex items-center justify-center opacity-60">
                     <Plus className="h-3 w-3" />
@@ -229,47 +406,14 @@ export function StreamTab({ classId, userRole, announcements, classColor }: Stre
           </div>
         ) : (
           <div className="flex flex-col gap-4">
-            {announcements.map((announcement) => {
-              const authorInitial = announcement.author.name.charAt(0).toUpperCase()
-              return (
-                <Card key={announcement.id} className="group transition-all hover:shadow-md border-border/60">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-10 w-10 border">
-                          <AvatarImage src={announcement.author.image || undefined} alt={announcement.author.name} />
-                          <AvatarFallback className="bg-primary/10 text-primary">{authorInitial}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-semibold text-sm leading-none">{announcement.author.name}</p>
-                          <p className="text-xs text-muted-foreground mt-1">{formatDate(announcement.createdAt)}</p>
-                        </div>
-                      </div>
-                      <button className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-muted rounded-full text-muted-foreground">
-                        <div className="h-1 w-1 bg-current rounded-full mb-0.5" />
-                        <div className="h-1 w-1 bg-current rounded-full mb-0.5" />
-                        <div className="h-1 w-1 bg-current rounded-full" />
-                      </button>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">{announcement.content}</p>
-                  </CardContent>
-                  <div className="px-6 py-3 border-t bg-muted/5 flex items-center gap-4">
-                    {/* Comment placeholder */}
-                    <div className="flex-1 flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-full bg-muted animate-pulse" /> {/* User avatar placeholder */}
-                      <div className="h-9 flex-1 rounded-full border bg-background px-3 text-sm text-muted-foreground flex items-center">
-                        Add class comment...
-                      </div>
-                      <button className="p-2 text-muted-foreground hover:text-primary transition-colors">
-                        <Send className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                </Card>
-              )
-            })}
+            {announcements.map((announcement) => (
+              <AnnouncementCard
+                key={announcement.id}
+                announcement={announcement}
+                userId={userId}
+                classColor={classColor}
+              />
+            ))}
           </div>
         )}
       </div>

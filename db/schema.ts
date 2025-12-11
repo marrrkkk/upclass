@@ -313,13 +313,48 @@ export const submissions = pgTable(
   ],
 );
 
-export const announcementRelations = relations(announcements, ({ one }) => ({
+export const announcementRelations = relations(announcements, ({ one, many }) => ({
   class: one(classes, {
     fields: [announcements.classId],
     references: [classes.id],
   }),
   author: one(user, {
     fields: [announcements.authorId],
+    references: [user.id],
+  }),
+  reactions: many(announcementReactions),
+}));
+
+export const announcementReactions = pgTable(
+  "announcement_reactions",
+  {
+    id: text("id").primaryKey(),
+    announcementId: text("announcement_id")
+      .notNull()
+      .references(() => announcements.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    reaction: text("reaction").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("announcement_reactions_announcement_idx").on(table.announcementId),
+    index("announcement_reactions_user_idx").on(table.userId),
+    uniqueIndex("announcement_reactions_unique_user_announcement").on(
+      table.announcementId,
+      table.userId,
+    ),
+  ],
+);
+
+export const announcementReactionRelations = relations(announcementReactions, ({ one }) => ({
+  announcement: one(announcements, {
+    fields: [announcementReactions.announcementId],
+    references: [announcements.id],
+  }),
+  user: one(user, {
+    fields: [announcementReactions.userId],
     references: [user.id],
   }),
 }));

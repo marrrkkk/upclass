@@ -16,6 +16,7 @@ import {
   quizOptions,
   quizAttempts,
   quizAnswers,
+  announcementReactions,
 } from "@/db/schema"
 import { ClassDetailClient } from "@/components/classes/class-detail-client"
 
@@ -90,6 +91,15 @@ export default async function ClassDetailPage({
     .innerJoin(user, eq(announcements.authorId, user.id))
     .where(eq(announcements.classId, id))
     .orderBy(desc(announcements.createdAt))
+
+  // Fetch reactions separately
+  const announcementIds = announcementsData.map(a => a.id)
+  const reactionsData = announcementIds.length > 0
+    ? await db
+      .select()
+      .from(announcementReactions)
+      .where(inArray(announcementReactions.announcementId, announcementIds))
+    : []
 
   // Get classwork with submission counts - allow public viewing
   const classworkData = await db
@@ -197,6 +207,9 @@ export default async function ClassDetailPage({
       announcements={announcementsData.map((a) => ({
         ...a,
         createdAt: a.createdAt?.toISOString() ?? "",
+        reactions: reactionsData
+          .filter(r => r.announcementId === a.id)
+          .map(r => ({ userId: r.userId, reaction: r.reaction }))
       }))}
       classwork={classworkData.map((c) => ({
         ...c,

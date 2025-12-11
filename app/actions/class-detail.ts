@@ -6,7 +6,7 @@ import { eq, and } from "drizzle-orm"
 
 import { db } from "@/db"
 import { auth } from "@/lib/auth"
-import { announcements, classwork, submissions, classMembership } from "@/db/schema"
+import { announcements, classwork, submissions, classMembership, announcementReactions } from "@/db/schema"
 import { createNotificationsForClass } from "@/app/actions/notifications"
 
 type ActionResponse =
@@ -314,6 +314,90 @@ export async function gradeSubmission(
   } catch (error) {
     console.error("gradeSubmission error", error)
     return { success: false, error: "Failed to grade submission" }
+  }
+}
+
+export async function toggleReaction(
+  announcementId: string,
+  reaction: string = "like"
+): Promise<ActionResponse> {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  })
+
+  if (!session?.user?.id) {
+    return { success: false, error: "Unauthorized" }
+  }
+
+  // Get announcement to find classId
+  const announcementData = await db
+    .select()
+    .from(announcements)
+    .where(eq(announcements.id, announcementId))
+    .limit(1)
+
+  if (announcementData.length === 0) {
+    return { success: false, error: "Announcement not found" }
+  }
+
+  const classId = announcementData[0].classId
+
+  // Check if user is a member
+  const membership = await db
+    .select()
+    .from(classMembership)
+    .where(
+      and(
+        eq(classMembership.classId, classId),
+        eq(classMembership.userId, session.user.id),
+      ),
+    )
+    .limit(1)
+
+  if (membership.length === 0) {
+    return { success: false, error: "You are not a member of this class" }
+  }
+
+  try {
+    const existing = await db
+      .select()
+      .from(announcementReactions)
+      .where(
+        and(
+          eq(announcementReactions.announcementId, announcementId),
+          eq(announcementReactions.userId, session.user.id),
+        ),
+      )
+      .limit(1)
+
+    if (existing.length > 0) {
+      if (existing[0].reaction === reaction) {
+        // Same reaction: Toggle off
+        await db
+          .delete(announcementReactions)
+          .where(eq(announcementReactions.id, existing[0].id))
+      } else {
+        // Different reaction: Update
+        await db
+          .update(announcementReactions)
+          .set({ reaction })
+          .where(eq(announcementReactions.id, existing[0].id))
+      }
+    } else {
+      // Toggle on
+      await db.insert(announcementReactions).values({
+        id: crypto.randomUUID(),
+        announcementId,
+        userId: session.user.id,
+        reaction,
+      })
+    }
+
+    revalidatePath(`/home/classes/${classId}`)
+    return { success: true }
+  } catch (error) {
+    console.error("toggleReaction error", error)
+    return { success: false, error: "Failed to toggle reaction" }
   }
 }
 
