@@ -103,11 +103,11 @@ export const ourFileRouter = {
       maxFileCount: 10,
     },
     video: {
-      maxFileSize: "50MB",
+      maxFileSize: "64MB",
       maxFileCount: 10,
     },
     audio: {
-      maxFileSize: "10MB",
+      maxFileSize: "16MB",
       maxFileCount: 10,
     },
   })

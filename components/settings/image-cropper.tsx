@@ -4,8 +4,6 @@ import { useState, useCallback } from "react"
 import Cropper from "react-easy-crop"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Slider } from "@/components/ui/slider" // We realized Slider wasn't there, so we'll use native input or create a slider.
-// Actually, let's just use a native input range for now to be safe and fast, styled with Tailwind.
 
 type Point = { x: number; y: number }
 type Area = { x: number; y: number; width: number; height: number }

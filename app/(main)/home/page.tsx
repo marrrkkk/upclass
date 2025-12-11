@@ -30,7 +30,7 @@ export default async function HomePage() {
   const userId = session?.user?.id
 
   // For unauthenticated users, show a welcome page
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !userId) {
     return (
       <section className="flex-1 space-y-6">
         <div className="rounded-2xl border-2 border-dashed border-muted bg-muted/5 p-12 text-center">
