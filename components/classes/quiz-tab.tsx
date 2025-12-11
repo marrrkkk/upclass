@@ -18,6 +18,7 @@ import {
   Edit
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { AnnouncementSkeleton } from "@/components/skeletons"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { buttonVariants } from "@/components/ui/button"
 import {
@@ -122,6 +123,7 @@ export function QuizTab({ classId, userId, userRole, quizzes, classColor }: Quiz
   // Delete quiz state
   const [deleteQuizOpen, setDeleteQuizOpen] = useState<string | null>(null)
   const [deletePending, startDeleteTransition] = useTransition()
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   // Taking quiz
   const activeQuiz = quizzes.find((q) => q.id === takeQuizId)
@@ -276,14 +278,16 @@ export function QuizTab({ classId, userId, userRole, quizzes, classColor }: Quiz
   }
 
   const handleDeleteQuiz = (quizId: string) => {
+    setDeletingId(quizId)
+    setDeleteQuizOpen(null)
     startDeleteTransition(async () => {
       const res = await deleteQuiz(quizId)
       if (res.success) {
-        setDeleteQuizOpen(null)
         router.refresh()
       } else {
         setError(res.error)
       }
+      setDeletingId(null)
     })
   }
 
@@ -565,6 +569,9 @@ export function QuizTab({ classId, userId, userRole, quizzes, classColor }: Quiz
           )}
 
           {quizzes.map((quiz) => {
+            if (deletingId === quiz.id) {
+              return <AnnouncementSkeleton key={quiz.id} />
+            }
             if (userRole === "student" && quiz.status === "draft") return null; // Students don't see drafts
 
             const hasAttempt = !!quiz.attempt

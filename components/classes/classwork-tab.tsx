@@ -42,6 +42,7 @@ import {
 import { createClasswork, submitClasswork, gradeSubmission, updateClasswork, deleteClasswork } from "@/app/actions/class-detail"
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
+import { AnnouncementSkeleton } from "@/components/skeletons"
 
 type ClassworkData = {
   id: string
@@ -94,6 +95,7 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
   const [deleteClassworkOpen, setDeleteClassworkOpen] = useState<string | null>(null)
   const [editPending, startEditTransition] = useTransition()
   const [deletePending, startDeleteTransition] = useTransition()
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   // Set up realtime subscriptions for classwork and submissions
   useEffect(() => {
@@ -204,14 +206,16 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
   }
 
   const handleDeleteClasswork = async (classworkId: string) => {
+    setDeletingId(classworkId)
+    setDeleteClassworkOpen(null)
     startDeleteTransition(async () => {
       const res = await deleteClasswork(classworkId)
       if (res.success) {
-        setDeleteClassworkOpen(null)
         router.refresh()
       } else {
         setError(res.error)
       }
+      setDeletingId(null)
     })
   }
 
@@ -378,6 +382,9 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
       ) : (
         <div className="grid gap-4">
           {classwork.map((item) => {
+            if (deletingId === item.id) {
+              return <AnnouncementSkeleton key={item.id} />
+            }
             const submission = getSubmissionForClasswork(item.id)
             const allSubmissions = getSubmissionsForClasswork(item.id)
             const isDueSoon = item.dueDate && new Date(item.dueDate) > new Date() && new Date(item.dueDate).getTime() - new Date().getTime() < 24 * 60 * 60 * 1000

@@ -25,6 +25,7 @@ import {
 import { createAnnouncement, toggleReaction, updateAnnouncement, deleteAnnouncement } from "@/app/actions/class-detail"
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
+import { AnnouncementSkeleton } from "@/components/skeletons"
 
 type AnnouncementReaction = {
   userId: string
@@ -145,13 +146,20 @@ function AnnouncementCard({ announcement, userId, classColor, userRole }: { anno
   }
 
   const handleDelete = () => {
+    setDeleteOpen(false)
     startDeleteTransition(async () => {
       const res = await deleteAnnouncement(announcement.id)
       if (res.success) {
-        setDeleteOpen(false)
         router.refresh()
+      } else {
+        // If error, maybe show toast? For now, just logging or doing nothing means card stays (but we closed dialog)
+        console.error("Failed to delete")
       }
     })
+  }
+
+  if (deletePending) {
+    return <AnnouncementSkeleton />
   }
 
   return (

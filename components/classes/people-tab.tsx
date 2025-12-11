@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { removeMember } from "@/app/actions/class-detail"
+import { MemberSkeleton } from "@/components/skeletons"
 
 type MemberData = {
   id: string
@@ -45,16 +46,19 @@ export function PeopleTab({ classId, userId, userRole, members }: PeopleTabProps
 
   const [removeMemberOpen, setRemoveMemberOpen] = useState<string | null>(null)
   const [removePending, startRemoveTransition] = useTransition()
+  const [removingId, setRemovingId] = useState<string | null>(null)
 
   const memberToRemove = members.find(m => m.id === removeMemberOpen)
 
   const handleRemoveMember = (memberId: string) => {
+    setRemovingId(memberId)
+    setRemoveMemberOpen(null)
     startRemoveTransition(async () => {
       const res = await removeMember(classId, memberId)
       if (res.success) {
-        setRemoveMemberOpen(null)
         router.refresh()
       }
+      setRemovingId(null)
     })
   }
 
@@ -68,6 +72,7 @@ export function PeopleTab({ classId, userId, userRole, members }: PeopleTabProps
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
             {teachers.map((member) => {
+              if (removingId === member.id) return <MemberSkeleton key={member.id} />
               const initial = member.name.charAt(0).toUpperCase()
               return (
                 <Link key={member.id} href={`/home/user/${member.id}`} className="block h-full">
@@ -106,6 +111,7 @@ export function PeopleTab({ classId, userId, userRole, members }: PeopleTabProps
         ) : (
           <div className="space-y-1">
             {students.map((member) => {
+              if (removingId === member.id) return <MemberSkeleton key={member.id} />
               const initial = member.name.charAt(0).toUpperCase()
               return (
                 <div key={member.id} className="group flex items-center gap-4 p-3 rounded-lg hover:bg-muted/50 transition-colors border-b last:border-0 border-transparent hover:border-border/40">
