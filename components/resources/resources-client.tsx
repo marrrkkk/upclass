@@ -27,6 +27,7 @@ type ResourceCardData = {
 
 type ResourcesClientProps = {
   resources: ResourceCardData[]
+  isAuthenticated?: boolean
 }
 
 const fileTypeFilters = [
@@ -56,7 +57,7 @@ const formatFileSize = (size: string | null) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-export function ResourcesClient({ resources }: ResourcesClientProps) {
+export function ResourcesClient({ resources, isAuthenticated = false }: ResourcesClientProps) {
   const [selectedFilter, setSelectedFilter] = useState<string>("all")
   const [searchQuery, setSearchQuery] = useState<string>("")
 

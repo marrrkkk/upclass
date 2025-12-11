@@ -17,11 +17,10 @@ export default async function ClassDetailPage({
     headers: await headers(),
   })
 
-  if (!session?.user?.id) {
-    redirect("/home")
-  }
+  const isAuthenticated = !!session?.user?.id
+  const userId = session?.user?.id
 
-  // Get class data
+  // Get class data - allow public viewing
   const classData = await db
     .select({
       id: classes.id,
@@ -40,25 +39,30 @@ export default async function ClassDetailPage({
     notFound()
   }
 
-  // Check if user is a member
-  const membership = await db
-    .select()
-    .from(classMembership)
-    .where(
-      and(
-        eq(classMembership.classId, id),
-        eq(classMembership.userId, session.user.id),
-      ),
-    )
-    .limit(1)
+  // Check if user is a member (only if authenticated)
+  let membership: Array<{ role: string }> = []
+  let userRole: "teacher" | "student" | null = null
 
-  if (membership.length === 0) {
-    redirect("/home/classes")
+  if (isAuthenticated && userId) {
+    membership = await db
+      .select({
+        role: classMembership.role,
+      })
+      .from(classMembership)
+      .where(
+        and(
+          eq(classMembership.classId, id),
+          eq(classMembership.userId, userId),
+        ),
+      )
+      .limit(1)
+
+    if (membership.length > 0) {
+      userRole = membership[0].role as "teacher" | "student"
+    }
   }
 
-  const userRole = membership[0].role
-
-  // Get announcements with author info
+  // Get announcements with author info - allow public viewing
   const announcementsData = await db
     .select({
       id: announcements.id,
@@ -75,7 +79,7 @@ export default async function ClassDetailPage({
     .where(eq(announcements.classId, id))
     .orderBy(desc(announcements.createdAt))
 
-  // Get classwork with submission counts
+  // Get classwork with submission counts - allow public viewing
   const classworkData = await db
     .select({
       id: classwork.id,
@@ -90,32 +94,35 @@ export default async function ClassDetailPage({
     .where(eq(classwork.classId, id))
     .orderBy(desc(classwork.createdAt))
 
-  // Get all submissions for this class
-  const allSubmissions = await db
-    .select({
-      id: submissions.id,
-      classworkId: submissions.classworkId,
-      studentId: submissions.studentId,
-      content: submissions.content,
-      fileUrl: submissions.fileUrl,
-      fileName: submissions.fileName,
-      status: submissions.status,
-      grade: submissions.grade,
-      feedback: submissions.feedback,
-      submittedAt: submissions.submittedAt,
-      gradedAt: submissions.gradedAt,
-      student: {
-        id: user.id,
-        name: user.name,
-        image: user.image,
-      },
-    })
-    .from(submissions)
-    .innerJoin(user, eq(submissions.studentId, user.id))
-    .innerJoin(classwork, eq(submissions.classworkId, classwork.id))
-    .where(eq(classwork.classId, id))
+  // Get all submissions for this class - only if user is a member
+  let allSubmissions: any[] = []
+  if (isAuthenticated && userRole) {
+    allSubmissions = await db
+      .select({
+        id: submissions.id,
+        classworkId: submissions.classworkId,
+        studentId: submissions.studentId,
+        content: submissions.content,
+        fileUrl: submissions.fileUrl,
+        fileName: submissions.fileName,
+        status: submissions.status,
+        grade: submissions.grade,
+        feedback: submissions.feedback,
+        submittedAt: submissions.submittedAt,
+        gradedAt: submissions.gradedAt,
+        student: {
+          id: user.id,
+          name: user.name,
+          image: user.image,
+        },
+      })
+      .from(submissions)
+      .innerJoin(user, eq(submissions.studentId, user.id))
+      .innerJoin(classwork, eq(submissions.classworkId, classwork.id))
+      .where(eq(classwork.classId, id))
+  }
 
-  // Get all members
+  // Get all members - allow public viewing
   const membersData = await db
     .select({
       id: user.id,
@@ -140,7 +147,7 @@ export default async function ClassDetailPage({
         color: classData[0].color || "#3b82f6",
         schedule: classData[0].schedule,
       }}
-      userId={session.user.id}
+      userId={userId}
       userRole={userRole}
       announcements={announcementsData.map((a) => ({
         ...a,
@@ -157,6 +164,7 @@ export default async function ClassDetailPage({
         gradedAt: s.gradedAt?.toISOString() ?? null,
       }))}
       members={membersData}
+      isAuthenticated={isAuthenticated}
     />
   )
 }

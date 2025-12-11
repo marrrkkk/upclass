@@ -17,12 +17,9 @@ export default async function UserProfilePage({
     headers: await headers(),
   })
 
-  if (!session?.user?.id) {
-    redirect("/sign-in")
-  }
-
+  const isAuthenticated = !!session?.user?.id
   const { id: userId } = await params
-  const currentUserId = session.user.id
+  const currentUserId = session?.user?.id
 
   // Get user data
   const userData = await db
@@ -36,35 +33,42 @@ export default async function UserProfilePage({
   }
 
   const profileUser = userData[0]
-  const isOwnProfile = userId === currentUserId
+  const isOwnProfile = isAuthenticated && userId === currentUserId
 
   // Check privacy settings
   let isPrivate = false
   if (!isOwnProfile) {
-    // Check profile visibility
-    if (profileUser.profileVisibility === "private") {
-      isPrivate = true // Private profile - show private message
-    } else if (profileUser.profileVisibility === "contacts") {
-      // Check if users have messaged each other
-      const hasMessaged = await db
-        .select()
-        .from(messages)
-        .where(
-          or(
-            and(
-              eq(messages.senderId, currentUserId),
-              eq(messages.receiverId, userId)
-            ),
-            and(
-              eq(messages.senderId, userId),
-              eq(messages.receiverId, currentUserId)
+    // For unauthenticated users, only show public profiles
+    if (!isAuthenticated) {
+      if (profileUser.profileVisibility !== "public") {
+        isPrivate = true
+      }
+    } else {
+      // Check profile visibility for authenticated users
+      if (profileUser.profileVisibility === "private") {
+        isPrivate = true // Private profile - show private message
+      } else if (profileUser.profileVisibility === "contacts") {
+        // Check if users have messaged each other
+        const hasMessaged = await db
+          .select()
+          .from(messages)
+          .where(
+            or(
+              and(
+                eq(messages.senderId, currentUserId!),
+                eq(messages.receiverId, userId)
+              ),
+              and(
+                eq(messages.senderId, userId),
+                eq(messages.receiverId, currentUserId!)
+              )
             )
           )
-        )
-        .limit(1)
+          .limit(1)
 
-      if (hasMessaged.length === 0) {
-        isPrivate = true // No previous messages - profile not accessible
+        if (hasMessaged.length === 0) {
+          isPrivate = true // No previous messages - profile not accessible
+        }
       }
     }
   }
@@ -159,8 +163,9 @@ export default async function UserProfilePage({
         createdAt: r.createdAt?.toISOString() ?? "",
       }))}
       isOwnProfile={isOwnProfile}
-      currentUserId={currentUserId}
+      currentUserId={currentUserId || undefined}
       isPrivate={isPrivate}
+      isAuthenticated={isAuthenticated}
     />
   )
 }

@@ -61,7 +61,8 @@ type ResourceData = {
 type ResourceDetailClientProps = {
   resource: ResourceData
   isOwner: boolean
-  currentUserId: string
+  currentUserId?: string
+  isAuthenticated?: boolean
 }
 
 const getFileTypeInfo = (type: string) => {
@@ -97,7 +98,7 @@ const canPreview = (fileType: string) => {
   return fileType === "pdf" || fileType === "txt"
 }
 
-export function ResourceDetailClient({ resource, isOwner, currentUserId }: ResourceDetailClientProps) {
+export function ResourceDetailClient({ resource, isOwner, currentUserId, isAuthenticated = false }: ResourceDetailClientProps) {
   const router = useRouter()
   const setPageTitle = usePageHeaderStore((state) => state.setPageTitle)
   const [editOpen, setEditOpen] = useState(false)

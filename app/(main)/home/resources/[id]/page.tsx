@@ -18,15 +18,9 @@ export default async function ResourceDetailPage({
     headers: await headers(),
   })
 
-  if (!session?.user?.id) {
-    return (
-      <section className="flex-1">
-        <p className="text-muted-foreground">Please sign in to view resources.</p>
-      </section>
-    )
-  }
+  const isAuthenticated = !!session?.user?.id
 
-  // Get resource with owner info
+  // Get resource with owner info - allow public viewing
   const resourceData = await db
     .select({
       id: resources.id,
@@ -57,7 +51,7 @@ export default async function ResourceDetailPage({
   }
 
   const resource = resourceData[0]
-  const isOwner = resource.ownerId === session.user.id
+  const isOwner = isAuthenticated && resource.ownerId === session.user.id
 
   return (
     <ResourceDetailClient
@@ -67,7 +61,8 @@ export default async function ResourceDetailPage({
         updatedAt: resource.updatedAt?.toISOString() ?? "",
       }}
       isOwner={isOwner}
-      currentUserId={session.user.id}
+      currentUserId={session?.user?.id}
+      isAuthenticated={isAuthenticated}
     />
   )
 }

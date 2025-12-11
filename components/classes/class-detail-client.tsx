@@ -70,12 +70,13 @@ type MemberData = {
 
 type ClassDetailClientProps = {
   classData: ClassData
-  userId: string
-  userRole: "teacher" | "student"
+  userId?: string
+  userRole: "teacher" | "student" | null
   announcements: AnnouncementData[]
   classwork: ClassworkData[]
   submissions: SubmissionData[]
   members: MemberData[]
+  isAuthenticated?: boolean
 }
 
 export function ClassDetailClient({
@@ -86,6 +87,7 @@ export function ClassDetailClient({
   classwork,
   submissions,
   members,
+  isAuthenticated = false,
 }: ClassDetailClientProps) {
   const setPageTitle = usePageHeaderStore((state) => state.setPageTitle)
   const [activeTab, setActiveTab] = useState<"stream" | "classwork" | "people">("stream")

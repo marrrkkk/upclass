@@ -47,6 +47,7 @@ type ProfileClientProps = {
   isOwnProfile?: boolean
   currentUserId?: string
   isPrivate?: boolean
+  isAuthenticated?: boolean
 }
 
 export function ProfileClient({
@@ -56,6 +57,7 @@ export function ProfileClient({
   createdResources,
   isOwnProfile = false,
   isPrivate = false,
+  isAuthenticated = false,
 }: ProfileClientProps) {
   const initials = user.name
     .split(" ")

@@ -1,5 +1,6 @@
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
+import Link from "next/link"
 import { auth } from "@/lib/auth"
 import { db } from "@/db"
 import {
@@ -12,6 +13,8 @@ import {
   notifications
 } from "@/db/schema"
 import { eq, and, or, sql, desc, isNotNull, gte, count } from "drizzle-orm"
+import { Button } from "@/components/ui/button"
+import { GraduationCap } from "lucide-react"
 
 import { GreetingCard } from "@/components/home/greeting-card"
 import { StatsCards, type StatsData } from "@/components/home/stats-cards"
@@ -23,11 +26,35 @@ export default async function HomePage() {
     headers: await headers(),
   })
 
-  if (!session?.user?.id) {
-    redirect("/sign-in")
-  }
+  const isAuthenticated = !!session?.user?.id
+  const userId = session?.user?.id
 
-  const userId = session.user.id
+  // For unauthenticated users, show a welcome page
+  if (!isAuthenticated) {
+    return (
+      <section className="flex-1 space-y-6">
+        <div className="rounded-2xl border-2 border-dashed border-muted bg-muted/5 p-12 text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+            <GraduationCap className="h-8 w-8 text-primary" />
+          </div>
+          <h3 className="mt-4 text-2xl font-bold text-foreground">
+            Welcome to UpClass
+          </h3>
+          <p className="mt-2 text-muted-foreground max-w-md mx-auto">
+            Discover classes, browse resources, and start your learning journey. Sign in to access all features.
+          </p>
+          <div className="mt-6 flex items-center justify-center gap-3">
+            <Button asChild>
+              <Link href="/sign-in">Sign In</Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/home/classes">Browse Classes</Link>
+            </Button>
+          </div>
+        </div>
+      </section>
+    )
+  }
 
   // Get user data with role
   const userData = await db

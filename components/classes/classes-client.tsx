@@ -32,11 +32,13 @@ type ClassCardData = {
 type ClassesClientProps = {
   teachingClasses: ClassCardData[]
   enrolledClasses: ClassCardData[]
+  isAuthenticated?: boolean
 }
 
 export function ClassesClient({
   teachingClasses,
   enrolledClasses,
+  isAuthenticated = false,
 }: ClassesClientProps) {
   const [activeTab, setActiveTab] = useState<"teaching" | "enrolled">("teaching")
   const [searchQuery, setSearchQuery] = useState("")

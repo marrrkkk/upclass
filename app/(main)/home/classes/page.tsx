@@ -24,26 +24,84 @@ export default async function ClassesPage() {
     headers: await headers(),
   })
 
-  if (!session?.user?.id) {
-    return (
-      <section className="flex-1">
-        <p className="text-muted-foreground">Please sign in to view classes.</p>
-      </section>
-    )
+  const isAuthenticated = !!session?.user?.id
+  const userId = session?.user?.id
+
+  let userRole: "teacher" | "student" | null = null
+  let teachingRows: ClassRow[] = []
+  let enrolledRows: ClassRow[] = []
+
+  if (isAuthenticated && userId) {
+    // Get user role
+    const userData = await db
+      .select({ role: user.role })
+      .from(user)
+      .where(eq(user.id, userId))
+      .limit(1)
+
+    userRole = userData.length > 0 ? userData[0].role : null
+
+    // Get enrollment counts excluding teachers
+    const enrollmentCounts = await db
+      .select({
+        classId: classMembership.classId,
+        count: sql<number>`count(${classMembership.id})`,
+      })
+      .from(classMembership)
+      .where(eq(classMembership.role, "student"))
+      .groupBy(classMembership.classId)
+
+    const countMap = new Map<string, number>()
+    enrollmentCounts.forEach((row) => countMap.set(row.classId, Number(row.count)))
+
+    teachingRows = await db
+      .select({
+        id: classes.id,
+        title: classes.title,
+        description: classes.description,
+        category: classes.category,
+        color: classes.color,
+        schedule: classes.schedule,
+        createdAt: classes.createdAt,
+        teacherName: user.name,
+        teacherImage: user.image,
+      })
+      .from(classes)
+      .innerJoin(
+        classMembership,
+        and(
+          eq(classMembership.classId, classes.id),
+          eq(classMembership.userId, userId),
+          eq(classMembership.role, "teacher"),
+        ),
+      )
+      .innerJoin(user, eq(classes.ownerId, user.id))
+
+    enrolledRows = await db
+      .select({
+        id: classes.id,
+        title: classes.title,
+        description: classes.description,
+        category: classes.category,
+        color: classes.color,
+        schedule: classes.schedule,
+        createdAt: classes.createdAt,
+        teacherName: user.name,
+        teacherImage: user.image,
+      })
+      .from(classes)
+      .innerJoin(
+        classMembership,
+        and(
+          eq(classMembership.classId, classes.id),
+          eq(classMembership.userId, userId),
+          eq(classMembership.role, "student"),
+        ),
+      )
+      .innerJoin(user, eq(classes.ownerId, user.id))
   }
 
-  const userId = session.user.id
-
-  // Get user role
-  const userData = await db
-    .select({ role: user.role })
-    .from(user)
-    .where(eq(user.id, userId))
-    .limit(1)
-
-  const userRole = userData.length > 0 ? userData[0].role : null
-
-  // Get enrollment counts excluding teachers
+  // Get enrollment counts for public display
   const enrollmentCounts = await db
     .select({
       classId: classMembership.classId,
@@ -56,52 +114,6 @@ export default async function ClassesPage() {
   const countMap = new Map<string, number>()
   enrollmentCounts.forEach((row) => countMap.set(row.classId, Number(row.count)))
 
-  const teachingRows = await db
-    .select({
-      id: classes.id,
-      title: classes.title,
-      description: classes.description,
-      category: classes.category,
-      color: classes.color,
-      schedule: classes.schedule,
-      createdAt: classes.createdAt,
-      teacherName: user.name,
-      teacherImage: user.image,
-    })
-    .from(classes)
-    .innerJoin(
-      classMembership,
-      and(
-        eq(classMembership.classId, classes.id),
-        eq(classMembership.userId, userId),
-        eq(classMembership.role, "teacher"),
-      ),
-    )
-    .innerJoin(user, eq(classes.ownerId, user.id))
-
-  const enrolledRows = await db
-    .select({
-      id: classes.id,
-      title: classes.title,
-      description: classes.description,
-      category: classes.category,
-      color: classes.color,
-      schedule: classes.schedule,
-      createdAt: classes.createdAt,
-      teacherName: user.name,
-      teacherImage: user.image,
-    })
-    .from(classes)
-    .innerJoin(
-      classMembership,
-      and(
-        eq(classMembership.classId, classes.id),
-        eq(classMembership.userId, userId),
-        eq(classMembership.role, "student"),
-      ),
-    )
-    .innerJoin(user, eq(classes.ownerId, user.id))
-
   const mapRows = (rows: ClassRow[], role: "teaching" | "enrolled") =>
     rows.map((row) => ({
       ...row,
@@ -113,10 +125,11 @@ export default async function ClassesPage() {
     }))
 
   return (
-    <ClassesPageWrapper userRole={userRole}>
+    <ClassesPageWrapper userRole={userRole} isAuthenticated={isAuthenticated}>
       <ClassesClient
         teachingClasses={mapRows(teachingRows, "teaching")}
         enrolledClasses={mapRows(enrolledRows, "enrolled")}
+        isAuthenticated={isAuthenticated}
       />
     </ClassesPageWrapper>
   )

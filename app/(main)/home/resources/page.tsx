@@ -12,16 +12,9 @@ export default async function ResourcesPage() {
     headers: await headers(),
   })
 
-  if (!session?.user?.id) {
-    return (
-      <section className="flex-1">
-        <p className="text-muted-foreground">Please sign in to view resources.</p>
-      </section>
-    )
-  }
+  const isAuthenticated = !!session?.user?.id
 
-  const userId = session.user.id
-
+  // Allow public viewing of resources
   const resourcesList = await db
     .select({
       id: resources.id,
@@ -48,8 +41,8 @@ export default async function ResourcesPage() {
   }))
 
   return (
-    <ResourcesPageWrapper>
-      <ResourcesClient resources={mappedResources} />
+    <ResourcesPageWrapper isAuthenticated={isAuthenticated}>
+      <ResourcesClient resources={mappedResources} isAuthenticated={isAuthenticated} />
     </ResourcesPageWrapper>
   )
 }
