@@ -29,6 +29,7 @@ export function HomeShell({ children, isAuthenticated, userInfo, userId }: HomeS
         {/* Sidebar */}
         <Sidebar
           userId={userId}
+          userInfo={userInfo}
           onNavigate={() => setIsSidebarOpen(false)}
           onClose={() => setIsSidebarOpen(false)}
           className={cn(
@@ -52,7 +53,7 @@ export function HomeShell({ children, isAuthenticated, userInfo, userId }: HomeS
         {/* Main content */}
         <div className="flex min-h-screen flex-1 flex-col min-w-0">
           {/* Top bar */}
-          <div className="sticky top-0 z-40 border-b border-border/80 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+          <div className="sticky top-0 z-40 border-b bg-background">
             <div className="flex h-14 items-center gap-3 px-4 sm:h-16 sm:px-6 md:px-8">
               <div className="flex items-center gap-3 min-w-0">
                 <Button

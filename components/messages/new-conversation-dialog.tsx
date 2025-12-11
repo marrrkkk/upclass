@@ -70,8 +70,8 @@ export function NewConversationDialog({ currentUserId }: NewConversationDialogPr
           New Conversation
         </button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[480px] gap-0 p-0 overflow-hidden border-0 shadow-2xl">
-        <DialogHeader className="p-6 pb-2">
+      <DialogContent className="sm:max-w-[480px] gap-0 p-0 overflow-y-auto border-0 shadow-2xl max-h-[calc(100vh-2rem)] flex flex-col">
+        <DialogHeader className="p-6 pb-2 shrink-0">
           <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
             <Plus className="h-6 w-6 text-primary" />
           </div>
@@ -80,7 +80,7 @@ export function NewConversationDialog({ currentUserId }: NewConversationDialogPr
             Connect with other users by entering their email address.
           </DialogDescription>
         </DialogHeader>
-        <div className="p-6 pt-2 space-y-6">
+        <div className="p-6 pt-2 space-y-6 flex-1 min-h-0 overflow-y-auto">
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Email Address</Label>

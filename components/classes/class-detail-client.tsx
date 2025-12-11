@@ -172,82 +172,83 @@ export function ClassDetailClient({
   return (
     <div className="flex flex-col gap-6 -mt-4">
       {/* Hero Banner */}
-      <div
-        className="relative w-full rounded-b-xl overflow-hidden shadow-sm"
-        style={{
-          background: `linear-gradient(135deg, ${classColor} 0%, ${classColor}dd 100%)`,
-          minHeight: "200px",
-          height: "240px"
-        }}
-      >
-        {/* Pattern Overlay */}
-        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_1px_1px,white_1px,transparent_0)] [background-size:24px_24px]" />
+      <div className="-mx-4 sm:-mx-6 md:-mx-8">
+        <div
+          className="relative w-full rounded-b-xl overflow-hidden shadow-sm flex flex-col justify-end min-h-[220px] sm:min-h-[260px] md:min-h-[300px]"
+          style={{
+            background: `linear-gradient(135deg, ${classColor} 0%, ${classColor}dd 100%)`,
+          }}
+        >
+          {/* Pattern Overlay */}
+          <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_1px_1px,white_1px,transparent_0)] [background-size:24px_24px]" />
 
-        {/* Content Container */}
-        <div className="absolute bottom-0 left-0 w-full p-4 sm:p-6 md:p-8 text-white">
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-            <div className="space-y-2 max-w-2xl">
-              <div className="flex items-center gap-2 mb-2">
-                {classData.category && (
-                  <span className="inline-flex items-center rounded-full bg-white/20 px-3 py-1 text-xs font-medium backdrop-blur-sm border border-white/20">
-                    {classData.category}
-                  </span>
-                )}
-                {classData.schedule && (
-                  <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-1 text-xs font-medium backdrop-blur-sm">
-                    {classData.schedule}
-                  </span>
+          {/* Content Container */}
+          <div className="relative z-10 w-full max-w-6xl mx-auto p-4 sm:p-6 md:p-8 text-white">
+            <div className="flex flex-col gap-6 items-start">
+              {/* Title and Details */}
+              <div className="space-y-3 w-full max-w-3xl">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {classData.category && (
+                    <span className="inline-flex items-center rounded-full bg-white/20 px-3 py-1 text-xs font-medium backdrop-blur-sm border border-white/20">
+                      {classData.category}
+                    </span>
+                  )}
+                  {classData.schedule && (
+                    <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-1 text-xs font-medium backdrop-blur-sm">
+                      {classData.schedule}
+                    </span>
+                  )}
+                </div>
+                <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-white drop-shadow-sm text-left">
+                  {classData.title}
+                </h1>
+                {classData.description && (
+                  <p className="text-blue-50/90 text-sm sm:text-lg md:text-base max-w-2xl text-left">
+                    {classData.description}
+                  </p>
                 )}
               </div>
-              <h1 className="text-4xl font-bold tracking-tight text-white drop-shadow-sm">
-                {classData.title}
-              </h1>
-              {classData.description && (
-                <p className="text-blue-50/90 text-lg max-w-xl line-clamp-2">
-                  {classData.description}
-                </p>
-              )}
-            </div>
 
-            {/* Actions */}
-            <div className="flex flex-col gap-3 sm:items-end">
-              {userRole === "teacher" && (
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-                  <div className="flex items-center gap-2 rounded-lg bg-white/10 p-2 backdrop-blur-md border border-white/20 w-full sm:w-auto">
-                    <div className="px-2">
+              {/* Actions - Class Code and Whiteboard Button */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
+                {userRole === "teacher" && (
+                  <div className="flex items-center justify-between sm:justify-start gap-2 rounded-lg bg-white/10 p-2 pr-3 backdrop-blur-md border border-white/20 w-full sm:w-auto">
+                    <div className="px-2 min-w-0">
                       <p className="text-[10px] font-medium text-blue-100 uppercase tracking-wider">Class Code</p>
-                      <p className="font-mono text-xl font-bold">{classData.code}</p>
+                      <p className="font-mono text-xl font-bold leading-none">{classData.code}</p>
                     </div>
-                    <button
-                      onClick={handleCopyCode}
-                      className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-white/20 transition-colors"
-                      type="button"
-                      title="Copy class code"
-                    >
-                      {copied ? (
-                        <Check className="h-4 w-4" />
-                      ) : (
-                        <Copy className="h-4 w-4" />
-                      )}
-                    </button>
+                    <div className="ml-1 flex items-center gap-1">
+                      <button
+                        onClick={handleCopyCode}
+                        className="flex h-8 w-8 items-center justify-center rounded-md hover:bg-white/20 transition-colors"
+                        type="button"
+                        title="Copy class code"
+                      >
+                        {copied ? (
+                          <Check className="h-4 w-4" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </button>
+                      <ClassSettingsDialog classData={classData} trigger={
+                        <button className="h-8 w-8 rounded-md bg-white/10 flex items-center justify-center hover:bg-white/20 backdrop-blur-md border border-white/20 transition-colors">
+                          <Settings className="h-4 w-4" />
+                        </button>
+                      } />
+                    </div>
                   </div>
-                  <ClassSettingsDialog classData={classData} trigger={
-                    <button className="h-10 w-10 rounded-lg bg-white/10 flex items-center justify-center hover:bg-white/20 backdrop-blur-md border border-white/20 transition-colors">
-                      <Settings className="h-5 w-5" />
-                    </button>
-                  } />
-                </div>
-              )}
+                )}
 
-              <a
-                href={`/home/classes/${classData.id}/whiteboard`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-lg bg-white text-blue-600 px-4 py-2 font-semibold shadow-sm hover:bg-blue-50 transition-colors"
-              >
-                <PenTool className="h-4 w-4" />
-                Open Whiteboard
-              </a>
+                <a
+                  href={`/home/classes/${classData.id}/whiteboard`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-white text-blue-600 px-5 py-3 font-semibold shadow-sm hover:bg-blue-50 transition-colors w-full sm:w-auto whitespace-nowrap"
+                >
+                  <PenTool className="h-4 w-4" />
+                  Open Whiteboard
+                </a>
+              </div>
             </div>
           </div>
         </div>
@@ -255,7 +256,7 @@ export function ClassDetailClient({
 
       {/* Tabs Navigation */}
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b w-full">
-        <div className="flex items-center gap-6 px-4 overflow-x-auto whitespace-nowrap">
+        <div className="max-w-4xl mx-auto flex items-center gap-6 px-4 overflow-x-auto whitespace-nowrap scrollbar-none">
           <button
             className={cn(
               "relative py-3 text-sm font-medium transition-colors hover:text-foreground flex-shrink-0",

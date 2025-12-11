@@ -51,8 +51,8 @@ export function JoinClassButton() {
           Join class
         </button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[480px] gap-0 p-0 overflow-hidden border-0 shadow-2xl">
-        <DialogHeader className="p-6 pb-2 text-center">
+      <DialogContent className="sm:max-w-[480px] gap-0 p-0 overflow-y-auto border-0 shadow-2xl max-h-[calc(100vh-2rem)] flex flex-col">
+        <DialogHeader className="p-6 pb-2 text-center shrink-0">
           <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
             <UserPlus className="h-6 w-6 text-primary" />
           </div>
@@ -62,7 +62,7 @@ export function JoinClassButton() {
           </DialogDescription>
         </DialogHeader>
 
-        <form action={handleJoin} className="p-6 pt-2 space-y-6">
+        <form action={handleJoin} className="p-6 pt-2 space-y-6 flex-1 min-h-0">
           <div className="space-y-4">
             <div className="flex justify-center">
               <Input

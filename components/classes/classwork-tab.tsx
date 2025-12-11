@@ -244,7 +244,7 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-6 animate-in fade-in duration-500 max-w-4xl mx-auto w-full">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold tracking-tight">Classwork</h2>
 
@@ -260,8 +260,8 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
                 Create
               </button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px] border-none shadow-2xl p-0 overflow-hidden bg-background">
-              <DialogHeader className="px-6 py-4 border-b bg-muted/30">
+            <DialogContent className="sm:max-w-[600px] border-none shadow-2xl p-0 overflow-y-auto bg-background max-h-[calc(100vh-2rem)] flex flex-col">
+              <DialogHeader className="px-6 py-4 border-b bg-muted/30 shrink-0">
                 <DialogTitle className="flex items-center gap-2 text-xl">
                   <div className="p-2 rounded-full bg-primary/10 text-primary">
                     <BookOpen className="h-5 w-5" />
@@ -273,7 +273,7 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
                 </DialogDescription>
               </DialogHeader>
 
-              <form action={handleCreateClasswork} className="p-6 space-y-6">
+              <form action={handleCreateClasswork} className="p-6 space-y-6 flex-1 min-h-0">
                 <div className="grid gap-6">
                   <div className="space-y-2">
                     <Label htmlFor="classwork-title" className="text-xs font-semibold uppercase text-muted-foreground/80 tracking-wider">Title</Label>
@@ -498,8 +498,8 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
 
                           {/* Student Submission Dialog */}
                           <Dialog open={submitOpen === item.id} onOpenChange={(open) => setSubmitOpen(open ? item.id : null)}>
-                            <DialogContent className="sm:max-w-[550px] gap-0 p-0 overflow-hidden border-none shadow-2xl">
-                              <DialogHeader className="p-6 pb-4 border-b bg-muted/30">
+                            <DialogContent className="sm:max-w-[550px] gap-0 p-0 overflow-y-auto border-none shadow-2xl max-h-[calc(100vh-2rem)] flex flex-col">
+                              <DialogHeader className="p-6 pb-4 border-b bg-muted/30 shrink-0">
                                 <DialogTitle className="text-xl">
                                   {submission ? "Submission Details" : "Submit Assignment"}
                                 </DialogTitle>
@@ -794,7 +794,7 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
         if (!item) return null
         return (
           <Dialog open={!!editClassworkOpen} onOpenChange={(open) => !open && setEditClassworkOpen(null)}>
-            <DialogContent className="sm:max-w-[550px] gap-0 p-0 overflow-hidden border-0 shadow-2xl">
+            <DialogContent className="sm:max-w-[550px] gap-0 p-0 overflow-y-auto border-0 shadow-2xl max-h-[calc(100vh-2rem)] flex flex-col">
               <DialogHeader className="p-6 pb-2 bg-gradient-to-r from-muted/50 to-muted/10 border-b border-border/50">
                 <DialogTitle className="text-xl font-semibold tracking-tight flex items-center gap-2">
                   <div className="p-2 rounded-lg bg-primary/10 text-primary">
@@ -842,7 +842,7 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
         if (!item) return null
         return (
           <Dialog open={!!deleteClassworkOpen} onOpenChange={(open) => !open && setDeleteClassworkOpen(null)}>
-            <DialogContent className="sm:max-w-[420px] gap-0 p-0 overflow-hidden border-0 shadow-2xl">
+            <DialogContent className="sm:max-w-[420px] gap-0 p-0 overflow-y-auto border-0 shadow-2xl max-h-[calc(100vh-2rem)]">
               <DialogHeader className="p-6 pb-4 bg-gradient-to-r from-destructive/10 to-destructive/5 border-b border-destructive/20">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center">

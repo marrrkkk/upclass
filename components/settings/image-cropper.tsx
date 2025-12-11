@@ -76,7 +76,7 @@ export function ImageCropper({ imageSrc, open, onOpenChange, onComplete }: Image
                             step={0.1}
                             aria-labelledby="Zoom"
                             onChange={(e) => setZoom(Number(e.target.value))}
-                            className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary"
+                            className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary transition-all duration-150 ease-out hover:accent-primary/80"
                         />
                     </div>
                 </div>

@@ -123,7 +123,7 @@ export function AIChatDialog({ open, onOpenChange, resourceContext }: AIChatDial
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] h-[85vh] flex flex-col p-0 gap-0 overflow-hidden border-0 shadow-2xl bg-gradient-to-b from-background to-muted/20">
+      <DialogContent className="sm:max-w-[600px] h-[85vh] flex flex-col p-0 gap-0 overflow-y-auto border-0 shadow-2xl bg-gradient-to-b from-background to-muted/20">
         <DialogHeader className="px-6 py-4 border-b bg-background/80 backdrop-blur-md sticky top-0 z-10">
           <DialogTitle className="flex items-center gap-3 text-xl font-semibold text-primary">
             <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">

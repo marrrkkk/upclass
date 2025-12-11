@@ -196,3 +196,141 @@ export function ClassDetailSkeleton() {
         </div>
     )
 }
+
+export function NotificationsSkeleton() {
+    return (
+        <div className="flex flex-col gap-6">
+            <div className="flex flex-row items-center justify-between gap-4 border-b pb-4">
+                <div>
+                    <Skeleton className="h-9 w-48 mb-2" />
+                    <Skeleton className="h-5 w-64" />
+                </div>
+                <Skeleton className="h-9 w-32 rounded-md self-start sm:self-center" />
+            </div>
+
+            <div className="space-y-3">
+                {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="relative flex items-start gap-4 p-4 rounded-xl border bg-card">
+                        <Skeleton className="h-11 w-11 rounded-xl shrink-0" />
+                        <div className="flex-1 min-w-0 pt-1">
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-2">
+                                    <Skeleton className="h-5 w-1/3" />
+                                    <Skeleton className="h-5 w-16 hidden sm:block" />
+                                </div>
+                                <Skeleton className="h-4 w-3/4" />
+                                <Skeleton className="h-3 w-24 mt-2" />
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    )
+}
+
+export function MessagesSkeleton() {
+    return (
+        <div className="flex flex-col gap-6 h-[calc(100vh-8rem)]">
+            <div className="flex flex-row items-center justify-between gap-4">
+                <div>
+                    <Skeleton className="h-9 w-48 mb-2" />
+                    <Skeleton className="h-5 w-64" />
+                </div>
+                <Skeleton className="h-10 w-40 rounded-md" />
+            </div>
+
+            <div className="flex flex-col gap-4 flex-1 overflow-hidden">
+                <Skeleton className="h-11 w-full rounded-md" />
+
+                <div className="flex-1 overflow-y-auto space-y-2">
+                    {Array.from({ length: 8 }).map((_, i) => (
+                        <div key={i} className="flex items-center gap-4 p-4 rounded-xl border border-transparent bg-card/40">
+                            <Skeleton className="h-12 w-12 rounded-full border border-border/50" />
+                            <div className="flex-1 min-w-0 space-y-2">
+                                <div className="flex items-center justify-between gap-2">
+                                    <Skeleton className="h-5 w-32" />
+                                    <Skeleton className="h-3 w-16" />
+                                </div>
+                                <div className="flex items-center justify-between gap-2">
+                                    <Skeleton className="h-4 w-1/2" />
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    )
+}
+
+export function SettingsSkeleton() {
+    return (
+        <div className="max-w-6xl mx-auto flex flex-col gap-8 pb-10">
+            <div className="flex flex-col gap-1">
+                <Skeleton className="h-9 w-32 mb-2" />
+                <Skeleton className="h-6 w-96" />
+            </div>
+
+            <div className="flex flex-col gap-8">
+                {/* Horizontal Tabs Skeleton */}
+                <div className="border-b">
+                    <div className="flex gap-4 px-2">
+                        {Array.from({ length: 4 }).map((_, i) => (
+                            <div key={i} className="px-4 py-3 border-b-2 border-transparent">
+                                <Skeleton className="h-5 w-24" />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Content Area Skeleton (Profile Style) */}
+                <div className="space-y-6">
+                    <Card className="border-border/50 shadow-sm">
+                        <CardHeader className="space-y-2">
+                            <Skeleton className="h-7 w-48" />
+                            <Skeleton className="h-4 w-64" />
+                        </CardHeader>
+                        <CardContent className="space-y-8">
+                            {/* Avatar Section */}
+                            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 pt-2">
+                                <Skeleton className="h-28 w-28 rounded-full border-4 border-background" />
+                                <div className="space-y-4 flex-1 w-full flex flex-col items-center sm:items-start">
+                                    <div className="space-y-2 text-center sm:text-left w-full">
+                                        <Skeleton className="h-6 w-32 mx-auto sm:mx-0" />
+                                        <Skeleton className="h-4 w-64 mx-auto sm:mx-0" />
+                                    </div>
+                                    <div className="flex gap-3">
+                                        <Skeleton className="h-9 w-28 rounded-md" />
+                                        <Skeleton className="h-9 w-20 rounded-md" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Form Fields */}
+                            <div className="grid gap-6">
+                                <div className="space-y-2">
+                                    <Skeleton className="h-4 w-24" />
+                                    <Skeleton className="h-10 w-full rounded-md" />
+                                </div>
+                                <div className="space-y-2">
+                                    <Skeleton className="h-4 w-16" />
+                                    <Skeleton className="h-24 w-full rounded-md" />
+                                </div>
+                                <div className="space-y-2">
+                                    <Skeleton className="h-4 w-16" />
+                                    <Skeleton className="h-10 w-full rounded-md" />
+                                    <Skeleton className="h-3 w-48" />
+                                </div>
+                            </div>
+
+                            <div className="flex justify-end pt-4">
+                                <Skeleton className="h-10 w-32 rounded-md" />
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+        </div>
+    )
+}

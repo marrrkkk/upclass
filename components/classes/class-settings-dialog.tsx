@@ -95,14 +95,14 @@ export function ClassSettingsDialog({ classData, trigger }: ClassSettingsDialogP
           </button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[550px] gap-0 p-0 overflow-hidden border-0 shadow-2xl">
-        <DialogHeader className="p-6 pb-2 bg-gradient-to-r from-muted/50 to-muted/10">
+      <DialogContent className="sm:max-w-[550px] gap-0 p-0 overflow-y-auto border-0 shadow-2xl max-h-[calc(100vh-2rem)] flex flex-col">
+        <DialogHeader className="p-6 pb-2 bg-gradient-to-r from-muted/50 to-muted/10 shrink-0">
           <DialogTitle className="text-xl font-semibold tracking-tight">Class Settings</DialogTitle>
           <DialogDescription className="text-muted-foreground">
             Update your class information and appearance.
           </DialogDescription>
         </DialogHeader>
-        <form action={handleUpdate} className="p-6 space-y-6">
+        <form action={handleUpdate} className="p-6 space-y-6 flex-1 min-h-0">
           <div className="grid gap-5">
             <div className="space-y-2">
               <Label htmlFor="title" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Title</Label>
@@ -228,7 +228,7 @@ export function ClassSettingsDialog({ classData, trigger }: ClassSettingsDialogP
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-[420px] gap-0 p-0 overflow-hidden border-0 shadow-2xl">
+        <DialogContent className="sm:max-w-[420px] gap-0 p-0 overflow-y-auto border-0 shadow-2xl max-h-[calc(100vh-2rem)]">
           <DialogHeader className="p-6 pb-4 bg-gradient-to-r from-destructive/10 to-destructive/5 border-b border-destructive/20">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center">

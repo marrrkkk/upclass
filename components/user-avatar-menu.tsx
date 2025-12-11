@@ -72,69 +72,61 @@ export function UserAvatarMenu({ name, email, image, userId }: UserAvatarMenuPro
           </Avatar>
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-60 p-2" sideOffset={5}>
-        <DropdownMenuLabel className="font-normal">
-          <div className="flex flex-col space-y-1 p-1">
+      <DropdownMenuContent align="end" className="w-64 p-2" sideOffset={8}>
+        <DropdownMenuLabel className="font-normal p-2">
+          <div className="flex flex-col space-y-1">
             {name && <p className="text-sm font-semibold leading-none text-foreground">{name}</p>}
             {email && (
               <p className="text-xs leading-none text-muted-foreground truncate opacity-80">{email}</p>
             )}
           </div>
         </DropdownMenuLabel>
-        <DropdownMenuSeparator className="my-1" />
+        <DropdownMenuSeparator className="my-1 bg-border/50" />
         <DropdownMenuGroup>
-          <DropdownMenuItem asChild className="p-2 cursor-pointer">
-            <Link href={userId ? `/home/user/${userId}` : "/home/profile"} className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 text-primary">
-                <User className="h-4 w-4" />
+          <DropdownMenuItem asChild className="p-2 cursor-pointer focus:bg-primary/5">
+            <Link href={userId ? `/home/user/${userId}` : "/home/profile"} className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/20">
+                <User className="h-4.5 w-4.5" />
               </div>
               <div className="flex flex-col space-y-0.5">
                 <span className="text-sm font-medium">Profile</span>
-                <span className="text-[10px] text-muted-foreground">View your details</span>
+                <span className="text-[11px] text-muted-foreground">View your details</span>
               </div>
             </Link>
           </DropdownMenuItem>
-          <DropdownMenuItem asChild className="p-2 cursor-pointer">
-            <Link href="/home/settings" className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                <Settings className="h-4 w-4" />
+          <DropdownMenuItem asChild className="p-2 cursor-pointer focus:bg-primary/5">
+            <Link href="/home/settings" className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-muted-foreground ring-1 ring-border">
+                <Settings className="h-4.5 w-4.5" />
               </div>
               <div className="flex flex-col space-y-0.5">
                 <span className="text-sm font-medium">Settings</span>
-                <span className="text-[10px] text-muted-foreground">Manage preferences</span>
+                <span className="text-[11px] text-muted-foreground">Manage preferences</span>
               </div>
             </Link>
           </DropdownMenuItem>
         </DropdownMenuGroup>
 
-        {/* Optional Premium Badge Area */}
-        <div className="my-2 p-2 bg-gradient-to-r from-violet-500/10 to-fuchsia-500/10 rounded-md border border-violet-500/20">
-          <div className="flex items-center gap-2 mb-1">
-            <Sparkles className="h-3 w-3 text-violet-500" />
-            <span className="text-[10px] font-bold text-violet-600 bg-clip-text uppercase">Pro Plan</span>
-          </div>
-          <p className="text-[10px] text-muted-foreground leading-tight">
-            You are on the professional plan.
-          </p>
-        </div>
-
-        <DropdownMenuSeparator className="my-1" />
+        <DropdownMenuSeparator className="my-1 bg-border/50" />
         <DropdownMenuItem
           onClick={handleSignOut}
           disabled={pending}
-          className="p-2 text-destructive focus:bg-destructive/10 focus:text-destructive cursor-pointer group"
+          className="p-2 text-destructive focus:bg-destructive/5 focus:text-destructive cursor-pointer group"
         >
           {pending ? (
-            <div className="flex items-center justify-center w-full py-1">
+            <div className="flex items-center justify-center w-full py-1.5">
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              <span>Signing out...</span>
+              <span className="text-sm font-medium">Signing out...</span>
             </div>
           ) : (
-            <div className="flex items-center gap-2 w-full">
-              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-destructive/10 group-hover:bg-destructive/20 transition-colors">
-                <LogOut className="h-4 w-4" />
+            <div className="flex items-center gap-3 w-full">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-destructive/10 group-hover:bg-destructive/20 transition-colors ring-1 ring-destructive/20">
+                <LogOut className="h-4.5 w-4.5" />
               </div>
-              <span className="font-medium">Sign out</span>
+              <div className="flex flex-col space-y-0.5">
+                <span className="text-sm font-medium">Sign out</span>
+                <span className="text-[11px] text-muted-foreground/80 group-hover:text-destructive/80">End your session</span>
+              </div>
             </div>
           )}
         </DropdownMenuItem>

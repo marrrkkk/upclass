@@ -224,22 +224,32 @@ export default async function ClassDetailPage({
         submittedAt: s.submittedAt?.toISOString() ?? null,
         gradedAt: s.gradedAt?.toISOString() ?? null,
       }))}
-      quizzes={quizzesData.map((q) => ({
-        ...q,
-        dueDate: q.dueDate?.toISOString() ?? null,
-        createdAt: q.createdAt?.toISOString() ?? "",
-        updatedAt: q.updatedAt?.toISOString() ?? "",
-        questions: quizQuestionsData
-          .filter((qq) => qq.quizId === q.id)
-          .map((qq) => ({
-            ...qq,
-            options: quizOptionsData.filter((opt) => opt.questionId === qq.id),
-          })),
-        attempt: quizAttemptsData.find((a) => a.quizId === q.id) || null,
-        answers: quizAnswersData.filter((a) =>
-          quizAttemptsData.find((att) => att.id === a.attemptId && att.quizId === q.id),
-        ),
-      }))}
+      quizzes={quizzesData.map((q) => {
+        const attempt = quizAttemptsData.find((a) => a.quizId === q.id);
+        return {
+          ...q,
+          dueDate: q.dueDate?.toISOString() ?? null,
+          createdAt: q.createdAt?.toISOString() ?? "",
+          updatedAt: q.updatedAt?.toISOString() ?? "",
+          questions: quizQuestionsData
+            .filter((qq) => qq.quizId === q.id)
+            .map((qq) => ({
+              ...qq,
+              options: quizOptionsData.filter((opt) => opt.questionId === qq.id),
+            })),
+          attempt: attempt ? {
+            ...attempt,
+            score: attempt.score?.toString() ?? null,
+            startedAt: attempt.startedAt?.toISOString() ?? "",
+            submittedAt: attempt.submittedAt?.toISOString() ?? null,
+            timeSpentSeconds: attempt.timeSpentSeconds?.toString() ?? null,
+            createdAt: attempt.createdAt?.toISOString() ?? "",
+          } : null,
+          answers: quizAnswersData.filter((a) =>
+            quizAttemptsData.find((att) => att.id === a.attemptId && att.quizId === q.id),
+          ),
+        };
+      })}
       members={membersData}
       isAuthenticated={isAuthenticated}
     />

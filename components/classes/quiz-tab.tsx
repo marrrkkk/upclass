@@ -292,7 +292,7 @@ export function QuizTab({ classId, userId, userRole, quizzes, classColor }: Quiz
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-6 animate-in fade-in duration-500 max-w-4xl mx-auto w-full">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold tracking-tight">Quizzes</h2>
 
@@ -307,7 +307,7 @@ export function QuizTab({ classId, userId, userRole, quizzes, classColor }: Quiz
                 New Quiz
               </button>
             </DialogTrigger>
-            <DialogContent className="max-h-[90vh] overflow-hidden flex flex-col sm:max-w-5xl gap-0 p-0 border-none shadow-2xl bg-background">
+            <DialogContent className="max-h-[90vh] overflow-y-auto flex flex-col sm:max-w-5xl gap-0 p-0 border-none shadow-2xl bg-background">
               <DialogHeader className="px-6 py-4 border-b bg-muted/30 shrink-0">
                 <div className="flex items-center justify-between">
                   <DialogTitle className="flex items-center gap-2 text-xl">
@@ -320,7 +320,7 @@ export function QuizTab({ classId, userId, userRole, quizzes, classColor }: Quiz
                 <DialogDescription>Draft a quiz and publish when ready.</DialogDescription>
               </DialogHeader>
 
-              <div className="flex-1 overflow-y-auto p-6 space-y-8 bg-muted/5">
+              <div className="flex-1 min-h-0 p-6 space-y-8 bg-muted/5">
                 {/* Quiz Settings */}
                 <div className="p-5 rounded-xl border bg-card shadow-sm space-y-6">
                   <div className="flex items-center gap-2 mb-2 pb-2 border-b">
@@ -688,7 +688,7 @@ export function QuizTab({ classId, userId, userRole, quizzes, classColor }: Quiz
 
       {/* Take quiz dialog */}
       <Dialog open={!!takeQuizId} onOpenChange={(open) => setTakeQuizId(open ? takeQuizId : null)}>
-        <DialogContent className="max-h-[95vh] overflow-hidden flex flex-col sm:max-w-4xl gap-0 p-0 border-none shadow-2xl bg-background">
+        <DialogContent className="max-h-[95vh] overflow-y-auto flex flex-col sm:max-w-4xl gap-0 p-0 border-none shadow-2xl bg-background">
           {activeQuiz ? (
             <>
               <DialogHeader className="p-6 pb-4 border-b bg-muted/30 shrink-0">
@@ -713,7 +713,7 @@ export function QuizTab({ classId, userId, userRole, quizzes, classColor }: Quiz
                 </div>
               </DialogHeader>
 
-              <div className="flex-1 overflow-y-auto p-6 space-y-8 bg-muted/5">
+              <div className="flex-1 min-h-0 p-6 space-y-8 bg-muted/5">
                 {activeQuiz.questions.map((q, idx) => (
                   <Card key={q.id} className="border shadow-sm overflow-hidden">
                     <CardHeader className="bg-muted/10 border-b pb-3 pt-4 px-5">
@@ -833,7 +833,7 @@ export function QuizTab({ classId, userId, userRole, quizzes, classColor }: Quiz
         if (!quiz) return null
         return (
           <Dialog open={!!deleteQuizOpen} onOpenChange={(open) => !open && setDeleteQuizOpen(null)}>
-            <DialogContent className="sm:max-w-[420px] gap-0 p-0 overflow-hidden border-0 shadow-2xl">
+            <DialogContent className="sm:max-w-[420px] gap-0 p-0 overflow-y-auto border-0 shadow-2xl max-h-[calc(100vh-2rem)]">
               <DialogHeader className="p-6 pb-4 bg-gradient-to-r from-destructive/10 to-destructive/5 border-b border-destructive/20">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center">

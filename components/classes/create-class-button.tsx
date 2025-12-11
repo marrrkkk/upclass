@@ -60,15 +60,15 @@ export function CreateClassButton() {
           Create class
         </button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[550px] gap-0 p-0 overflow-hidden border-0 shadow-2xl">
-        <DialogHeader className="p-6 pb-2 bg-gradient-to-r from-muted/50 to-muted/10">
+      <DialogContent className="sm:max-w-[550px] gap-0 p-0 overflow-y-auto border-0 shadow-2xl max-h-[calc(100vh-2rem)] flex flex-col">
+        <DialogHeader className="p-6 pb-2 bg-gradient-to-r from-muted/50 to-muted/10 shrink-0">
           <DialogTitle className="text-xl font-semibold tracking-tight">Create New Class</DialogTitle>
           <DialogDescription className="text-muted-foreground">
             Set up a new space for your students to learn and collaborate.
           </DialogDescription>
         </DialogHeader>
 
-        <form action={handleCreate} className="p-6 space-y-6">
+        <form action={handleCreate} className="p-6 space-y-6 flex-1 min-h-0">
           <div className="grid gap-5">
             <div className="space-y-2">
               <Label htmlFor="title" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Class Name</Label>

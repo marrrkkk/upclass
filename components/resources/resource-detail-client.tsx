@@ -363,7 +363,7 @@ export function ResourceDetailClient({ resource, isOwner, currentUserId, isAuthe
       {/* Edit Dialog - Kept similar functional logic but ensured improved visuals */}
       {/* Edit Dialog - Premium UI */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="sm:max-w-[550px] gap-0 p-0 overflow-hidden border-0 shadow-2xl">
+        <DialogContent className="sm:max-w-[550px] gap-0 p-0 overflow-y-auto border-0 shadow-2xl max-h-[calc(100vh-2rem)] flex flex-col">
           <DialogHeader className="p-6 pb-2 bg-gradient-to-r from-muted/50 to-muted/10 border-b border-border/50">
             <DialogTitle className="text-xl font-semibold tracking-tight">Edit Resource</DialogTitle>
             <DialogDescription className="text-muted-foreground">
@@ -450,7 +450,7 @@ export function ResourceDetailClient({ resource, isOwner, currentUserId, isAuthe
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-[420px] gap-0 p-0 overflow-hidden border-0 shadow-2xl">
+        <DialogContent className="sm:max-w-[420px] gap-0 p-0 overflow-y-auto border-0 shadow-2xl max-h-[calc(100vh-2rem)]">
           <DialogHeader className="p-6 pb-4 bg-gradient-to-r from-destructive/10 to-destructive/5 border-b border-destructive/20">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center">

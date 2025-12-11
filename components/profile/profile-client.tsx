@@ -163,12 +163,11 @@ export function ProfileClient({
         </div>
 
         {/* Profile Info Bar */}
-        {/* Profile Info Bar */}
-        <div className="relative flex flex-col md:flex-row items-start md:items-start md:justify-start px-6 md:px-10 -mt-12 md:-mt-16 gap-4 md:gap-6 z-10 w-full">
+        <div className="relative flex flex-col md:flex-row items-center md:items-end px-4 md:px-10 -mt-16 md:-mt-20 gap-4 md:gap-6 z-10 w-full mb-4">
           {/* Avatar */}
           <div className="relative shrink-0">
-            <div className="rounded-full p-1 bg-background/50 backdrop-blur-sm shadow-xl">
-              <Avatar className="h-28 w-28 md:h-36 md:w-36 border-4 border-background bg-background ring-1 ring-black/5">
+            <div className="rounded-full p-1.5 bg-background shadow-xl ring-1 ring-border/10">
+              <Avatar className="h-32 w-32 md:h-40 md:w-40 border-4 border-background bg-background">
                 <AvatarImage src={user.image || undefined} alt={user.name} className="object-cover" />
                 <AvatarFallback className="bg-muted text-muted-foreground text-4xl font-bold">
                   {initials}
@@ -178,18 +177,18 @@ export function ProfileClient({
           </div>
 
           {/* Name, Role & Actions */}
-          <div className="flex-1 min-w-0 pt-2 md:pb-4 w-full text-left">
-            <div className="flex flex-col md:flex-row items-start md:items-start md:justify-start gap-4 w-full">
-              <div className="space-y-1.5 flex flex-col items-start text-left">
-                <div className="flex items-center gap-3 flex-wrap">
-                  <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight text-left">{user.name}</h1>
+          <div className="flex-1 min-w-0 pt-2 pb-2 md:pb-6 w-full text-center md:text-left">
+            <div className="flex flex-col md:flex-row items-center md:items-end justify-between gap-4 w-full">
+              <div className="space-y-2 flex flex-col items-center md:items-start">
+                <div className="flex flex-col md:flex-row items-center md:items-end gap-2 md:gap-4">
+                  <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">{user.name}</h1>
                   {user.role && (
                     <span
                       className={cn(
-                        "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ring-1 ring-inset backdrop-blur-[2px]",
+                        "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ring-1 ring-inset mb-1",
                         user.role === "teacher"
-                          ? "bg-blue-50/50 text-blue-700 ring-blue-500/20 dark:bg-blue-900/20 dark:text-blue-400"
-                          : "bg-emerald-50/50 text-emerald-700 ring-emerald-500/20 dark:bg-emerald-900/20 dark:text-emerald-400"
+                          ? "bg-blue-50 text-blue-700 ring-blue-600/20 dark:bg-blue-900/20 dark:text-blue-400"
+                          : "bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/20 dark:text-emerald-400"
                       )}
                     >
                       {user.role === "teacher" ? <GraduationCap className="w-3 h-3 mr-1 opacity-70" /> : <Users className="w-3 h-3 mr-1 opacity-70" />}
@@ -206,13 +205,13 @@ export function ProfileClient({
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-3 md:mb-1 shrink-0 justify-start self-start">
+              <div className="flex gap-3 shrink-0 mt-2 md:mt-0">
                 {isOwnProfile ? (
                   <EditProfileDialog user={user} />
                 ) : (
                   <Link
                     href={`/home/messages/${user.id}`}
-                    className={cn(buttonVariants({ variant: "default", size: "sm" }), "shadow-md gap-2 h-9 px-4 bg-primary hover:bg-primary/90 rounded-full")}
+                    className={cn(buttonVariants({ variant: "default", size: "sm" }), "shadow-md gap-2 h-9 px-6 bg-primary hover:bg-primary/90 rounded-full font-medium transition-all hover:scale-105 active:scale-95")}
                   >
                     <MessageSquare className="h-4 w-4" />
                     Message

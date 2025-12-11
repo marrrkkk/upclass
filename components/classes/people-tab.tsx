@@ -150,7 +150,7 @@ export function PeopleTab({ classId, userId, userRole, members }: PeopleTabProps
 
       {/* Remove Member Dialog */}
       <Dialog open={!!removeMemberOpen} onOpenChange={(open) => !open && setRemoveMemberOpen(null)}>
-        <DialogContent className="sm:max-w-[420px] gap-0 p-0 overflow-hidden border-0 shadow-2xl">
+        <DialogContent className="sm:max-w-[420px] gap-0 p-0 overflow-y-auto border-0 shadow-2xl max-h-[calc(100vh-2rem)]">
           <DialogHeader className="p-6 pb-4 bg-gradient-to-r from-destructive/10 to-destructive/5 border-b border-destructive/20">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center">

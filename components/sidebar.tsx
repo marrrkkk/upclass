@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils"
 import { NotificationsSection } from "@/components/sidebar/notifications-section"
 import { MessagesSection } from "@/components/sidebar/messages-section"
 import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 const navItems = [
   { label: "Home", href: "/home", icon: Home },
@@ -26,12 +27,17 @@ const navItems = [
 
 type SidebarProps = {
   userId?: string
+  userInfo?: {
+    name: string | null
+    email: string | null
+    image: string | null
+  } | null
   className?: string
   onNavigate?: () => void
   onClose?: () => void
 }
 
-export function Sidebar({ userId, className, onNavigate, onClose }: SidebarProps = {}) {
+export function Sidebar({ userId, userInfo, className, onNavigate, onClose }: SidebarProps = {}) {
   const pathname = usePathname()
   const currentPath = pathname || "/home"
 
@@ -155,11 +161,27 @@ export function Sidebar({ userId, className, onNavigate, onClose }: SidebarProps
           )}
           onClick={onNavigate}
         >
-          <div className="h-9 w-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white shadow-sm">
-            <User className="h-5 w-5" />
-          </div>
+          {userInfo ? (
+            <Avatar className="h-9 w-9 border border-border/50">
+              <AvatarImage src={userInfo.image || undefined} alt={userInfo.name || "User"} />
+              <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-500 text-white text-xs font-semibold">
+                {userInfo.name
+                  ? userInfo.name
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")
+                    .toUpperCase()
+                    .slice(0, 2)
+                  : "U"}
+              </AvatarFallback>
+            </Avatar>
+          ) : (
+            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white shadow-sm">
+              <User className="h-5 w-5" />
+            </div>
+          )}
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-foreground truncate">My Profile</p>
+            <p className="font-semibold text-foreground truncate">{userInfo?.name || "My Profile"}</p>
             <p className="text-xs text-muted-foreground truncate">View account</p>
           </div>
         </Link>

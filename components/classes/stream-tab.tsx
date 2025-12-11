@@ -286,7 +286,7 @@ function AnnouncementCard({ announcement, userId, classColor, userRole }: { anno
 
       {/* Edit Announcement Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="sm:max-w-[550px] gap-0 p-0 overflow-hidden border-0 shadow-2xl">
+        <DialogContent className="sm:max-w-[550px] gap-0 p-0 overflow-y-auto border-0 shadow-2xl max-h-[calc(100vh-2rem)] flex flex-col">
           <DialogHeader className="p-6 pb-2 bg-gradient-to-r from-muted/50 to-muted/10 border-b border-border/50">
             <DialogTitle className="text-xl font-semibold tracking-tight flex items-center gap-2">
               <div className="p-2 rounded-lg bg-primary/10 text-primary">
@@ -326,7 +326,7 @@ function AnnouncementCard({ announcement, userId, classColor, userRole }: { anno
 
       {/* Delete Announcement Dialog */}
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent className="sm:max-w-[420px] gap-0 p-0 overflow-hidden border-0 shadow-2xl">
+        <DialogContent className="sm:max-w-[420px] gap-0 p-0 overflow-y-auto border-0 shadow-2xl max-h-[calc(100vh-2rem)]">
           <DialogHeader className="p-6 pb-4 bg-gradient-to-r from-destructive/10 to-destructive/5 border-b border-destructive/20">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center">
@@ -493,8 +493,8 @@ export function StreamTab({ classId, userId, userRole, announcements, classColor
 
         {/* Create Dialog */}
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden gap-0 border-0 shadow-2xl">
-            <DialogHeader className="p-6 pb-2 bg-gradient-to-r from-muted/50 to-muted/10 border-b border-border/50">
+          <DialogContent className="sm:max-w-[600px] p-0 overflow-y-auto gap-0 border-0 shadow-2xl max-h-[calc(100vh-2rem)] flex flex-col">
+            <DialogHeader className="p-6 pb-2 bg-gradient-to-r from-muted/50 to-muted/10 border-b border-border/50 shrink-0">
               <DialogTitle className="text-xl font-semibold tracking-tight flex items-center gap-2">
                 <div className="p-2 rounded-lg bg-primary/10 text-primary">
                   <MessageSquare className="h-5 w-5" />

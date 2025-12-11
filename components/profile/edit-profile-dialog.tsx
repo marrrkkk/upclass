@@ -21,6 +21,7 @@ import {
 import { useUploadThing } from "@/lib/uploadthing"
 import { cn } from "@/lib/utils"
 import { CoverCropper } from "./cover-cropper"
+import { ImageCropper } from "@/components/settings/image-cropper"
 
 type EditProfileDialogProps = {
   user: {
@@ -59,6 +60,8 @@ export function EditProfileDialog({ user }: EditProfileDialogProps) {
   const [imageUrl, setImageUrl] = useState<string>(user.image || "")
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [avatarCropOpen, setAvatarCropOpen] = useState(false)
+  const [avatarCropSrc, setAvatarCropSrc] = useState<string | null>(null)
 
   // Cover state
   const [coverColor, setCoverColor] = useState(user.coverColor || "#3b82f6")
@@ -134,15 +137,24 @@ export function EditProfileDialog({ user }: EditProfileDialogProps) {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      setSelectedFile(file)
       setError(null)
-      // Preview image
+      // Open cropper instead of directly setting
       const reader = new FileReader()
       reader.onloadend = () => {
-        setImageUrl(reader.result as string)
+        setAvatarCropSrc(reader.result as string)
+        setAvatarCropOpen(true)
       }
       reader.readAsDataURL(file)
     }
+    // Reset input
+    e.target.value = ""
+  }
+
+  const handleAvatarCropComplete = (croppedBlob: Blob) => {
+    const file = new File([croppedBlob], "avatar.jpg", { type: "image/jpeg" })
+    setSelectedFile(file)
+    const previewUrl = URL.createObjectURL(croppedBlob)
+    setImageUrl(previewUrl)
   }
 
   const handleCoverFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -186,7 +198,7 @@ export function EditProfileDialog({ user }: EditProfileDialogProps) {
             Edit Profile
           </button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-[550px] gap-0 p-0 border-0 shadow-2xl max-h-[90vh] flex flex-col overflow-hidden">
+        <DialogContent className="sm:max-w-[550px] gap-0 p-0 border-0 shadow-2xl max-h-[90vh] flex flex-col overflow-y-auto">
           {/* Cover Preview */}
           <div
             className="h-28 relative overflow-hidden"
@@ -409,6 +421,13 @@ export function EditProfileDialog({ user }: EditProfileDialogProps) {
         onOpenChange={setCoverCropOpen}
         imageSrc={coverCropSrc}
         onComplete={handleCoverCropComplete}
+      />
+
+      <ImageCropper
+        open={avatarCropOpen}
+        onOpenChange={setAvatarCropOpen}
+        imageSrc={avatarCropSrc}
+        onComplete={handleAvatarCropComplete}
       />
     </>
   )
