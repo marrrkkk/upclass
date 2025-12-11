@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
 import { StreamTab } from "@/components/classes/stream-tab"
 import { ClassworkTab } from "@/components/classes/classwork-tab"
+import { QuizTab } from "@/components/classes/quiz-tab"
 import { PeopleTab } from "@/components/classes/people-tab"
 import { ClassSettingsDialog } from "@/components/classes/class-settings-dialog"
 import { usePageHeaderStore } from "@/lib/stores/page-header-store"
@@ -39,6 +40,59 @@ type ClassworkData = {
   dueDate: string | null
   points: string | null
   createdAt: string
+}
+
+type QuizOption = {
+  id: string
+  questionId: string
+  text: string
+  isCorrect: boolean
+}
+
+type QuizQuestion = {
+  id: string
+  quizId: string
+  prompt: string
+  type: "single_choice" | "multiple_select" | "true_false" | "short_answer"
+  points: string
+  order: string
+  options: QuizOption[]
+}
+
+type QuizAttempt = {
+  id: string
+  quizId: string
+  studentId: string
+  score: string | null
+  submittedAt: string | null
+  timeSpentSeconds: string | null
+}
+
+type QuizAnswer = {
+  id: string
+  attemptId: string
+  questionId: string
+  selectedOptionIds: string | null
+  textAnswer: string | null
+  isCorrect: boolean | null
+  pointsAwarded: string | null
+}
+
+type QuizData = {
+  id: string
+  classId: string
+  title: string
+  description: string | null
+  status: "draft" | "published"
+  dueDate: string | null
+  timeLimitSeconds: string | null
+  totalPoints: string | null
+  createdBy: string
+  createdAt: string
+  updatedAt: string
+  questions: QuizQuestion[]
+  attempt: QuizAttempt | null
+  answers: QuizAnswer[]
 }
 
 type SubmissionData = {
@@ -75,6 +129,7 @@ type ClassDetailClientProps = {
   announcements: AnnouncementData[]
   classwork: ClassworkData[]
   submissions: SubmissionData[]
+  quizzes: QuizData[]
   members: MemberData[]
   isAuthenticated?: boolean
 }
@@ -86,11 +141,12 @@ export function ClassDetailClient({
   announcements,
   classwork,
   submissions,
+  quizzes,
   members,
   isAuthenticated = false,
 }: ClassDetailClientProps) {
   const setPageTitle = usePageHeaderStore((state) => state.setPageTitle)
-  const [activeTab, setActiveTab] = useState<"stream" | "classwork" | "people">("stream")
+  const [activeTab, setActiveTab] = useState<"stream" | "classwork" | "quizzes" | "people">("stream")
   const [copied, setCopied] = useState(false)
 
   // Set page title for breadcrumbs
@@ -230,6 +286,23 @@ export function ClassDetailClient({
           <button
             className={cn(
               "relative py-4 text-sm font-medium transition-colors hover:text-foreground",
+              activeTab === "quizzes"
+                ? "text-primary"
+                : "text-muted-foreground"
+            )}
+            onClick={() => setActiveTab("quizzes")}
+          >
+            Quizzes
+            {activeTab === "quizzes" && (
+              <span
+                className="absolute bottom-0 left-0 h-0.5 w-full bg-primary rounded-t-full"
+                style={{ backgroundColor: classColor }}
+              />
+            )}
+          </button>
+          <button
+            className={cn(
+              "relative py-4 text-sm font-medium transition-colors hover:text-foreground",
               activeTab === "people"
                 ? "text-primary"
                 : "text-muted-foreground"
@@ -264,6 +337,15 @@ export function ClassDetailClient({
             userRole={userRole}
             classwork={classwork}
             submissions={submissions}
+            classColor={classColor}
+          />
+        )}
+        {activeTab === "quizzes" && (
+          <QuizTab
+            classId={classData.id}
+            userId={userId}
+            userRole={userRole}
+            quizzes={quizzes}
             classColor={classColor}
           />
         )}

@@ -1,10 +1,22 @@
 import { headers } from "next/headers"
 import { notFound, redirect } from "next/navigation"
-import { eq, and, desc, asc } from "drizzle-orm"
+import { eq, and, desc, asc, inArray } from "drizzle-orm"
 
 import { auth } from "@/lib/auth"
 import { db } from "@/db"
-import { classes, classMembership, announcements, classwork, submissions, user } from "@/db/schema"
+import {
+  classes,
+  classMembership,
+  announcements,
+  classwork,
+  submissions,
+  user,
+  quizzes,
+  quizQuestions,
+  quizOptions,
+  quizAttempts,
+  quizAnswers,
+} from "@/db/schema"
 import { ClassDetailClient } from "@/components/classes/class-detail-client"
 
 export default async function ClassDetailPage({
@@ -136,6 +148,39 @@ export default async function ClassDetailPage({
     .where(eq(classMembership.classId, id))
     .orderBy(asc(classMembership.role), asc(user.name))
 
+  // Quizzes data (class members only)
+  const quizzesData = isAuthenticated && userRole
+    ? await db
+      .select()
+      .from(quizzes)
+      .where(eq(quizzes.classId, id))
+      .orderBy(asc(quizzes.createdAt))
+    : []
+
+  const quizIds = quizzesData.map((q) => q.id)
+  const quizQuestionsData = quizIds.length
+    ? await db.select().from(quizQuestions).where(inArray(quizQuestions.quizId, quizIds))
+    : []
+  const quizQuestionIds = quizQuestionsData.map((q) => q.id)
+  const quizOptionsData = quizQuestionIds.length
+    ? await db.select().from(quizOptions).where(inArray(quizOptions.questionId, quizQuestionIds))
+    : []
+  const quizAttemptsData = isAuthenticated && quizIds.length
+    ? await db
+      .select()
+      .from(quizAttempts)
+      .where(
+        and(
+          inArray(quizAttempts.quizId, quizIds),
+          eq(quizAttempts.studentId, session?.user?.id || ""),
+        ),
+      )
+    : []
+  const attemptIds = quizAttemptsData.map((a) => a.id)
+  const quizAnswersData = attemptIds.length
+    ? await db.select().from(quizAnswers).where(inArray(quizAnswers.attemptId, attemptIds))
+    : []
+
   return (
     <ClassDetailClient
       classData={{
@@ -162,6 +207,22 @@ export default async function ClassDetailPage({
         ...s,
         submittedAt: s.submittedAt?.toISOString() ?? null,
         gradedAt: s.gradedAt?.toISOString() ?? null,
+      }))}
+      quizzes={quizzesData.map((q) => ({
+        ...q,
+        dueDate: q.dueDate?.toISOString() ?? null,
+        createdAt: q.createdAt?.toISOString() ?? "",
+        updatedAt: q.updatedAt?.toISOString() ?? "",
+        questions: quizQuestionsData
+          .filter((qq) => qq.quizId === q.id)
+          .map((qq) => ({
+            ...qq,
+            options: quizOptionsData.filter((opt) => opt.questionId === qq.id),
+          })),
+        attempt: quizAttemptsData.find((a) => a.quizId === q.id) || null,
+        answers: quizAnswersData.filter((a) =>
+          quizAttemptsData.find((att) => att.id === a.attemptId && att.quizId === q.id),
+        ),
       }))}
       members={membersData}
       isAuthenticated={isAuthenticated}

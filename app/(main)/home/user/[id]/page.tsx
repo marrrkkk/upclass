@@ -90,7 +90,8 @@ export default async function UserProfilePage({
     : []
 
   // Get classes joined (enrolled as student or teacher) - only if showClasses is enabled
-  const enrolledClasses = (isOwnProfile || profileUser.showClasses)
+  // Get classes joined (enrolled as student or teacher) - only if showClasses is enabled
+  const enrolledClassesData = (isOwnProfile || profileUser.showClasses)
     ? await db
       .select({
         id: classes.id,
@@ -100,12 +101,19 @@ export default async function UserProfilePage({
         color: classes.color,
         role: classMembership.role,
         createdAt: classes.createdAt,
+        ownerId: classes.ownerId,
+        teacherName: user.name,
+        teacherImage: user.image,
       })
       .from(classMembership)
       .innerJoin(classes, eq(classMembership.classId, classes.id))
+      .innerJoin(user, eq(classes.ownerId, user.id))
       .where(eq(classMembership.userId, userId))
       .orderBy(classes.createdAt)
     : []
+
+  // Filter out classes where the user is the owner (teaching) to avoid duplication
+  const enrolledClasses = enrolledClassesData.filter(c => c.ownerId !== userId)
 
   // Get enrollment counts for created classes
   const classIds = createdClasses.map(c => c.id)
@@ -146,6 +154,8 @@ export default async function UserProfilePage({
         name: profileUser.name,
         email: isOwnProfile || profileUser.showEmail ? profileUser.email : null,
         image: profileUser.image,
+        cover: profileUser.cover,
+        coverColor: profileUser.coverColor,
         bio: profileUser.bio,
         role: profileUser.role,
       }}
@@ -153,6 +163,8 @@ export default async function UserProfilePage({
         ...c,
         createdAt: c.createdAt?.toISOString() ?? "",
         enrolledCount: countMap.get(c.id) ?? 0,
+        teacherName: profileUser.name,
+        teacherImage: profileUser.image,
       }))}
       enrolledClasses={isPrivate ? [] : enrolledClasses.map(c => ({
         ...c,
@@ -161,6 +173,9 @@ export default async function UserProfilePage({
       createdResources={isPrivate ? [] : createdResources.map(r => ({
         ...r,
         createdAt: r.createdAt?.toISOString() ?? "",
+        fileSize: r.fileSize || null,
+        authorName: profileUser.name,
+        authorImage: profileUser.image,
       }))}
       isOwnProfile={isOwnProfile}
       currentUserId={currentUserId || undefined}

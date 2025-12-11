@@ -198,13 +198,15 @@ These changes align with the goal of creating a "Wow" factor and a premium user 
 
 **Changes Implemented:**
 - **Hero Section:**
-  - Added a gradient cover area and a prominent avatar overlay for a "social media" feel.
-  - Displayed user role and status clearly within the hero area.
+  - Added a gradient cover area and a prominent avatar overlay with gradient borders.
+  - **Refined Layout**: Moved primary actions ("Edit Profile", "Message") to the right for better balance.
+  - **Role Badge**: Added a premium glassmorphic badge for user roles (Teacher/Student).
 - **Content Organization:**
-  - Implemented **Tabs** to split "Classes" and "Resources" content, reducing scrolling and clutter.
-  - Dedicated **About ** and **Stats** cards in a sidebar column for better information hierarchy.
+  - Implemented **Sticky Tabs** for "Classes" and "Resources" to keep navigation accessible while scrolling.
+  - Dedicated **About** and **Stats** list in a sidebar column for better information hierarchy.
 - **Visuals:**
-  - **Class Cards**: Improved styling with color coding, prominent titles, and enrollment counts.
+  - **Stats Card**: Switched to a clean, vertical list design with consistent iconography and subtle hover states.
+  - **Class Cards**: Improved styling with color coding, prominent titles, and enrollment counts (removed role badges).
   - **Resource Cards**: Clean, consistent styling with file type badges.
   - **Empty States**: Friendly usage prompts when no content is available.
 - **Responsiveness**:

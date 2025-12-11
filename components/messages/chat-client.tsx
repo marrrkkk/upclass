@@ -16,6 +16,7 @@ import { Paperclip, X, Music, Image as ImageIcon } from "lucide-react"
 import { UrlLinkify } from "@/components/messages/url-linkify"
 import { ImageViewerDialog } from "@/components/messages/image-viewer-dialog"
 import { formatDistanceToNow, isSameDay, format } from "date-fns"
+import { usePageHeaderStore } from "@/lib/stores/page-header-store"
 
 type MediaFile = {
   url: string
@@ -83,6 +84,13 @@ export function ChatClient({ messages: initialMessages, currentUserId, otherUser
     // Mark conversation as read when component mounts
     markConversationAsRead(otherUser.id)
   }, [otherUser.id])
+
+  const setPageTitle = usePageHeaderStore((state) => state.setPageTitle)
+
+  useEffect(() => {
+    setPageTitle(otherUser.name)
+    return () => setPageTitle(null)
+  }, [otherUser.name, setPageTitle])
 
   useEffect(() => {
     if (!supabase || !currentUserId) return

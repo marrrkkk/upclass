@@ -17,6 +17,8 @@ export const user = pgTable("user", {
   email: text("email").notNull().unique(),
   emailVerified: boolean("email_verified").default(false).notNull(),
   image: text("image"),
+  cover: text("cover"), // Cover image URL
+  coverColor: text("cover_color").default("#3b82f6"), // Default cover color (primary blue)
   bio: text("bio"),
   role: userRole("role"),
   // Notification settings
@@ -396,6 +398,166 @@ export const notificationRelations = relations(notifications, ({ one }) => ({
   class: one(classes, {
     fields: [notifications.classId],
     references: [classes.id],
+  }),
+}));
+
+// Quiz system
+export const quizStatus = pgEnum("quiz_status", ["draft", "published"]);
+export const quizQuestionType = pgEnum("quiz_question_type", [
+  "single_choice",
+  "multiple_select",
+  "true_false",
+  "short_answer",
+]);
+
+export const quizzes = pgTable(
+  "quizzes",
+  {
+    id: text("id").primaryKey(),
+    classId: text("class_id")
+      .notNull()
+      .references(() => classes.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    description: text("description"),
+    status: quizStatus("status").notNull().default("draft"),
+    dueDate: timestamp("due_date"),
+    timeLimitSeconds: text("time_limit_seconds"),
+    totalPoints: text("total_points"),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("quizzes_class_idx").on(table.classId),
+    index("quizzes_status_idx").on(table.status),
+  ],
+);
+
+export const quizQuestions = pgTable(
+  "quiz_questions",
+  {
+    id: text("id").primaryKey(),
+    quizId: text("quiz_id")
+      .notNull()
+      .references(() => quizzes.id, { onDelete: "cascade" }),
+    prompt: text("prompt").notNull(),
+    type: quizQuestionType("type").notNull(),
+    points: text("points").notNull(),
+    order: text("order_index").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("quiz_questions_quiz_idx").on(table.quizId)],
+);
+
+export const quizOptions = pgTable(
+  "quiz_options",
+  {
+    id: text("id").primaryKey(),
+    questionId: text("question_id")
+      .notNull()
+      .references(() => quizQuestions.id, { onDelete: "cascade" }),
+    text: text("text").notNull(),
+    isCorrect: boolean("is_correct").default(false).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("quiz_options_question_idx").on(table.questionId)],
+);
+
+export const quizAttempts = pgTable(
+  "quiz_attempts",
+  {
+    id: text("id").primaryKey(),
+    quizId: text("quiz_id")
+      .notNull()
+      .references(() => quizzes.id, { onDelete: "cascade" }),
+    studentId: text("student_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    score: text("score"),
+    startedAt: timestamp("started_at").defaultNow().notNull(),
+    submittedAt: timestamp("submitted_at"),
+    timeSpentSeconds: text("time_spent_seconds"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("quiz_attempts_quiz_idx").on(table.quizId),
+    uniqueIndex("quiz_attempts_student_quiz_unique").on(table.quizId, table.studentId),
+  ],
+);
+
+export const quizAnswers = pgTable(
+  "quiz_answers",
+  {
+    id: text("id").primaryKey(),
+    attemptId: text("attempt_id")
+      .notNull()
+      .references(() => quizAttempts.id, { onDelete: "cascade" }),
+    questionId: text("question_id")
+      .notNull()
+      .references(() => quizQuestions.id, { onDelete: "cascade" }),
+    selectedOptionIds: text("selected_option_ids"), // JSON string array
+    textAnswer: text("text_answer"),
+    isCorrect: boolean("is_correct"),
+    pointsAwarded: text("points_awarded"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("quiz_answers_attempt_idx").on(table.attemptId)],
+);
+
+export const quizRelations = relations(quizzes, ({ one, many }) => ({
+  class: one(classes, {
+    fields: [quizzes.classId],
+    references: [classes.id],
+  }),
+  creator: one(user, {
+    fields: [quizzes.createdBy],
+    references: [user.id],
+  }),
+  questions: many(quizQuestions),
+  attempts: many(quizAttempts),
+}));
+
+export const quizQuestionRelations = relations(quizQuestions, ({ one, many }) => ({
+  quiz: one(quizzes, {
+    fields: [quizQuestions.quizId],
+    references: [quizzes.id],
+  }),
+  options: many(quizOptions),
+  answers: many(quizAnswers),
+}));
+
+export const quizOptionRelations = relations(quizOptions, ({ one }) => ({
+  question: one(quizQuestions, {
+    fields: [quizOptions.questionId],
+    references: [quizQuestions.id],
+  }),
+}));
+
+export const quizAttemptRelations = relations(quizAttempts, ({ one, many }) => ({
+  quiz: one(quizzes, {
+    fields: [quizAttempts.quizId],
+    references: [quizzes.id],
+  }),
+  student: one(user, {
+    fields: [quizAttempts.studentId],
+    references: [user.id],
+  }),
+  answers: many(quizAnswers),
+}));
+
+export const quizAnswerRelations = relations(quizAnswers, ({ one }) => ({
+  attempt: one(quizAttempts, {
+    fields: [quizAnswers.attemptId],
+    references: [quizAttempts.id],
+  }),
+  question: one(quizQuestions, {
+    fields: [quizAnswers.questionId],
+    references: [quizQuestions.id],
   }),
 }));
 

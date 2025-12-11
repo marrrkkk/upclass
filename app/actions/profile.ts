@@ -25,6 +25,8 @@ export async function updateProfile(formData: FormData): Promise<ActionResponse>
   const bio = (formData.get("bio") as string | null)?.trim()
   const role = (formData.get("role") as string | null)?.trim()
   const image = (formData.get("image") as string | null)?.trim()
+  const cover = (formData.get("cover") as string | null)?.trim()
+  const coverColor = (formData.get("coverColor") as string | null)?.trim()
 
   if (!name) {
     return { success: false, error: "Name is required" }
@@ -42,6 +44,8 @@ export async function updateProfile(formData: FormData): Promise<ActionResponse>
         bio: bio || null,
         role: role as any,
         image: image || null,
+        cover: cover || null,
+        coverColor: coverColor || "#3b82f6",
       })
       .where(eq(user.id, session.user.id))
 
@@ -55,4 +59,5 @@ export async function updateProfile(formData: FormData): Promise<ActionResponse>
     return { success: false, error: "Failed to update profile" }
   }
 }
+
 
