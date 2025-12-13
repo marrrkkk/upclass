@@ -32,14 +32,14 @@ export function HomeShell({ children, isAuthenticated, userInfo, userId }: HomeS
           userInfo={userInfo}
           onNavigate={() => setIsSidebarOpen(false)}
           onClose={() => setIsSidebarOpen(false)}
-          className="fixed inset-y-0 left-0 z-[100] w-72 border-r bg-card/95 shadow-xl transition-transform duration-300 ease-in-out md:sticky md:top-0 md:w-64 md:shadow-none md:h-screen sidebar-mobile"
+          className="fixed inset-y-0 left-0 z-40 w-72 border-r bg-card/95 shadow-xl transition-transform duration-300 ease-in-out md:sticky md:top-0 md:w-64 md:shadow-none md:h-screen sidebar-mobile"
           data-state={isSidebarOpen ? "open" : "closed"}
         />
 
         {/* Overlay for mobile */}
         {isSidebarOpen && (
           <button
-            className="fixed inset-0 z-[90] bg-black/40 backdrop-blur-sm md:hidden"
+            className="fixed inset-0 z-[35] bg-black/40 backdrop-blur-sm md:hidden"
             aria-label="Close navigation overlay"
             onClick={() => setIsSidebarOpen(false)}
             type="button"
@@ -49,7 +49,7 @@ export function HomeShell({ children, isAuthenticated, userInfo, userId }: HomeS
         {/* Main content */}
         <div className="flex min-h-screen flex-1 flex-col min-w-0">
           {/* Top bar */}
-          <div className="sticky top-0 z-40 border-b bg-background">
+          <div className="sticky top-0 z-30 border-b bg-background">
             <div className="flex h-14 items-center gap-3 px-4 sm:h-16 sm:px-6 md:px-8">
               <div className="flex items-center gap-3 min-w-0">
                 <Button

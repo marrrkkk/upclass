@@ -42,6 +42,35 @@ export function ClassSettingsDialog({ classData, trigger }: ClassSettingsDialogP
   const [deletePending, startDeleteTransition] = useTransition()
   const [selectedColor, setSelectedColor] = useState(classData.color || "#3b82f6")
 
+  // Parse initial schedule data
+  const parseSchedule = (scheduleStr: string | null) => {
+    if (!scheduleStr) return { days: [], time: "" }
+
+    try {
+      // Expected format: "Mon, Wed 10:00 AM" or similar
+      const parts = scheduleStr.trim().split(' ')
+      const timePart = parts.slice(-2).join(' ') // "10:00 AM"
+      const daysPart = parts.slice(0, -2).join(' ').replace(/,/g, '').split(' ') // ["Mon", "Wed"]
+
+      // Convert 12h to 24h for input type="time"
+      const date = new Date(`2000-01-01 ${timePart}`)
+      const time24 = !isNaN(date.getTime())
+        ? date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+        : ""
+
+      return {
+        days: daysPart.filter(d => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].includes(d)),
+        time: time24
+      }
+    } catch (e) {
+      return { days: [], time: "" }
+    }
+  }
+
+  const initialSchedule = parseSchedule(classData.schedule)
+  const [selectedDays, setSelectedDays] = useState<string[]>(initialSchedule.days)
+  const [selectedTime, setSelectedTime] = useState(initialSchedule.time)
+
   const handleUpdate = async (formData: FormData) => {
     setError(null)
     startTransition(async () => {
@@ -128,14 +157,49 @@ export function ClassSettingsDialog({ classData, trigger }: ClassSettingsDialogP
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="schedule" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Schedule</Label>
-                <Input
-                  id="schedule"
-                  name="schedule"
-                  defaultValue={classData.schedule || ""}
-                  placeholder="e.g. Mon, Wed, Fri 10:00 AM"
-                  className="h-10 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors"
-                />
+                <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Schedule</Label>
+                <div className="space-y-3">
+                  <div className="flex flex-wrap gap-1.5">
+                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => {
+                          setSelectedDays(prev =>
+                            prev.includes(day)
+                              ? prev.filter(d => d !== day)
+                              : [...prev, day]
+                          )
+                        }}
+                        className={cn(
+                          "px-2.5 py-1.5 rounded-md text-xs font-medium border transition-all",
+                          selectedDays.includes(day)
+                            ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                            : "bg-background border-border text-muted-foreground hover:bg-muted"
+                        )}
+                      >
+                        {day}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="time"
+                      value={selectedTime}
+                      onChange={(e) => setSelectedTime(e.target.value)}
+                      className="h-10 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors w-full"
+                    />
+                  </div>
+                  <input
+                    type="hidden"
+                    name="schedule"
+                    value={
+                      selectedDays.length > 0 && selectedTime
+                        ? `${selectedDays.join(', ')} ${new Date(`2000-01-01T${selectedTime}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
+                        : ""
+                    }
+                  />
+                </div>
               </div>
             </div>
 

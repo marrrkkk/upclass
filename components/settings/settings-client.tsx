@@ -2,7 +2,8 @@
 
 import { useState, useTransition, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Save, User, Bell, Lock, Globe, Trash2, Camera, Mail, Shield, AlertTriangle } from "lucide-react"
+import { useTheme } from "next-themes"
+import { Save, User, Bell, Lock, Globe, Trash2, Camera, Mail, Shield, AlertTriangle, Palette, Sun, Moon, Monitor } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -41,6 +42,99 @@ type UserData = {
 
 type SettingsClientProps = {
   userData: UserData
+}
+
+function AppearanceSection() {
+  const { theme, setTheme } = useTheme()
+
+  return (
+    <Card className="border-border/50 shadow-sm">
+      <CardHeader>
+        <CardTitle>Appearance</CardTitle>
+        <CardDescription>
+          Customize how UpClass looks on your device.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="space-y-4">
+          <Label>Theme</Label>
+          <div className="grid grid-cols-3 gap-4">
+            <button
+              onClick={() => setTheme("light")}
+              className={cn(
+                "flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all duration-200 hover:bg-muted/50",
+                theme === "light"
+                  ? "border-primary bg-primary/5 shadow-sm"
+                  : "border-border/50 hover:border-border"
+              )}
+            >
+              <div className={cn(
+                "p-3 rounded-full transition-colors",
+                theme === "light" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+              )}>
+                <Sun className="h-6 w-6" />
+              </div>
+              <span className={cn(
+                "text-sm font-medium",
+                theme === "light" ? "text-primary" : "text-muted-foreground"
+              )}>
+                Light
+              </span>
+            </button>
+
+            <button
+              onClick={() => setTheme("dark")}
+              className={cn(
+                "flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all duration-200 hover:bg-muted/50",
+                theme === "dark"
+                  ? "border-primary bg-primary/5 shadow-sm"
+                  : "border-border/50 hover:border-border"
+              )}
+            >
+              <div className={cn(
+                "p-3 rounded-full transition-colors",
+                theme === "dark" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+              )}>
+                <Moon className="h-6 w-6" />
+              </div>
+              <span className={cn(
+                "text-sm font-medium",
+                theme === "dark" ? "text-primary" : "text-muted-foreground"
+              )}>
+                Dark
+              </span>
+            </button>
+
+            <button
+              onClick={() => setTheme("system")}
+              className={cn(
+                "flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all duration-200 hover:bg-muted/50",
+                theme === "system"
+                  ? "border-primary bg-primary/5 shadow-sm"
+                  : "border-border/50 hover:border-border"
+              )}
+            >
+              <div className={cn(
+                "p-3 rounded-full transition-colors",
+                theme === "system" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+              )}>
+                <Monitor className="h-6 w-6" />
+              </div>
+              <span className={cn(
+                "text-sm font-medium",
+                theme === "system" ? "text-primary" : "text-muted-foreground"
+              )}>
+                System
+              </span>
+            </button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Select your preferred theme. System will automatically switch between light and dark based on your device settings.
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  )
 }
 
 export function SettingsClient({ userData }: SettingsClientProps) {
@@ -260,6 +354,18 @@ export function SettingsClient({ userData }: SettingsClientProps) {
             >
               <Lock className="h-4 w-4" />
               Privacy
+            </button>
+            <button
+              onClick={() => setActiveTab("appearance")}
+              className={cn(
+                "flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
+                activeTab === "appearance"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Palette className="h-4 w-4" />
+              Appearance
             </button>
             <button
               onClick={() => setActiveTab("account")}
@@ -586,6 +692,11 @@ export function SettingsClient({ userData }: SettingsClientProps) {
                   </div>
                 </CardContent>
               </Card>
+            )}
+
+            {/* Appearance Section */}
+            {activeTab === "appearance" && (
+              <AppearanceSection />
             )}
 
             {/* Account Section */}
