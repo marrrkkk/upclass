@@ -166,7 +166,7 @@ export function ResourceDetailClient({ resource, isOwner, currentUserId, isAuthe
       const res = await deleteResource(resource.id)
       if (res.success) {
         setDeleteDialogOpen(false)
-        router.push("/home/resources")
+        router.push("/resources")
       } else {
         setError(res.error)
         setDeleteDialogOpen(false)
@@ -188,7 +188,7 @@ export function ResourceDetailClient({ resource, isOwner, currentUserId, isAuthe
       {/* Header Back Link */}
       <div>
         <Link
-          href="/home/resources"
+          href="/resources"
           className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
         >
           <ArrowLeft className="h-4 w-4 mr-1" />
@@ -327,7 +327,7 @@ export function ResourceDetailClient({ resource, isOwner, currentUserId, isAuthe
           {/* Metadata */}
           <div className="rounded-xl bg-muted/30 p-4 space-y-4 border border-border/50">
             <Link
-              href={`/home/profile/${resource.owner.id}`}
+              href={`/profile/${resource.owner.id}`}
               className="flex items-center gap-3 group hover:bg-muted/50 rounded-lg p-2 -m-2 transition-colors"
             >
               <Avatar className="h-10 w-10 border border-background shadow-sm group-hover:ring-2 group-hover:ring-primary/20 transition-all">

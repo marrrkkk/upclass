@@ -32,7 +32,7 @@ export async function markNotificationAsRead(notificationId: string): Promise<Ac
         ),
       )
 
-    revalidatePath("/home/notifications")
+    revalidatePath("/notifications")
     return { success: true }
   } catch (error) {
     console.error("markNotificationAsRead error", error)
@@ -55,7 +55,7 @@ export async function markAllNotificationsAsRead(): Promise<ActionResponse> {
       .set({ read: true })
       .where(eq(notifications.userId, session.user.id))
 
-    revalidatePath("/home/notifications")
+    revalidatePath("/notifications")
     return { success: true }
   } catch (error) {
     console.error("markAllNotificationsAsRead error", error)

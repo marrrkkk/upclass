@@ -59,8 +59,8 @@ export async function updateSettings(
       .set(updateData)
       .where(eq(user.id, session.user.id))
 
-    revalidatePath("/home/settings")
-    revalidatePath("/home/user")
+    revalidatePath("/settings")
+    revalidatePath("/user")
     revalidatePath("/home")
 
     return { success: true }

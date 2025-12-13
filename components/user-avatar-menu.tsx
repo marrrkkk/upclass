@@ -84,7 +84,7 @@ export function UserAvatarMenu({ name, email, image, userId }: UserAvatarMenuPro
         <DropdownMenuSeparator className="my-1 bg-border/50" />
         <DropdownMenuGroup>
           <DropdownMenuItem asChild className="p-2 cursor-pointer focus:bg-primary/5">
-            <Link href={userId ? `/home/user/${userId}` : "/home/profile"} className="flex items-center gap-3">
+            <Link href={userId ? `/user/${userId}` : "/profile"} className="flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/20">
                 <User className="h-4.5 w-4.5" />
               </div>
@@ -95,7 +95,7 @@ export function UserAvatarMenu({ name, email, image, userId }: UserAvatarMenuPro
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild className="p-2 cursor-pointer focus:bg-primary/5">
-            <Link href="/home/settings" className="flex items-center gap-3">
+            <Link href="/settings" className="flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-muted-foreground ring-1 ring-border">
                 <Settings className="h-4.5 w-4.5" />
               </div>

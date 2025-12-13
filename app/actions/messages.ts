@@ -68,7 +68,7 @@ export async function sendMessage(
     // TODO: Send push notification if pushNotifications is enabled
     // Note: Messages are always sent, but notifications can be disabled
 
-    revalidatePath("/home/messages")
+    revalidatePath("/messages")
     return { success: true }
   } catch (error) {
     console.error("sendMessage error", error)
@@ -96,7 +96,7 @@ export async function markMessageAsRead(messageId: string): Promise<ActionRespon
         ),
       )
 
-    revalidatePath("/home/messages")
+    revalidatePath("/messages")
     return { success: true }
   } catch (error) {
     console.error("markMessageAsRead error", error)
@@ -124,7 +124,7 @@ export async function markConversationAsRead(otherUserId: string): Promise<Actio
         ),
       )
 
-    revalidatePath("/home/messages")
+    revalidatePath("/messages")
     return { success: true }
   } catch (error) {
     console.error("markConversationAsRead error", error)

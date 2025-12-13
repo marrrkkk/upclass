@@ -63,7 +63,7 @@ function DeadlineCard({ deadline }: { deadline: DeadlineItem }) {
     const TypeIcon = deadline.type === "quiz" ? ClipboardCheck : FileText
 
     return (
-        <Link href={`/home/classes/${deadline.classId}`}>
+        <Link href={`/classes/${deadline.classId}`}>
             <div className="group relative flex items-center gap-4 p-3 rounded-xl border border-transparent hover:bg-muted/40 hover:border-border/50 transition-all duration-200">
                 {/* Date Box */}
                 <div className={cn(
@@ -145,7 +145,7 @@ export function DeadlineWidget({ deadlines, role }: DeadlineWidgetProps) {
                             {role === "teacher" ? "Upcoming Deadlines" : "My Assignments"}
                         </CardTitle>
                     </div>
-                    <Link href="/home/classes" className="text-xs font-medium text-muted-foreground hover:text-primary transition-colors flex items-center gap-1">
+                    <Link href="/classes" className="text-xs font-medium text-muted-foreground hover:text-primary transition-colors flex items-center gap-1">
                         View all <ArrowRight className="h-3 w-3" />
                     </Link>
                 </div>

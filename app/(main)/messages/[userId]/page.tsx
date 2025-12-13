@@ -24,7 +24,7 @@ export default async function ChatPage({
   const currentUserId = session.user.id
 
   if (currentUserId === otherUserId) {
-    redirect("/home/messages")
+    redirect("/messages")
   }
 
   // Get other user info
@@ -40,7 +40,7 @@ export default async function ChatPage({
     .limit(1)
 
   if (otherUser.length === 0) {
-    redirect("/home/messages")
+    redirect("/messages")
   }
 
   // Get all messages between current user and other user

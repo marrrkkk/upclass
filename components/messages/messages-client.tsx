@@ -125,7 +125,7 @@ export function MessagesClient({ conversations: initialConversations, userId }: 
           ) : (
             <div className="space-y-2">
               {filteredConversations.map((conv) => (
-                <Link key={conv.userId} href={`/home/messages/${conv.userId}`}>
+                <Link key={conv.userId} href={`/messages/${conv.userId}`}>
                   <div className="group flex items-center gap-4 p-4 rounded-xl border border-transparent hover:bg-card hover:border-border hover:shadow-sm transition-all duration-200 cursor-pointer bg-card/40">
                     <Avatar className="h-12 w-12 border border-border/50">
                       <AvatarImage src={conv.userImage || undefined} alt={conv.userName} />

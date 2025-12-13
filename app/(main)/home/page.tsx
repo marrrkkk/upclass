@@ -48,7 +48,7 @@ export default async function HomePage() {
               <Link href="/sign-in">Sign In</Link>
             </Button>
             <Button variant="outline" asChild>
-              <Link href="/home/classes">Browse Classes</Link>
+              <Link href="/classes">Browse Classes</Link>
             </Button>
           </div>
         </div>

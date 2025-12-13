@@ -114,7 +114,7 @@ export async function createQuiz(classId: string, formData: FormData): Promise<A
       }
     }
 
-    revalidatePath(`/home/classes/${classId}`)
+    revalidatePath(`/classes/${classId}`)
     return { success: true }
   } catch (err) {
     console.error("createQuiz error", err)
@@ -218,7 +218,7 @@ export async function updateQuiz(quizId: string, formData: FormData): Promise<Ac
       }
     }
 
-    revalidatePath(`/home/classes/${classId}`)
+    revalidatePath(`/classes/${classId}`)
     return { success: true }
   } catch (err) {
     console.error("updateQuiz error", err)
@@ -365,7 +365,7 @@ export async function submitQuiz(quizId: string, formData: FormData): Promise<Ac
       })
       .where(eq(quizAttempts.id, attemptId))
 
-    revalidatePath(`/home/classes/${quizRow[0].classId}`)
+    revalidatePath(`/classes/${quizRow[0].classId}`)
     return { success: true }
   } catch (err) {
     console.error("submitQuiz error", err)
@@ -414,7 +414,7 @@ export async function deleteQuiz(
   try {
     await db.delete(quizzes).where(eq(quizzes.id, quizId))
 
-    revalidatePath(`/home/classes/${quizData[0].classId}`)
+    revalidatePath(`/classes/${quizData[0].classId}`)
     return { success: true }
   } catch (err) {
     console.error("deleteQuiz error", err)

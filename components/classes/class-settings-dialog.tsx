@@ -64,7 +64,7 @@ export function ClassSettingsDialog({ classData, trigger }: ClassSettingsDialogP
       }
       setDeleteDialogOpen(false)
       setOpen(false)
-      router.push("/home/classes")
+      router.push("/classes")
     })
   }
 

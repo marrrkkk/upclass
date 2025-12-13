@@ -21,8 +21,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 const navItems = [
   { label: "Home", href: "/home", icon: Home },
-  { label: "Classes", href: "/home/classes", icon: GraduationCap },
-  { label: "Resources", href: "/home/resources", icon: FolderOpen },
+  { label: "Classes", href: "/classes", icon: GraduationCap },
+  { label: "Resources", href: "/resources", icon: FolderOpen },
 ]
 
 type SidebarProps = {
@@ -130,10 +130,10 @@ export function Sidebar({ userId, userInfo, className, onNavigate, onClose }: Si
           </h3>
           <nav className="space-y-0.5">
             <Link
-              href="/home/settings"
+              href="/settings"
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 group/item",
-                currentPath === "/home/settings"
+                currentPath === "/settings"
                   ? "bg-primary text-primary-foreground shadow-md"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
@@ -141,7 +141,7 @@ export function Sidebar({ userId, userInfo, className, onNavigate, onClose }: Si
             >
               <Settings className={cn(
                 "h-4 w-4 transition-transform group-hover/item:rotate-90 duration-500",
-                currentPath === "/home/settings" ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"
+                currentPath === "/settings" ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"
               )} />
               <span>Settings</span>
             </Link>
@@ -152,10 +152,10 @@ export function Sidebar({ userId, userInfo, className, onNavigate, onClose }: Si
       {/* Profile Section */}
       <div className="p-3 border-t border-border/40">
         <Link
-          href={userId ? `/home/user/${userId}` : "/home/profile"}
+          href={userId ? `/user/${userId}` : "/profile"}
           className={cn(
             "flex items-center gap-3 rounded-xl p-3 text-sm font-medium transition-all duration-200 border border-transparent",
-            currentPath?.startsWith("/home/user/")
+            currentPath?.startsWith("/user/")
               ? "bg-muted border-border shadow-sm"
               : "hover:bg-muted/50 hover:border-border/50"
           )}

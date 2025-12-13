@@ -210,7 +210,7 @@ export function ProfileClient({
                   <EditProfileDialog user={user} />
                 ) : (
                   <Link
-                    href={`/home/messages/${user.id}`}
+                    href={`/messages/${user.id}`}
                     className={cn(buttonVariants({ variant: "default", size: "sm" }), "shadow-md gap-2 h-9 px-6 bg-primary hover:bg-primary/90 rounded-full font-medium transition-all hover:scale-105 active:scale-95")}
                   >
                     <MessageSquare className="h-4 w-4" />
@@ -394,7 +394,7 @@ function ClassCard({ data, type }: { data: ClassData, type: "created" | "enrolle
     .slice(0, 2)
 
   return (
-    <Link href={`/home/classes/${data.id}`} className="group block h-full">
+    <Link href={`/classes/${data.id}`} className="group block h-full">
       <div className="relative h-full flex flex-col overflow-hidden rounded-2xl border bg-card transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-primary/20">
         {/* Banner with Pattern */}
         <div
@@ -475,7 +475,7 @@ function ResourceCard({ data }: { data: ResourceData }) {
 
   return (
     <div className="group relative flex flex-col overflow-hidden rounded-2xl border bg-card transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-primary/20 h-full">
-      <Link href={`/home/resources/${data.id}`} className="absolute inset-0 z-10">
+      <Link href={`/resources/${data.id}`} className="absolute inset-0 z-10">
         <span className="sr-only">View {data.title}</span>
       </Link>
 

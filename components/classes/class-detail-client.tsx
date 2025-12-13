@@ -240,7 +240,7 @@ export function ClassDetailClient({
                 )}
 
                 <a
-                  href={`/home/classes/${classData.id}/whiteboard`}
+                  href={`/classes/${classData.id}/whiteboard`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center justify-center gap-2 rounded-lg bg-white text-blue-600 px-5 py-3 font-semibold shadow-sm hover:bg-blue-50 transition-colors w-full sm:w-auto whitespace-nowrap"

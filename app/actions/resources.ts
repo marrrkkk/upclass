@@ -66,7 +66,7 @@ export async function createResource(formData: FormData): Promise<ActionResponse
       ownerId: session.user.id,
     })
 
-    revalidatePath("/home/resources")
+    revalidatePath("/resources")
     revalidatePath("/home")
 
     return { success: true }
@@ -124,8 +124,8 @@ export async function updateResource(formData: FormData): Promise<ActionResponse
       })
       .where(eq(resources.id, id))
 
-    revalidatePath("/home/resources")
-    revalidatePath(`/home/resources/${id}`)
+    revalidatePath("/resources")
+    revalidatePath(`/resources/${id}`)
 
     return { success: true }
   } catch (error) {
@@ -161,7 +161,7 @@ export async function deleteResource(resourceId: string): Promise<ActionResponse
 
     await db.delete(resources).where(eq(resources.id, resourceId))
 
-    revalidatePath("/home/resources")
+    revalidatePath("/resources")
     revalidatePath("/home")
 
     return { success: true }

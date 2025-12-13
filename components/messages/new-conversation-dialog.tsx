@@ -52,7 +52,7 @@ export function NewConversationDialog({ currentUserId }: NewConversationDialogPr
         }
         setOpen(false)
         setEmail("")
-        router.push(`/home/messages/${data.userId}`)
+        router.push(`/messages/${data.userId}`)
       } catch (err) {
         setError("Failed to find user")
       }

@@ -66,7 +66,7 @@ export async function createAnnouncement(
       session.user.id, // Exclude the author
     )
 
-    revalidatePath(`/home/classes/${classId}`)
+    revalidatePath(`/classes/${classId}`)
     return { success: true }
   } catch (error) {
     console.error("createAnnouncement error", error)
@@ -138,7 +138,7 @@ export async function createClasswork(
       session.user.id, // Exclude the creator
     )
 
-    revalidatePath(`/home/classes/${classId}`)
+    revalidatePath(`/classes/${classId}`)
     return { success: true }
   } catch (error) {
     console.error("createClasswork error", error)
@@ -233,7 +233,7 @@ export async function submitClasswork(
       })
     }
 
-    revalidatePath(`/home/classes/${classworkData[0].classId}`)
+    revalidatePath(`/classes/${classworkData[0].classId}`)
     return { success: true }
   } catch (error) {
     console.error("submitClasswork error", error)
@@ -309,7 +309,7 @@ export async function gradeSubmission(
       })
       .where(eq(submissions.id, submissionId))
 
-    revalidatePath(`/home/classes/${classworkData[0].classId}`)
+    revalidatePath(`/classes/${classworkData[0].classId}`)
     return { success: true }
   } catch (error) {
     console.error("gradeSubmission error", error)
@@ -393,7 +393,7 @@ export async function toggleReaction(
       })
     }
 
-    revalidatePath(`/home/classes/${classId}`)
+    revalidatePath(`/classes/${classId}`)
     return { success: true }
   } catch (error) {
     console.error("toggleReaction error", error)
@@ -434,7 +434,7 @@ export async function updateAnnouncement(
       .set({ content, updatedAt: new Date() })
       .where(eq(announcements.id, announcementId))
 
-    revalidatePath(`/home/classes/${announcementData[0].classId}`)
+    revalidatePath(`/classes/${announcementData[0].classId}`)
     return { success: true }
   } catch (error) {
     console.error("updateAnnouncement error", error)
@@ -485,7 +485,7 @@ export async function deleteAnnouncement(
   try {
     await db.delete(announcements).where(eq(announcements.id, announcementId))
 
-    revalidatePath(`/home/classes/${announcementData[0].classId}`)
+    revalidatePath(`/classes/${announcementData[0].classId}`)
     return { success: true }
   } catch (error) {
     console.error("deleteAnnouncement error", error)
@@ -553,7 +553,7 @@ export async function updateClasswork(
       })
       .where(eq(classwork.id, classworkId))
 
-    revalidatePath(`/home/classes/${classworkData[0].classId}`)
+    revalidatePath(`/classes/${classworkData[0].classId}`)
     return { success: true }
   } catch (error) {
     console.error("updateClasswork error", error)
@@ -602,7 +602,7 @@ export async function deleteClasswork(
   try {
     await db.delete(classwork).where(eq(classwork.id, classworkId))
 
-    revalidatePath(`/home/classes/${classworkData[0].classId}`)
+    revalidatePath(`/classes/${classworkData[0].classId}`)
     return { success: true }
   } catch (error) {
     console.error("deleteClasswork error", error)
@@ -664,7 +664,7 @@ export async function removeMember(
       .delete(classMembership)
       .where(eq(classMembership.id, targetMembership[0].id))
 
-    revalidatePath(`/home/classes/${classId}`)
+    revalidatePath(`/classes/${classId}`)
     return { success: true }
   } catch (error) {
     console.error("removeMember error", error)

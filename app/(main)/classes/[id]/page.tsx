@@ -73,7 +73,7 @@ export default async function ClassDetailPage({
 
   // If user is not a member, redirect to classes page
   if (membership.length === 0) {
-    redirect("/home/classes")
+    redirect("/classes")
   }
 
   const userRole = membership[0].role as "teacher" | "student"

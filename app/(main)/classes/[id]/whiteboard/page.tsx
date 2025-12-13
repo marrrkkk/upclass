@@ -49,7 +49,7 @@ export default async function WhiteboardPage({
     .limit(1)
 
   if (membership.length === 0) {
-    redirect("/home/classes")
+    redirect("/classes")
   }
 
   // Get or create whiteboard for this class

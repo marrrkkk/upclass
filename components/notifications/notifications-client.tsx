@@ -114,7 +114,7 @@ export function NotificationsClient({ notifications: initialNotifications, userI
 
   const getNotificationLink = (notif: NotificationData) => {
     if (!notif.classId) return "#"
-    return `/home/classes/${notif.classId}${notif.type === "classwork" ? "#classwork" : "#stream"}`
+    return `/classes/${notif.classId}${notif.type === "classwork" ? "#classwork" : "#stream"}`
   }
 
   const getNotificationStyle = (type: "announcement" | "classwork") => {

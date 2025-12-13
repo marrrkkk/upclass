@@ -12,6 +12,6 @@ export default async function ProfilePage() {
   }
 
   // Redirect to user profile route
-  redirect(`/home/user/${session.user.id}`)
+  redirect(`/user/${session.user.id}`)
 }
 

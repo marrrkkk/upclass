@@ -183,7 +183,7 @@ function ResourceCard({ data }: { data: ResourceCardData }) {
 
   return (
     <div className="group relative flex flex-col overflow-hidden rounded-2xl border bg-card transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-primary/20 h-full">
-      <Link href={`/home/resources/${data.id}`} className="absolute inset-0 z-10">
+      <Link href={`/resources/${data.id}`} className="absolute inset-0 z-10">
         <span className="sr-only">View {data.title}</span>
       </Link>
 

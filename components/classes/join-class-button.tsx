@@ -39,7 +39,7 @@ export function JoinClassButton({ iconOnly = false }: JoinClassButtonProps) {
       setOpen(false)
       // Redirect to the class page
       if (res.classId) {
-        router.push(`/home/classes/${res.classId}`)
+        router.push(`/classes/${res.classId}`)
       }
     })
   }

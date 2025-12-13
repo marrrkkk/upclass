@@ -99,7 +99,7 @@ export function NotificationsSection({ userId }: NotificationsSectionProps) {
   }, [userId])
 
   const pathname = usePathname()
-  const isActive = pathname === "/home/notifications"
+  const isActive = pathname === "/notifications"
 
   // Refetch count when notifications page becomes active
   useEffect(() => {
@@ -127,7 +127,7 @@ export function NotificationsSection({ userId }: NotificationsSectionProps) {
 
   return (
     <Link
-      href="/home/notifications"
+      href="/notifications"
       className={cn(
         "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 group/item",
         isActive

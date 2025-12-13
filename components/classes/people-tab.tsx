@@ -75,7 +75,7 @@ export function PeopleTab({ classId, userId, userRole, members }: PeopleTabProps
               if (removingId === member.id) return <MemberSkeleton key={member.id} />
               const initial = member.name.charAt(0).toUpperCase()
               return (
-                <Link key={member.id} href={`/home/user/${member.id}`} className="block h-full">
+                <Link key={member.id} href={`/user/${member.id}`} className="block h-full">
                   <Card className="h-full transition-all hover:shadow-md hover:border-primary/20 cursor-pointer overflow-hidden">
                     <CardContent className="flex items-center gap-4 p-4">
                       <Avatar className="h-12 w-12 border-2 border-background shadow-sm">
@@ -115,7 +115,7 @@ export function PeopleTab({ classId, userId, userRole, members }: PeopleTabProps
               const initial = member.name.charAt(0).toUpperCase()
               return (
                 <div key={member.id} className="group flex items-center gap-4 p-3 rounded-lg hover:bg-muted/50 transition-colors border-b last:border-0 border-transparent hover:border-border/40">
-                  <Link href={`/home/user/${member.id}`} className="flex-1 flex items-center gap-4 min-w-0">
+                  <Link href={`/user/${member.id}`} className="flex-1 flex items-center gap-4 min-w-0">
                     <Avatar className="h-10 w-10 border border-border">
                       <AvatarImage src={member.image || undefined} alt={member.name} />
                       <AvatarFallback className="bg-muted text-muted-foreground">{initial}</AvatarFallback>

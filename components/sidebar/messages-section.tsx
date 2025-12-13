@@ -99,7 +99,7 @@ export function MessagesSection({ userId }: MessagesSectionProps) {
   }, [userId])
 
   const pathname = usePathname()
-  const isActive = pathname?.startsWith("/home/messages")
+  const isActive = pathname?.startsWith("/messages")
 
   // Refetch count when messages page becomes active
   useEffect(() => {
@@ -127,7 +127,7 @@ export function MessagesSection({ userId }: MessagesSectionProps) {
 
   return (
     <Link
-      href="/home/messages"
+      href="/messages"
       className={cn(
         "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 group/item",
         isActive

@@ -351,7 +351,7 @@ export function ChatClient({ messages: initialMessages, currentUserId, otherUser
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b bg-card/50 backdrop-blur-sm">
         <div className="flex items-center gap-3">
-          <Link href="/home/messages" className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "text-muted-foreground hover:text-foreground md:hidden")}>
+          <Link href="/messages" className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "text-muted-foreground hover:text-foreground md:hidden")}>
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div className="relative">

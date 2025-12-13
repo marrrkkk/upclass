@@ -146,7 +146,7 @@ function ClassCard({ data }: { data: ClassCardData }) {
     : "T"
 
   return (
-    <Link href={`/home/classes/${data.id}`} className="group block h-full">
+    <Link href={`/classes/${data.id}`} className="group block h-full">
       <div className="relative h-full flex flex-col overflow-hidden rounded-2xl border bg-card transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-primary/20">
         {/* Banner with Pattern */}
         <div

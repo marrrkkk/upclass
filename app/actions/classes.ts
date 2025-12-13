@@ -92,7 +92,7 @@ export async function createClass(formData: FormData): Promise<ActionResponse> {
       })
     })
 
-    revalidatePath("/home/classes")
+    revalidatePath("/classes")
     revalidatePath("/home")
 
     return { success: true }
@@ -155,7 +155,7 @@ export async function joinClass(formData: FormData): Promise<ActionResponse> {
       role: "student",
     })
 
-    revalidatePath("/home/classes")
+    revalidatePath("/classes")
     revalidatePath("/home")
 
     return { success: true, classId }
@@ -211,8 +211,8 @@ export async function updateClass(classId: string, formData: FormData): Promise<
       })
       .where(eq(classes.id, classId))
 
-    revalidatePath(`/home/classes/${classId}`)
-    revalidatePath("/home/classes")
+    revalidatePath(`/classes/${classId}`)
+    revalidatePath("/classes")
     revalidatePath("/home")
 
     return { success: true }
@@ -250,7 +250,7 @@ export async function deleteClass(classId: string): Promise<ActionResponse> {
     // Delete the class (cascade will handle related data like memberships, announcements, etc.)
     await db.delete(classes).where(eq(classes.id, classId))
 
-    revalidatePath("/home/classes")
+    revalidatePath("/classes")
     revalidatePath("/home")
 
     return { success: true }

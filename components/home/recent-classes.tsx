@@ -33,7 +33,7 @@ type RecentClassesProps = {
 
 function ClassCard({ classItem }: { classItem: ClassItem }) {
     return (
-        <Link href={`/home/classes/${classItem.id}`}>
+        <Link href={`/classes/${classItem.id}`}>
             <Card className="group overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border-0 shadow-md bg-card ring-1 ring-border/50">
                 {/* Thumbnail or Color Banner */}
                 <div
@@ -117,7 +117,7 @@ export function RecentClasses({ classes, userRole }: RecentClassesProps) {
                         <CardTitle className="text-lg font-semibold tracking-tight">Your Classes</CardTitle>
                     </div>
                     <Button variant="ghost" size="sm" asChild className="text-muted-foreground hover:text-foreground">
-                        <Link href="/home/classes">
+                        <Link href="/classes">
                             View all
                             <ArrowRight className="h-4 w-4 ml-1" />
                         </Link>
@@ -138,7 +138,7 @@ export function RecentClasses({ classes, userRole }: RecentClassesProps) {
                                 : "You're not enrolled in any classes. Join a class to start learning."}
                         </p>
                         <Button asChild size="lg" className="shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5">
-                            <Link href="/home/classes">
+                            <Link href="/classes">
                                 <Plus className="h-5 w-5 mr-2" />
                                 {userRole === "teacher" ? "Create Your First Class" : "Join a Class"}
                             </Link>
