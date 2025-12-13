@@ -122,6 +122,110 @@ export async function createQuiz(classId: string, formData: FormData): Promise<A
   }
 }
 
+export async function updateQuiz(quizId: string, formData: FormData): Promise<ActionResponse> {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  })
+
+  if (!session?.user?.id) {
+    return { success: false, error: "Unauthorized" }
+  }
+
+  // Get quiz to find classId
+  const quizData = await db
+    .select()
+    .from(quizzes)
+    .where(eq(quizzes.id, quizId))
+    .limit(1)
+
+  if (quizData.length === 0) {
+    return { success: false, error: "Quiz not found" }
+  }
+
+  const classId = quizData[0].classId
+
+  // Must be teacher
+  const membership = await db
+    .select()
+    .from(classMembership)
+    .where(
+      and(
+        eq(classMembership.classId, classId),
+        eq(classMembership.userId, session.user.id),
+        eq(classMembership.role, "teacher"),
+      ),
+    )
+    .limit(1)
+
+  if (membership.length === 0) {
+    return { success: false, error: "Only teachers can edit quizzes" }
+  }
+
+  const raw = formData.get("payload") as string | null
+  if (!raw) return { success: false, error: "Missing payload" }
+
+  let payload: QuizPayload
+  try {
+    payload = JSON.parse(raw) as QuizPayload
+  } catch {
+    return { success: false, error: "Invalid payload" }
+  }
+
+  if (!payload.title?.trim()) return { success: false, error: "Title is required" }
+  if (!Array.isArray(payload.questions) || payload.questions.length === 0) {
+    return { success: false, error: "At least one question is required" }
+  }
+
+  try {
+    const totalPoints = payload.questions.reduce((sum, q) => sum + (q.points || 0), 0)
+
+    // Update quiz
+    await db.update(quizzes).set({
+      title: payload.title.trim(),
+      description: payload.description?.trim() || null,
+      status: payload.status,
+      dueDate: payload.dueDate ? new Date(payload.dueDate) : null,
+      timeLimitSeconds: payload.timeLimitSeconds != null ? String(payload.timeLimitSeconds) : null,
+      totalPoints: String(totalPoints),
+      updatedAt: new Date(),
+    }).where(eq(quizzes.id, quizId))
+
+    // Delete existing questions (cascade will delete options)
+    await db.delete(quizQuestions).where(eq(quizQuestions.quizId, quizId))
+
+    // Insert new questions
+    for (const question of payload.questions) {
+      const questionId = crypto.randomUUID()
+      await db.insert(quizQuestions).values({
+        id: questionId,
+        quizId,
+        prompt: question.prompt,
+        type: question.type,
+        points: String(question.points),
+        order: String(question.order ?? 0),
+      })
+
+      if (question.type !== "short_answer" && question.options) {
+        const optionRows = question.options.map((opt) => ({
+          id: crypto.randomUUID(),
+          questionId,
+          text: opt.text,
+          isCorrect: !!opt.isCorrect,
+        }))
+        if (optionRows.length > 0) {
+          await db.insert(quizOptions).values(optionRows)
+        }
+      }
+    }
+
+    revalidatePath(`/home/classes/${classId}`)
+    return { success: true }
+  } catch (err) {
+    console.error("updateQuiz error", err)
+    return { success: false, error: "Failed to update quiz" }
+  }
+}
+
 export async function submitQuiz(quizId: string, formData: FormData): Promise<ActionResponse> {
   const session = await auth.api.getSession({
     headers: await headers(),

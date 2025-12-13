@@ -326,16 +326,19 @@ export function ResourceDetailClient({ resource, isOwner, currentUserId, isAuthe
 
           {/* Metadata */}
           <div className="rounded-xl bg-muted/30 p-4 space-y-4 border border-border/50">
-            <div className="flex items-center gap-3">
-              <Avatar className="h-10 w-10 border border-background shadow-sm">
+            <Link
+              href={`/home/profile/${resource.owner.id}`}
+              className="flex items-center gap-3 group hover:bg-muted/50 rounded-lg p-2 -m-2 transition-colors"
+            >
+              <Avatar className="h-10 w-10 border border-background shadow-sm group-hover:ring-2 group-hover:ring-primary/20 transition-all">
                 <AvatarImage src={resource.owner.image || undefined} alt={resource.owner.name} />
                 <AvatarFallback>{getInitials(resource.owner.name)}</AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{resource.owner.name}</p>
+                <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">{resource.owner.name}</p>
                 <p className="text-xs text-muted-foreground truncate">{resource.owner.email}</p>
               </div>
-            </div>
+            </Link>
 
             <div className="h-px bg-border/50" />
 

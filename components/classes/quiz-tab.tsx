@@ -42,7 +42,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { createQuiz, submitQuiz, deleteQuiz } from "@/app/actions/quizzes"
+import { createQuiz, submitQuiz, deleteQuiz, updateQuiz } from "@/app/actions/quizzes"
 
 type QuizTabProps = {
   classId: string
@@ -106,7 +106,7 @@ export function QuizTab({ classId, userId, userRole, quizzes, classColor }: Quiz
   const [description, setDescription] = useState("")
   const [dueDate, setDueDate] = useState<string | null>(null)
   const [timeLimitSeconds, setTimeLimitSeconds] = useState<string>("")
-  const [status, setStatus] = useState<"draft" | "published">("draft")
+
   const [questions, setQuestions] = useState<DraftQuestion[]>([
     {
       id: crypto.randomUUID(),
@@ -124,6 +124,16 @@ export function QuizTab({ classId, userId, userRole, quizzes, classColor }: Quiz
   const [deleteQuizOpen, setDeleteQuizOpen] = useState<string | null>(null)
   const [deletePending, startDeleteTransition] = useTransition()
   const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  // Edit quiz state
+  const [editQuizId, setEditQuizId] = useState<string | null>(null)
+  const [editPending, startEditTransition] = useTransition()
+  const [editTitle, setEditTitle] = useState("")
+  const [editDescription, setEditDescription] = useState("")
+  const [editDueDate, setEditDueDate] = useState<string | null>(null)
+  const [editTimeLimitSeconds, setEditTimeLimitSeconds] = useState<string>("")
+  const [editStatus, setEditStatus] = useState<"draft" | "published">("draft")
+  const [editQuestions, setEditQuestions] = useState<DraftQuestion[]>([])
 
   // Taking quiz
   const activeQuiz = quizzes.find((q) => q.id === takeQuizId)
@@ -215,7 +225,7 @@ export function QuizTab({ classId, userId, userRole, quizzes, classColor }: Quiz
         title,
         description,
         dueDate,
-        status: publishAfterCreate ? "published" : status,
+        status: publishAfterCreate ? "published" : "draft",
         timeLimitSeconds: timeLimitSeconds ? Number(timeLimitSeconds) : null,
         questions: questions.map((q, idx) => ({
           prompt: q.prompt,
@@ -291,6 +301,126 @@ export function QuizTab({ classId, userId, userRole, quizzes, classColor }: Quiz
     })
   }
 
+  const openEditQuiz = (quiz: QuizTabProps["quizzes"][0]) => {
+    setEditQuizId(quiz.id)
+    setEditTitle(quiz.title)
+    setEditDescription(quiz.description || "")
+    setEditDueDate(quiz.dueDate ? quiz.dueDate.slice(0, 16) : null)
+    setEditTimeLimitSeconds(quiz.timeLimitSeconds || "")
+    setEditStatus(quiz.status)
+    setEditQuestions(
+      quiz.questions.map((q) => ({
+        id: q.id,
+        prompt: q.prompt,
+        type: q.type,
+        points: Number(q.points),
+        options: q.options.map((o) => ({
+          id: o.id,
+          text: o.text,
+          isCorrect: o.isCorrect,
+        })),
+      }))
+    )
+  }
+
+  const handleUpdateQuiz = (publishAfterSave = false) => {
+    if (!editQuizId) return
+    setError(null)
+    startEditTransition(async () => {
+      const payload = {
+        title: editTitle,
+        description: editDescription,
+        dueDate: editDueDate,
+        status: publishAfterSave ? "published" : editStatus,
+        timeLimitSeconds: editTimeLimitSeconds ? Number(editTimeLimitSeconds) : null,
+        questions: editQuestions.map((q, idx) => ({
+          prompt: q.prompt,
+          type: q.type,
+          points: q.points,
+          order: idx,
+          options: q.type === "short_answer" ? [] : q.options,
+        })),
+      }
+
+      const fd = new FormData()
+      fd.append("payload", JSON.stringify(payload))
+      const res = await updateQuiz(editQuizId, fd)
+      if (!res.success) {
+        setError(res.error)
+        return
+      }
+      setEditQuizId(null)
+      router.refresh()
+    })
+  }
+
+  // Edit question helpers
+  const handleEditAddQuestion = () => {
+    setEditQuestions((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        prompt: "",
+        type: "single_choice",
+        points: 1,
+        options: [
+          { id: crypto.randomUUID(), text: "Option 1", isCorrect: true },
+          { id: crypto.randomUUID(), text: "Option 2", isCorrect: false },
+        ],
+      },
+    ])
+  }
+
+  const handleEditRemoveQuestion = (id: string) => {
+    if (editQuestions.length <= 1) return
+    setEditQuestions((prev) => prev.filter((q) => q.id !== id))
+  }
+
+  const handleEditQuestionChange = (id: string, update: Partial<DraftQuestion>) => {
+    setEditQuestions((prev) => prev.map((q) => (q.id === id ? { ...q, ...update } : q)))
+  }
+
+  const handleEditOptionChange = (qId: string, optId: string, text: string, isCorrect?: boolean) => {
+    setEditQuestions((prev) =>
+      prev.map((q) =>
+        q.id === qId
+          ? {
+            ...q,
+            options: q.options.map((o) =>
+              o.id === optId ? { ...o, text, isCorrect: isCorrect ?? o.isCorrect } : o
+            ),
+          }
+          : q
+      )
+    )
+  }
+
+  const addEditOption = (qId: string) => {
+    setEditQuestions((prev) =>
+      prev.map((q) =>
+        q.id === qId
+          ? {
+            ...q,
+            options: [...q.options, { id: crypto.randomUUID(), text: "Option", isCorrect: false }],
+          }
+          : q
+      )
+    )
+  }
+
+  const removeEditOption = (qId: string, optId: string) => {
+    setEditQuestions((prev) =>
+      prev.map((q) => {
+        if (q.id !== qId) return q
+        if (q.options.length <= 1) return q
+        return {
+          ...q,
+          options: q.options.filter((o) => o.id !== optId),
+        }
+      })
+    )
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500 max-w-4xl mx-auto w-full">
       <div className="flex items-center justify-between">
@@ -307,7 +437,7 @@ export function QuizTab({ classId, userId, userRole, quizzes, classColor }: Quiz
                 New Quiz
               </button>
             </DialogTrigger>
-            <DialogContent className="max-h-[90vh] overflow-y-auto flex flex-col sm:max-w-5xl gap-0 p-0 border-none shadow-2xl bg-background">
+            <DialogContent className="max-h-[90vh] flex flex-col sm:max-w-5xl gap-0 p-0 border-none shadow-2xl bg-background overflow-hidden">
               <DialogHeader className="px-6 py-4 border-b bg-muted/30 shrink-0">
                 <div className="flex items-center justify-between">
                   <DialogTitle className="flex items-center gap-2 text-xl">
@@ -320,7 +450,7 @@ export function QuizTab({ classId, userId, userRole, quizzes, classColor }: Quiz
                 <DialogDescription>Draft a quiz and publish when ready.</DialogDescription>
               </DialogHeader>
 
-              <div className="flex-1 min-h-0 p-6 space-y-8 bg-muted/5">
+              <div className="flex-1 min-h-0 p-6 space-y-8 bg-muted/5 overflow-y-auto">
                 {/* Quiz Settings */}
                 <div className="p-5 rounded-xl border bg-card shadow-sm space-y-6">
                   <div className="flex items-center gap-2 mb-2 pb-2 border-b">
@@ -328,22 +458,9 @@ export function QuizTab({ classId, userId, userRole, quizzes, classColor }: Quiz
                     <h3 className="text-sm font-semibold uppercase text-muted-foreground tracking-wider">Quiz Settings</h3>
                   </div>
 
-                  <div className="grid gap-6 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label className="text-xs font-semibold text-muted-foreground">Title</Label>
-                      <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Quiz title" className="font-medium" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs font-semibold text-muted-foreground">Status</Label>
-                      <select
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        value={status}
-                        onChange={(e) => setStatus(e.target.value as any)}
-                      >
-                        <option value="draft">Draft</option>
-                        <option value="published">Published</option>
-                      </select>
-                    </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-semibold text-muted-foreground">Title</Label>
+                    <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Quiz title" className="font-medium" />
                   </div>
 
                   <div className="space-y-2">
@@ -629,6 +746,11 @@ export function QuizTab({ classId, userId, userRole, quizzes, classColor }: Quiz
                           </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEditQuiz(quiz)}>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => setDeleteQuizOpen(quiz.id)} className="text-destructive focus:text-destructive">
                             <Trash2 className="h-4 w-4 mr-2" />
                             Delete
@@ -873,6 +995,246 @@ export function QuizTab({ classId, userId, userRole, quizzes, classColor }: Quiz
                   )}
                 </button>
               </div>
+            </DialogContent>
+          </Dialog>
+        )
+      })()}
+
+      {/* Edit Quiz Dialog */}
+      {(() => {
+        const quizToEdit = quizzes.find((q) => q.id === editQuizId)
+        if (!quizToEdit) return null
+        return (
+          <Dialog open={!!editQuizId} onOpenChange={(open) => !open && setEditQuizId(null)}>
+            <DialogContent className="max-h-[90vh] flex flex-col sm:max-w-5xl gap-0 p-0 border-none shadow-2xl bg-background overflow-hidden">
+              <DialogHeader className="px-6 py-4 border-b bg-muted/30 shrink-0">
+                <div className="flex items-center justify-between">
+                  <DialogTitle className="flex items-center gap-2 text-xl">
+                    <div className="p-2 rounded-full bg-primary/10 text-primary">
+                      <Edit className="h-5 w-5" />
+                    </div>
+                    Edit Quiz
+                  </DialogTitle>
+                </div>
+                <DialogDescription>Update quiz details and questions.</DialogDescription>
+              </DialogHeader>
+
+              <div className="flex-1 min-h-0 p-6 space-y-8 bg-muted/5 overflow-y-auto">
+                {/* Quiz Settings */}
+                <div className="p-5 rounded-xl border bg-card shadow-sm space-y-6">
+                  <div className="flex items-center gap-2 mb-2 pb-2 border-b">
+                    <Settings2 className="h-4 w-4 text-muted-foreground" />
+                    <h3 className="text-sm font-semibold uppercase text-muted-foreground tracking-wider">Quiz Settings</h3>
+                  </div>
+
+                  <div className="grid gap-6 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label className="text-xs font-semibold text-muted-foreground">Title</Label>
+                      <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="Quiz title" className="font-medium" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs font-semibold text-muted-foreground">Status</Label>
+                      <select
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        value={editStatus}
+                        onChange={(e) => setEditStatus(e.target.value as "draft" | "published")}
+                      >
+                        <option value="draft">Draft</option>
+                        <option value="published">Published</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs font-semibold text-muted-foreground">Description</Label>
+                    <Textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} rows={2} className="resize-none" />
+                  </div>
+
+                  <div className="grid gap-6 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label className="text-xs font-semibold text-muted-foreground">Due Date (Optional)</Label>
+                      <Input type="datetime-local" value={editDueDate || ""} onChange={(e) => setEditDueDate(e.target.value || null)} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs font-semibold text-muted-foreground flex items-center gap-2">
+                        Time Limit (Optional)
+                        <span className="text-[10px] font-normal px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Seconds</span>
+                      </Label>
+                      <Input
+                        type="number"
+                        value={editTimeLimitSeconds}
+                        onChange={(e) => setEditTimeLimitSeconds(e.target.value)}
+                        placeholder="e.g. 900 for 15 mins"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Questions List */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="flex items-center justify-center h-6 w-6 rounded-full bg-primary/10 text-xs font-bold text-primary">{editQuestions.length}</span>
+                      <h3 className="font-semibold text-lg">Questions</h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleEditAddQuestion}
+                      className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5 bg-background shadow-sm")}
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add Question
+                    </button>
+                  </div>
+
+                  <div className="space-y-6">
+                    {editQuestions.map((q, idx) => (
+                      <Card key={q.id} className="border bg-card overflow-hidden shadow-sm relative group">
+                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-muted-foreground/20 group-hover:bg-primary transition-colors duration-300" />
+
+                        <div className="absolute right-4 top-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => handleEditRemoveQuestion(q.id)} className="text-muted-foreground hover:text-destructive transition-colors p-2">
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+
+                        <CardHeader className="pl-6 py-4 bg-muted/10 border-b flex flex-row items-center gap-4 space-y-0">
+                          <span className="text-sm font-semibold text-muted-foreground">Q{idx + 1}</span>
+                          <Input
+                            value={q.prompt}
+                            onChange={(e) => handleEditQuestionChange(q.id, { prompt: e.target.value })}
+                            placeholder="Enter your question here..."
+                            className="flex-1 bg-transparent border-transparent hover:bg-background hover:border-input focus:bg-background focus:border-input transition-all font-medium text-base h-9 shadow-none"
+                          />
+                        </CardHeader>
+
+                        <CardContent className="pl-6 p-4 pt-6 space-y-6">
+                          <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+                            <div className="space-y-1.5">
+                              <Label className="text-xs text-muted-foreground">Question Type</Label>
+                              <select
+                                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                value={q.type}
+                                onChange={(e) =>
+                                  handleEditQuestionChange(q.id, { type: e.target.value as DraftQuestion["type"] })
+                                }
+                              >
+                                <option value="single_choice">Multiple Choice</option>
+                                <option value="multiple_select">Multiple Select</option>
+                                <option value="true_false">True / False</option>
+                                <option value="short_answer">Short Answer</option>
+                              </select>
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-xs text-muted-foreground">Points</Label>
+                              <Input
+                                type="number"
+                                value={q.points}
+                                onChange={(e) => handleEditQuestionChange(q.id, { points: Number(e.target.value || 0) })}
+                                className="h-9"
+                              />
+                            </div>
+                          </div>
+
+                          {q.type !== "short_answer" && (
+                            <div className="space-y-3 bg-muted/20 p-4 rounded-lg border border-dashed">
+                              <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider mb-2 block">Answer Options</Label>
+                              {q.options.map((opt) => (
+                                <div key={opt.id} className="flex items-center gap-3">
+                                  <div className="flex items-center h-9">
+                                    <input
+                                      type={q.type === "multiple_select" ? "checkbox" : "radio"}
+                                      name={`edit-correct-${q.id}`}
+                                      checked={opt.isCorrect}
+                                      onChange={(e) => {
+                                        if (q.type === "multiple_select") {
+                                          handleEditOptionChange(q.id, opt.id, opt.text, e.target.checked)
+                                        } else {
+                                          handleEditQuestionChange(q.id, {
+                                            options: q.options.map((o) => ({ ...o, isCorrect: o.id === opt.id })),
+                                          })
+                                        }
+                                      }}
+                                      className="h-4 w-4 accent-primary cursor-pointer"
+                                    />
+                                  </div>
+                                  <Input
+                                    value={opt.text}
+                                    onChange={(e) => handleEditOptionChange(q.id, opt.id, e.target.value)}
+                                    className="flex-1 h-9 bg-background"
+                                    placeholder="Option text"
+                                  />
+                                  {q.options.length > 1 && (
+                                    <button onClick={() => removeEditOption(q.id, opt.id)} className="text-muted-foreground hover:text-destructive p-1">
+                                      <XCircle className="h-4 w-4" />
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                              <button
+                                type="button"
+                                className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "h-8 text-xs")}
+                                onClick={() => addEditOption(q.id)}
+                              >
+                                <Plus className="h-3 w-3 mr-1.5" />
+                                Add Option
+                              </button>
+                            </div>
+                          )}
+
+                          {q.type === "short_answer" && (
+                            <div className="bg-muted/20 p-4 rounded-lg border border-dashed text-sm text-muted-foreground italic flex items-center gap-2">
+                              <HelpCircle className="h-4 w-4" />
+                              Students will type their answer. Grading will be manual.
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+
+                {error && (
+                  <div className="rounded-md bg-destructive/10 p-4 text-sm text-destructive border border-destructive/20 flex items-center gap-2">
+                    <XCircle className="h-4 w-4" />
+                    {error}
+                  </div>
+                )}
+              </div>
+
+              <DialogFooter className="p-6 pt-4 border-t bg-background shrink-0 flex items-center justify-between sm:justify-between w-full">
+                <div className="text-xs text-muted-foreground font-medium">
+                  {editQuestions.length} Questions • {editQuestions.reduce((acc, q) => acc + q.points, 0)} Total Points
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    className={cn(buttonVariants({ variant: "ghost" }))}
+                    onClick={() => setEditQuizId(null)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className={cn(buttonVariants({ variant: "outline" }), "shadow-sm")}
+                    onClick={() => handleUpdateQuiz(false)}
+                    disabled={editPending}
+                  >
+                    {editPending ? "Saving..." : "Save Changes"}
+                  </button>
+                  {editStatus === "draft" && (
+                    <button
+                      type="button"
+                      className={cn(buttonVariants(), "text-white shadow-md min-w-[100px]")}
+                      style={{ backgroundColor: classColor }}
+                      onClick={() => handleUpdateQuiz(true)}
+                      disabled={editPending}
+                    >
+                      {editPending ? "Publishing..." : "Save & Publish"}
+                    </button>
+                  )}
+                </div>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
         )
