@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import { headers } from "next/headers"
 import { notFound, redirect } from "next/navigation"
 import { eq, and, desc, asc, inArray } from "drizzle-orm"
@@ -19,6 +20,19 @@ import {
   announcementReactions,
 } from "@/db/schema"
 import { ClassDetailClient } from "@/components/classes/class-detail-client"
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params
+  const classData = await db
+    .select({ title: classes.title })
+    .from(classes)
+    .where(eq(classes.id, id))
+    .limit(1)
+
+  return {
+    title: classData[0]?.title ?? "Class",
+  }
+}
 
 export default async function ClassDetailPage({
   params,

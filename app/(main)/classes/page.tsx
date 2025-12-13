@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import { headers } from "next/headers"
 import { and, eq, sql } from "drizzle-orm"
 
@@ -17,6 +18,10 @@ type ClassRow = {
   createdAt: Date | null
   teacherName: string | null
   teacherImage: string | null
+}
+
+export const metadata: Metadata = {
+  title: "Classes",
 }
 
 export default async function ClassesPage() {

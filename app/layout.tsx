@@ -10,7 +10,10 @@ const fontSans = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "UpClass - The Future of Learning Management",
+  title: {
+    template: "%s | UpClass",
+    default: "UpClass - The Future of Learning Management",
+  },
   description: "Manage courses, engage students, and track progress with UpClass.",
 };
 

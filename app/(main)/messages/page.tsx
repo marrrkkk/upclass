@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import { eq, or, desc, inArray } from "drizzle-orm"
@@ -6,6 +7,10 @@ import { auth } from "@/lib/auth"
 import { db } from "@/db"
 import { messages, user } from "@/db/schema"
 import { MessagesClient } from "@/components/messages/messages-client"
+
+export const metadata: Metadata = {
+  title: "Messages",
+}
 
 export default async function MessagesPage() {
   const session = await auth.api.getSession({

@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import { headers } from "next/headers"
 import { redirect, notFound } from "next/navigation"
 import { eq, and, sql, inArray, or } from "drizzle-orm"
@@ -7,6 +8,19 @@ import { auth } from "@/lib/auth"
 import { db } from "@/db"
 import { user, classes, classMembership, resources, messages } from "@/db/schema"
 import { ProfileClient } from "@/components/profile/profile-client"
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params
+  const userData = await db
+    .select({ name: user.name })
+    .from(user)
+    .where(eq(user.id, id))
+    .limit(1)
+
+  return {
+    title: userData[0]?.name ?? "Profile",
+  }
+}
 
 export default async function UserProfilePage({
   params,

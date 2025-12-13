@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -14,6 +15,13 @@ import {
     BookOpen
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
 
 export type ClassItem = {
     id: string
@@ -34,10 +42,10 @@ type RecentClassesProps = {
 function ClassCard({ classItem }: { classItem: ClassItem }) {
     return (
         <Link href={`/classes/${classItem.id}`}>
-            <Card className="group overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border-0 shadow-md bg-card ring-1 ring-border/50">
+            <Card className="group overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border-0 shadow-md bg-card ring-1 ring-border/50 h-full flex flex-col">
                 {/* Thumbnail or Color Banner */}
                 <div
-                    className="h-28 relative overflow-hidden"
+                    className="h-28 relative overflow-hidden shrink-0"
                     style={{
                         backgroundColor: classItem.color,
                     }}
@@ -79,17 +87,16 @@ function ClassCard({ classItem }: { classItem: ClassItem }) {
                     </div>
                 </div>
 
-                <CardContent className="p-4">
-                    {classItem.description && (
+                <CardContent className="p-4 flex flex-col flex-1">
+                    {classItem.description ? (
                         <p className="text-xs text-muted-foreground line-clamp-2 min-h-[2.5em] mb-4 leading-relaxed">
                             {classItem.description}
                         </p>
-                    )}
-                    {!classItem.description && (
+                    ) : (
                         <div className="min-h-[2.5em] mb-4" />
                     )}
 
-                    <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                    <div className="mt-auto flex items-center justify-between pt-2 border-t border-border/50">
                         <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-muted/50 px-2 py-1 rounded-md">
                             <Users className="h-3.5 w-3.5" />
                             <span>{classItem.memberCount} Mbrs</span>
@@ -105,53 +112,105 @@ function ClassCard({ classItem }: { classItem: ClassItem }) {
     )
 }
 
-export function RecentClasses({ classes, userRole }: RecentClassesProps) {
+function AllClassesDialog({ classes, userRole, open, onOpenChange }: {
+    classes: ClassItem[],
+    userRole: "teacher" | "student" | null,
+    open: boolean,
+    onOpenChange: (open: boolean) => void
+}) {
     return (
-        <Card className="border-0 shadow-lg overflow-hidden bg-gradient-to-b from-card to-muted/20">
-            <CardHeader className="py-4 px-6 border-b bg-background/50 backdrop-blur-sm sticky top-0 z-10">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                            <BookOpen className="h-4 w-4" />
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-[90vw] w-full lg:max-w-5xl h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
+                <DialogHeader className="px-6 py-4 border-b bg-muted/5 shrink-0">
+                    <DialogTitle className="flex items-center gap-2 text-xl">
+                        <BookOpen className="h-5 w-5 text-primary" />
+                        All Classes
+                    </DialogTitle>
+                    <DialogDescription>
+                        {userRole === "teacher"
+                            ? `You are teaching ${classes.length} classes.`
+                            : `You are enrolled in ${classes.length} classes.`}
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-muted/5">
+                    {classes.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center text-center">
+                            <h3 className="text-lg font-medium">No classes found</h3>
                         </div>
-                        <CardTitle className="text-lg font-semibold tracking-tight">Your Classes</CardTitle>
-                    </div>
-                    <Button variant="ghost" size="sm" asChild className="text-muted-foreground hover:text-foreground">
-                        <Link href="/classes">
+                    ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                            {classes.map((classItem) => (
+                                <ClassCard key={classItem.id} classItem={classItem} />
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+export function RecentClasses({ classes, userRole }: RecentClassesProps) {
+    const [open, setOpen] = useState(false)
+
+    return (
+        <>
+            <AllClassesDialog
+                classes={classes}
+                userRole={userRole}
+                open={open}
+                onOpenChange={setOpen}
+            />
+            <Card className="border-0 shadow-lg overflow-hidden bg-gradient-to-b from-card to-muted/20">
+                <CardHeader className="py-4 px-6 border-b bg-background/50 backdrop-blur-sm sticky top-0 z-10">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                                <BookOpen className="h-4 w-4" />
+                            </div>
+                            <CardTitle className="text-lg font-semibold tracking-tight">Your Classes</CardTitle>
+                        </div>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-muted-foreground hover:text-foreground"
+                            onClick={() => setOpen(true)}
+                        >
                             View all
                             <ArrowRight className="h-4 w-4 ml-1" />
-                        </Link>
-                    </Button>
-                </div>
-            </CardHeader>
-
-            <CardContent className="p-6">
-                {classes.length === 0 ? (
-                    <div className="py-12 flex flex-col items-center justify-center text-center">
-                        <div className="h-24 w-24 rounded-full bg-muted/50 flex items-center justify-center mb-6 animate-in zoom-in-50 duration-500">
-                            <GraduationCap className="h-10 w-10 text-muted-foreground opacity-50" />
-                        </div>
-                        <h3 className="text-xl font-bold tracking-tight mb-2">No active classes</h3>
-                        <p className="text-muted-foreground max-w-sm mb-8 leading-relaxed">
-                            {userRole === "teacher"
-                                ? "You haven't created any classes yet. Start your teaching journey by creating your first class."
-                                : "You're not enrolled in any classes. Join a class to start learning."}
-                        </p>
-                        <Button asChild size="lg" className="shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5">
-                            <Link href="/classes">
-                                <Plus className="h-5 w-5 mr-2" />
-                                {userRole === "teacher" ? "Create Your First Class" : "Join a Class"}
-                            </Link>
                         </Button>
                     </div>
-                ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {classes.slice(0, 6).map((classItem) => (
-                            <ClassCard key={classItem.id} classItem={classItem} />
-                        ))}
-                    </div>
-                )}
-            </CardContent>
-        </Card>
+                </CardHeader>
+
+                <CardContent className="p-6">
+                    {classes.length === 0 ? (
+                        <div className="py-12 flex flex-col items-center justify-center text-center">
+                            <div className="h-24 w-24 rounded-full bg-muted/50 flex items-center justify-center mb-6 animate-in zoom-in-50 duration-500">
+                                <GraduationCap className="h-10 w-10 text-muted-foreground opacity-50" />
+                            </div>
+                            <h3 className="text-xl font-bold tracking-tight mb-2">No active classes</h3>
+                            <p className="text-muted-foreground max-w-sm mb-8 leading-relaxed">
+                                {userRole === "teacher"
+                                    ? "You haven't created any classes yet. Start your teaching journey by creating your first class."
+                                    : "You're not enrolled in any classes. Join a class to start learning."}
+                            </p>
+                            <Button asChild size="lg" className="shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5">
+                                <Link href="/classes">
+                                    <Plus className="h-5 w-5 mr-2" />
+                                    {userRole === "teacher" ? "Create Your First Class" : "Join a Class"}
+                                </Link>
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {classes.slice(0, 6).map((classItem) => (
+                                <ClassCard key={classItem.id} classItem={classItem} />
+                            ))}
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+        </>
     )
 }

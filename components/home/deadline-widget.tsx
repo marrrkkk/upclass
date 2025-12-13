@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -12,10 +13,19 @@ import {
     ArrowRight,
     FileText,
     ClipboardCheck,
-    Calendar
+    Calendar,
+    Filter
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { formatDistanceToNow, isPast, isToday, isTomorrow, differenceInHours, format } from "date-fns"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog"
 
 export type DeadlineItem = {
     id: string
@@ -126,58 +136,129 @@ function DeadlineCard({ deadline }: { deadline: DeadlineItem }) {
     )
 }
 
+function AllDeadlinesDialog({ deadlines, role, open, onOpenChange }: {
+    deadlines: DeadlineItem[],
+    role: "teacher" | "student" | null,
+    open: boolean,
+    onOpenChange: (open: boolean) => void
+}) {
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-[600px] h-[80vh] flex flex-col p-0 gap-0 overflow-hidden">
+                <DialogHeader className="px-6 py-4 border-b bg-muted/5 shrink-0">
+                    <DialogTitle className="flex items-center gap-2 text-xl">
+                        <Calendar className="h-5 w-5 text-primary" />
+                        All Upcoming Deadlines
+                    </DialogTitle>
+                    <DialogDescription>
+                        {role === "teacher"
+                            ? `You have ${deadlines.length} upcoming deadlines across your classes.`
+                            : `You have ${deadlines.length} assignments due.`}
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+                    {deadlines.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
+                            <div className="w-20 h-20 rounded-full bg-emerald-50 dark:bg-emerald-900/10 flex items-center justify-center">
+                                <CheckCircle2 className="h-10 w-10 text-emerald-500" />
+                            </div>
+                            <div>
+                                <h3 className="font-semibold text-lg">All Caught Up!</h3>
+                                <p className="text-muted-foreground text-sm max-w-xs mx-auto mt-2">
+                                    {role === "teacher"
+                                        ? "There are no upcoming deadlines scheduled for your classes."
+                                        : "Great job! You have no pending assignments at the moment."}
+                                </p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between text-xs text-muted-foreground font-medium uppercase tracking-wider px-2">
+                                <span>Timeline</span>
+                                <span>{deadlines.length} Tasks</span>
+                            </div>
+                            <div className="space-y-1">
+                                {deadlines.map((deadline) => (
+                                    <DeadlineCard key={deadline.id} deadline={deadline} />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
 export function DeadlineWidget({ deadlines, role }: DeadlineWidgetProps) {
+    const [open, setOpen] = useState(false)
     const sortedDeadlines = [...deadlines].sort((a, b) =>
         new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
     )
 
-    const overdueCount = sortedDeadlines.filter(d => isPast(d.dueDate) && !d.isSubmitted).length
-
     return (
-        <Card className="h-full border-0 shadow-lg flex flex-col overflow-hidden">
-            <CardHeader className="py-4 px-6 border-b bg-muted/5">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                            <Calendar className="h-4 w-4" />
+        <>
+            <AllDeadlinesDialog
+                deadlines={sortedDeadlines}
+                role={role}
+                open={open}
+                onOpenChange={setOpen}
+            />
+            <Card className="h-full border-0 shadow-lg flex flex-col overflow-hidden">
+                <CardHeader className="py-4 px-6 border-b bg-muted/5">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                                <Calendar className="h-4 w-4" />
+                            </div>
+                            <CardTitle className="text-base font-semibold">
+                                {role === "teacher" ? "Upcoming Deadlines" : "My Assignments"}
+                            </CardTitle>
                         </div>
-                        <CardTitle className="text-base font-semibold">
-                            {role === "teacher" ? "Upcoming Deadlines" : "My Assignments"}
-                        </CardTitle>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs font-medium text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 h-auto p-0 hover:bg-transparent"
+                            onClick={() => setOpen(true)}
+                        >
+                            View all <ArrowRight className="h-3 w-3" />
+                        </Button>
                     </div>
-                    <Link href="/classes" className="text-xs font-medium text-muted-foreground hover:text-primary transition-colors flex items-center gap-1">
-                        View all <ArrowRight className="h-3 w-3" />
-                    </Link>
-                </div>
-            </CardHeader>
+                </CardHeader>
 
-            <CardContent className="flex-1 p-4 overflow-y-auto max-h-[400px]">
-                {sortedDeadlines.length === 0 ? (
-                    <div className="h-full flex flex-col items-center justify-center py-8 text-center">
-                        <div className="w-16 h-16 rounded-full bg-emerald-50 dark:bg-emerald-900/10 flex items-center justify-center mb-3">
-                            <CheckCircle2 className="h-8 w-8 text-emerald-500" />
+                <CardContent className="flex-1 p-4 overflow-y-auto max-h-[400px]">
+                    {sortedDeadlines.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center py-8 text-center">
+                            <div className="w-16 h-16 rounded-full bg-emerald-50 dark:bg-emerald-900/10 flex items-center justify-center mb-3">
+                                <CheckCircle2 className="h-8 w-8 text-emerald-500" />
+                            </div>
+                            <h3 className="font-semibold text-foreground">All caught up!</h3>
+                            <p className="text-sm text-muted-foreground max-w-[200px] mt-1">
+                                {role === "teacher"
+                                    ? "No upcoming deadlines in your classes"
+                                    : "You have no pending assignments"}
+                            </p>
                         </div>
-                        <h3 className="font-semibold text-foreground">All caught up!</h3>
-                        <p className="text-sm text-muted-foreground max-w-[200px] mt-1">
-                            {role === "teacher"
-                                ? "No upcoming deadlines in your classes"
-                                : "You have no pending assignments"}
-                        </p>
-                    </div>
-                ) : (
-                    <div className="space-y-1">
-                        {sortedDeadlines.slice(0, 5).map((deadline) => (
-                            <DeadlineCard key={deadline.id} deadline={deadline} />
-                        ))}
+                    ) : (
+                        <div className="space-y-1">
+                            {sortedDeadlines.slice(0, 5).map((deadline) => (
+                                <DeadlineCard key={deadline.id} deadline={deadline} />
+                            ))}
 
-                        {sortedDeadlines.length > 5 && (
-                            <Button variant="ghost" className="w-full text-xs text-muted-foreground mt-2 h-8">
-                                Show {sortedDeadlines.length - 5} more
-                            </Button>
-                        )}
-                    </div>
-                )}
-            </CardContent>
-        </Card>
+                            {sortedDeadlines.length > 5 && (
+                                <Button
+                                    variant="ghost"
+                                    className="w-full text-xs text-muted-foreground mt-2 h-8"
+                                    onClick={() => setOpen(true)}
+                                >
+                                    Show {sortedDeadlines.length - 5} more
+                                </Button>
+                            )}
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+        </>
     )
 }

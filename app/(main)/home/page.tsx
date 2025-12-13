@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import Link from "next/link"
@@ -20,6 +21,10 @@ import { GreetingCard } from "@/components/home/greeting-card"
 import { StatsCards, type StatsData } from "@/components/home/stats-cards"
 import { DeadlineWidget, type DeadlineItem } from "@/components/home/deadline-widget"
 import { RecentClasses, type ClassItem } from "@/components/home/recent-classes"
+
+export const metadata: Metadata = {
+  title: "Home",
+}
 
 export default async function HomePage() {
   const session = await auth.api.getSession({
@@ -94,7 +99,7 @@ export default async function HomePage() {
     )
     .groupBy(classes.id)
     .orderBy(desc(classes.updatedAt))
-    .limit(6)
+    .limit(50)
 
   // Transform classes data
   const classesData: ClassItem[] = userClasses.map((c) => ({
@@ -137,7 +142,7 @@ export default async function HomePage() {
         )
       )
       .orderBy(classwork.dueDate)
-      .limit(10)
+      .limit(50)
 
     // For students, check submission status
     if (userRole === "student") {

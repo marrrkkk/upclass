@@ -131,9 +131,9 @@ export function ProfileClient({
   }
 
   return (
-    <div className="flex flex-col gap-8 max-w-6xl mx-auto pb-10">
+    <div className="flex flex-col gap-4 max-w-6xl mx-auto pb-10">
       {/* Profile Header Hero - Redesigned */}
-      <div className="relative mb-6">
+      <div className="relative">
         {/* Cover - Image or Color */}
         <div
           className="h-60 rounded-xl w-full shadow-sm relative overflow-hidden group"
@@ -163,7 +163,7 @@ export function ProfileClient({
         </div>
 
         {/* Profile Info Bar */}
-        <div className="relative flex flex-col md:flex-row items-center md:items-end px-4 md:px-10 -mt-16 md:-mt-20 gap-4 md:gap-6 z-10 w-full mb-4">
+        <div className="relative flex flex-col md:flex-row items-center md:items-end px-4 md:px-10 -mt-16 md:-mt-20 gap-4 md:gap-6 z-10 w-full mb-2">
           {/* Avatar */}
           <div className="relative shrink-0">
             <div className="rounded-full p-1.5 bg-background shadow-xl ring-1 ring-border/10">
@@ -224,7 +224,7 @@ export function ProfileClient({
       </div>
 
       {/* Rest of Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 px-1">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 px-1">
         {/* Left Column: Bio & Stats */}
         <div className="space-y-6">
           {/* Bio Card */}

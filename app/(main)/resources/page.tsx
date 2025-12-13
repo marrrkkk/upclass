@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import { headers } from "next/headers"
 import { eq } from "drizzle-orm"
 
@@ -6,6 +7,10 @@ import { ResourcesPageWrapper } from "@/components/resources/resources-page-wrap
 import { auth } from "@/lib/auth"
 import { db } from "@/db"
 import { resources, user } from "@/db/schema"
+
+export const metadata: Metadata = {
+  title: "Resources",
+}
 
 export default async function ResourcesPage() {
   const session = await auth.api.getSession({

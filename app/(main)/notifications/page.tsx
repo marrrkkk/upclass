@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import { eq, desc } from "drizzle-orm"
@@ -6,6 +7,10 @@ import { auth } from "@/lib/auth"
 import { db } from "@/db"
 import { notifications, classes } from "@/db/schema"
 import { NotificationsClient } from "@/components/notifications/notifications-client"
+
+export const metadata: Metadata = {
+  title: "Notifications",
+}
 
 export default async function NotificationsPage() {
   const session = await auth.api.getSession({
