@@ -42,6 +42,7 @@ export function PageHeader({ user, userId }: PageHeaderProps) {
   const [isMobile, setIsMobile] = useState(false)
   const pathname = usePathname()
   const rightSideContent = usePageHeaderStore((state) => state.rightSideContent)
+  const mobileRightSideContent = usePageHeaderStore((state) => state.mobileRightSideContent)
   const pageTitle = usePageHeaderStore((state) => state.pageTitle)
 
   useEffect(() => {
@@ -114,14 +115,21 @@ export function PageHeader({ user, userId }: PageHeaderProps) {
               UpClass
             </span>
           </div>
-          {user && (
-            <UserAvatarMenu
-              name={user.name}
-              email={user.email}
-              image={user.image}
-              userId={userId}
-            />
-          )}
+          <div className="flex items-center gap-2">
+            {mobileRightSideContent && (
+              <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-4 duration-300">
+                {mobileRightSideContent}
+              </div>
+            )}
+            {user && (
+              <UserAvatarMenu
+                name={user.name}
+                email={user.email}
+                image={user.image}
+                userId={userId}
+              />
+            )}
+          </div>
         </div>
       ) : (
         <div className="flex w-full items-center min-h-[3.5rem] gap-4">

@@ -19,7 +19,11 @@ import {
 } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 
-export function CreateClassButton() {
+type CreateClassButtonProps = {
+  iconOnly?: boolean
+}
+
+export function CreateClassButton({ iconOnly = false }: CreateClassButtonProps) {
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
@@ -53,11 +57,16 @@ export function CreateClassButton() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <button
-          className={cn(buttonVariants({ size: "sm" }), "gap-2 shadow-sm transition-all hover:shadow-md")}
+          className={cn(
+            buttonVariants({ size: iconOnly ? "icon" : "sm" }),
+            iconOnly ? "h-9 w-9" : "gap-2",
+            "shadow-sm transition-all hover:shadow-md"
+          )}
           type="button"
+          title="Create class"
         >
           <Plus className="h-4 w-4" />
-          Create class
+          {!iconOnly && <span>Create class</span>}
         </button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[550px] gap-0 p-0 overflow-y-auto border-0 shadow-2xl max-h-[calc(100vh-2rem)] flex flex-col">

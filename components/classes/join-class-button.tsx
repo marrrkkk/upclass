@@ -18,7 +18,11 @@ import {
 } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 
-export function JoinClassButton() {
+type JoinClassButtonProps = {
+  iconOnly?: boolean
+}
+
+export function JoinClassButton({ iconOnly = false }: JoinClassButtonProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -44,11 +48,16 @@ export function JoinClassButton() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <button
-          className={cn(buttonVariants({ size: "sm" }), "gap-2 shadow-sm transition-all hover:shadow-md")}
+          className={cn(
+            buttonVariants({ size: iconOnly ? "icon" : "sm" }),
+            iconOnly ? "h-9 w-9" : "gap-2",
+            "shadow-sm transition-all hover:shadow-md"
+          )}
           type="button"
+          title="Join class"
         >
           <UserPlus className="h-4 w-4" />
-          Join class
+          {!iconOnly && <span>Join class</span>}
         </button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[480px] gap-0 p-0 overflow-y-auto border-0 shadow-2xl max-h-[calc(100vh-2rem)] flex flex-col">

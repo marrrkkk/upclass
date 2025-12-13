@@ -13,23 +13,35 @@ type ClassesPageWrapperProps = {
 
 export function ClassesPageWrapper({ children, userRole, isAuthenticated = false }: ClassesPageWrapperProps) {
   const setRightSideContent = usePageHeaderStore((state) => state.setRightSideContent)
+  const setMobileRightSideContent = usePageHeaderStore((state) => state.setMobileRightSideContent)
 
   useEffect(() => {
     if (isAuthenticated) {
+      // Desktop version with text
       setRightSideContent(
         <div className="flex items-center gap-2">
           <JoinClassButton />
           {userRole === "teacher" && <CreateClassButton />}
         </div>
       )
+      // Mobile version with icon only
+      setMobileRightSideContent(
+        <div className="flex items-center gap-2">
+          <JoinClassButton iconOnly />
+          {userRole === "teacher" && <CreateClassButton iconOnly />}
+        </div>
+      )
     } else {
       setRightSideContent(null)
+      setMobileRightSideContent(null)
     }
     return () => {
       setRightSideContent(null)
+      setMobileRightSideContent(null)
     }
-  }, [setRightSideContent, userRole, isAuthenticated])
+  }, [setRightSideContent, setMobileRightSideContent, userRole, isAuthenticated])
 
   return <>{children}</>
 }
+
 

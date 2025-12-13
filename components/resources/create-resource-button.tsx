@@ -20,7 +20,11 @@ import {
 import { useUploadThing } from "@/lib/uploadthing"
 import { cn } from "@/lib/utils"
 
-export function CreateResourceButton() {
+type CreateResourceButtonProps = {
+  iconOnly?: boolean
+}
+
+export function CreateResourceButton({ iconOnly = false }: CreateResourceButtonProps) {
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
@@ -98,11 +102,16 @@ export function CreateResourceButton() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <button
-          className={cn(buttonVariants({ size: "sm" }), "gap-2 shadow-sm transition-all hover:shadow-md")}
+          className={cn(
+            buttonVariants({ size: iconOnly ? "icon" : "sm" }),
+            iconOnly ? "h-9 w-9" : "gap-2",
+            "shadow-sm transition-all hover:shadow-md"
+          )}
           type="button"
+          title="Create resource"
         >
           <Plus className="h-4 w-4" />
-          Create resource
+          {!iconOnly && <span>Create resource</span>}
         </button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[550px] gap-0 p-0 overflow-y-auto border-0 shadow-2xl max-h-[calc(100vh-2rem)] flex flex-col">
