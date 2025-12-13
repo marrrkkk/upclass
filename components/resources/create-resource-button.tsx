@@ -4,7 +4,7 @@ import { useState, useTransition, useRef } from "react"
 import { Plus, Upload, X } from "lucide-react"
 
 import { createResource } from "@/app/actions/resources"
-import { buttonVariants } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
@@ -101,10 +101,10 @@ export function CreateResourceButton({ iconOnly = false }: CreateResourceButtonP
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <button
+        <Button
+          size={iconOnly ? "icon" : "sm"}
           className={cn(
-            buttonVariants({ size: iconOnly ? "icon" : "sm" }),
-            iconOnly ? "h-9 w-9" : "gap-2",
+            iconOnly ? "" : "gap-2",
             "shadow-sm transition-all hover:shadow-md"
           )}
           type="button"
@@ -112,7 +112,7 @@ export function CreateResourceButton({ iconOnly = false }: CreateResourceButtonP
         >
           <Plus className="h-4 w-4" />
           {!iconOnly && <span>Create resource</span>}
-        </button>
+        </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[550px] gap-0 p-0 overflow-y-auto border-0 shadow-2xl max-h-[calc(100vh-2rem)] flex flex-col">
         <DialogHeader className="p-6 pb-2 bg-gradient-to-r from-muted/50 to-muted/10 shrink-0">
@@ -221,8 +221,9 @@ export function CreateResourceButton({ iconOnly = false }: CreateResourceButtonP
           )}
 
           <DialogFooter className="pt-2">
-            <button
+            <Button
               type="button"
+              variant="ghost"
               onClick={() => {
                 setOpen(false)
                 setSelectedFile(null)
@@ -231,17 +232,18 @@ export function CreateResourceButton({ iconOnly = false }: CreateResourceButtonP
                   fileInputRef.current.value = ""
                 }
               }}
-              className={cn(buttonVariants({ variant: "ghost" }), "text-muted-foreground hover:text-foreground")}
+              className="text-muted-foreground hover:text-foreground"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
-              disabled={pending || isUploading || !selectedFile}
-              className={cn(buttonVariants(), "min-w-[100px] shadow-md hover:shadow-lg transition-all", (pending || isUploading) && "opacity-80")}
+              isLoading={pending || isUploading}
+              disabled={!selectedFile}
+              className="min-w-[100px] shadow-md hover:shadow-lg transition-all"
             >
               {pending || isUploading ? "Uploading..." : "Upload Resource"}
-            </button>
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

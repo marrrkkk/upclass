@@ -82,7 +82,7 @@ export function ImageCropper({ imageSrc, open, onOpenChange, onComplete }: Image
                     <Button variant="outline" onClick={() => onOpenChange(false)}>
                         Cancel
                     </Button>
-                    <Button onClick={createCroppedImage} disabled={loading}>
+                    <Button onClick={createCroppedImage} isLoading={loading}>
                         {loading ? "Processing..." : "Apply"}
                     </Button>
                 </DialogFooter>

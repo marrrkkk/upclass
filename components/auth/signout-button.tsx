@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation"
 import { authClient } from "@/lib/auth-client"
-import { Loader2 } from "lucide-react"
 import { useState } from "react"
 import { Button } from "../ui/button"
 import {
@@ -42,7 +41,9 @@ export default function SignoutButton() {
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <Button disabled={pending}>{pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sign out"}</Button>
+        <Button isLoading={pending} disabled={pending}>
+          {pending ? null : "Sign out"}
+        </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
@@ -53,15 +54,10 @@ export default function SignoutButton() {
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={handleSignOut} disabled={pending}>
-            {pending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Signing out...
-              </>
-            ) : (
-              "Sign out"
-            )}
+          <AlertDialogAction onClick={handleSignOut} disabled={pending} asChild>
+            <Button isLoading={pending}>
+              {pending ? "Signing out..." : "Sign out"}
+            </Button>
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

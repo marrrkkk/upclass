@@ -4,7 +4,7 @@ import { useState, useTransition } from "react"
 import { Plus } from "lucide-react"
 
 import { createClass } from "@/app/actions/classes"
-import { buttonVariants } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
@@ -58,10 +58,10 @@ export function CreateClassButton({ iconOnly = false }: CreateClassButtonProps) 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <button
+        <Button
+          size={iconOnly ? "icon" : "sm"}
           className={cn(
-            buttonVariants({ size: iconOnly ? "icon" : "sm" }),
-            iconOnly ? "h-9 w-9" : "gap-2",
+            iconOnly ? "" : "gap-2",
             "shadow-sm transition-all hover:shadow-md"
           )}
           type="button"
@@ -69,7 +69,7 @@ export function CreateClassButton({ iconOnly = false }: CreateClassButtonProps) 
         >
           <Plus className="h-4 w-4" />
           {!iconOnly && <span>Create class</span>}
-        </button>
+        </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[550px] gap-0 p-0 overflow-y-auto border-0 shadow-2xl max-h-[calc(100vh-2rem)] flex flex-col">
         <DialogHeader className="p-6 pb-2 bg-gradient-to-r from-muted/50 to-muted/10 shrink-0">
@@ -199,20 +199,21 @@ export function CreateClassButton({ iconOnly = false }: CreateClassButtonProps) 
           )}
 
           <DialogFooter className="pt-2">
-            <button
+            <Button
               type="button"
+              variant="ghost"
               onClick={() => setOpen(false)}
-              className={cn(buttonVariants({ variant: "ghost" }), "text-muted-foreground hover:text-foreground")}
+              className="text-muted-foreground hover:text-foreground"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
-              disabled={pending}
-              className={cn(buttonVariants(), "min-w-[100px] shadow-md hover:shadow-lg transition-all", pending && "opacity-80")}
+              isLoading={pending}
+              className="min-w-[100px] shadow-md hover:shadow-lg transition-all"
             >
               {pending ? "Creating..." : "Create Class"}
-            </button>
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

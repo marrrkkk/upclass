@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Send, Bot, User as UserIcon, Loader2 } from "lucide-react"
+import { Send, Bot, User as UserIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -252,18 +252,15 @@ export function AIChatDialog({ open, onOpenChange, resourceContext }: AIChatDial
             />
             <Button
               type="submit"
-              disabled={isLoading || !input.trim()}
+              isLoading={isLoading}
+              disabled={!input.trim()}
               size="icon"
               className={cn(
                 "h-10 w-10 rounded-lg shrink-0 transition-all",
                 input.trim() ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm" : "bg-muted text-muted-foreground hover:bg-muted/80"
               )}
             >
-              {isLoading ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <Send className="h-5 w-5 ml-0.5" />
-              )}
+              {isLoading ? null : <Send className="h-5 w-5 ml-0.5" />}
             </Button>
           </form>
           <div className="text-[10px] text-center text-muted-foreground mt-2">

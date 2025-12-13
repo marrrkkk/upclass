@@ -447,7 +447,7 @@ export function SettingsClient({ userData }: SettingsClientProps) {
                           variant="outline"
                           size="sm"
                           onClick={() => fileInputRef.current?.click()}
-                          disabled={isUploading}
+                          isLoading={isUploading}
                         >
                           {isUploading ? "Uploading..." : "Upload New"}
                         </Button>
@@ -513,7 +513,8 @@ export function SettingsClient({ userData }: SettingsClientProps) {
                   <div className="flex justify-end pt-4">
                     <Button
                       onClick={handleSaveProfile}
-                      disabled={pending || isUploading || !name.trim()}
+                      isLoading={pending || isUploading}
+                      disabled={!name.trim()}
                       className="min-w-[120px]"
                     >
                       {pending || isUploading ? "Saving..." : "Save Changes"}
@@ -592,7 +593,7 @@ export function SettingsClient({ userData }: SettingsClientProps) {
                   </div>
 
                   <div className="flex justify-end pt-4">
-                    <Button onClick={handleSaveNotifications} disabled={pending}>
+                    <Button onClick={handleSaveNotifications} isLoading={pending}>
                       {pending ? "Saving..." : "Save Preferences"}
                     </Button>
                   </div>
@@ -686,7 +687,7 @@ export function SettingsClient({ userData }: SettingsClientProps) {
                   </div>
 
                   <div className="flex justify-end pt-4">
-                    <Button onClick={handleSavePrivacy} disabled={pending}>
+                    <Button onClick={handleSavePrivacy} isLoading={pending}>
                       {pending ? "Saving..." : "Update Privacy"}
                     </Button>
                   </div>
@@ -767,7 +768,8 @@ export function SettingsClient({ userData }: SettingsClientProps) {
                         <Button
                           variant="destructive"
                           onClick={handleDeleteAccount}
-                          disabled={pending || deleteConfirm !== "DELETE"}
+                          isLoading={pending}
+                          disabled={deleteConfirm !== "DELETE"}
                         >
                           {pending ? "Deleting..." : "Delete Account"}
                         </Button>

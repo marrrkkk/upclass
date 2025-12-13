@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Upload, Loader2, Palette, Image as ImageIcon, X, Crop, Pencil, Check } from "lucide-react"
+import { Upload, Palette, Image as ImageIcon, X, Crop, Pencil, Check } from "lucide-react"
 import { updateProfile } from "@/app/actions/profile"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -190,13 +190,14 @@ export function EditProfileDialog({ user }: EditProfileDialogProps) {
     <>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
-          <button
-            className={cn(buttonVariants({ variant: "secondary", size: "sm" }), "gap-2 shadow-sm h-9 px-4 transition-all hover:bg-secondary/80 text-foreground font-medium")}
-            type="button"
+          <Button
+            variant="secondary"
+            size="sm"
+            className="gap-2 shadow-sm h-9 px-4 transition-all hover:bg-secondary/80 text-foreground font-medium"
           >
             <Pencil className="h-3.5 w-3.5" />
             Edit Profile
-          </button>
+          </Button>
         </DialogTrigger>
         <DialogContent className="sm:max-w-[550px] gap-0 p-0 border-0 shadow-2xl max-h-[90vh] flex flex-col overflow-y-auto">
           {/* Cover Preview */}
@@ -382,8 +383,9 @@ export function EditProfileDialog({ user }: EditProfileDialogProps) {
               )}
 
               <DialogFooter className="pt-2">
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
                   onClick={() => {
                     setOpen(false)
                     setSelectedFile(null)
@@ -399,17 +401,17 @@ export function EditProfileDialog({ user }: EditProfileDialogProps) {
                       coverInputRef.current.value = ""
                     }
                   }}
-                  className={cn(buttonVariants({ variant: "ghost" }), "text-muted-foreground hover:text-foreground")}
+                  className="text-muted-foreground hover:text-foreground"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
-                  disabled={pending || isUploading}
-                  className={cn(buttonVariants(), "min-w-[100px] shadow-md hover:shadow-lg transition-all", (pending || isUploading) && "opacity-80")}
+                  isLoading={pending || isUploading}
+                  className="min-w-[100px] shadow-md hover:shadow-lg transition-all"
                 >
                   {pending || isUploading ? "Saving..." : "Save Changes"}
-                </button>
+                </Button>
               </DialogFooter>
             </form>
           </div>

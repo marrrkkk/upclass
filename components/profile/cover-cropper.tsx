@@ -82,7 +82,7 @@ export function CoverCropper({ imageSrc, open, onOpenChange, onComplete }: Cover
                     <Button variant="outline" onClick={() => onOpenChange(false)}>
                         Cancel
                     </Button>
-                    <Button onClick={createCroppedImage} disabled={loading}>
+                    <Button onClick={createCroppedImage} isLoading={loading}>
                         {loading ? "Processing..." : "Apply"}
                     </Button>
                 </DialogFooter>
