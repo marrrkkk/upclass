@@ -33,11 +33,12 @@ type SidebarProps = {
     image: string | null
   } | null
   className?: string
+  "data-state"?: "open" | "closed"
   onNavigate?: () => void
   onClose?: () => void
 }
 
-export function Sidebar({ userId, userInfo, className, onNavigate, onClose }: SidebarProps = {}) {
+export function Sidebar({ userId, userInfo, className, "data-state": dataState, onNavigate, onClose }: SidebarProps = {}) {
   const pathname = usePathname()
   const currentPath = pathname || "/home"
 
@@ -48,6 +49,7 @@ export function Sidebar({ userId, userInfo, className, onNavigate, onClose }: Si
         "flex flex-col border-r bg-card/50 backdrop-blur-xl group z-30 transform-gpu will-change-transform",
         className
       )}
+      data-state={dataState}
     >
       {/* Header */}
       <div className="flex items-center justify-between p-4 h-[4rem] border-b border-border/40">

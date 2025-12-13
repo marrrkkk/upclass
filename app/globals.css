@@ -146,3 +146,20 @@
     cursor: not-allowed;
   }
 }
+
+/* Mobile sidebar drawer animation */
+.sidebar-mobile[data-state="closed"] {
+  transform: translateX(-100%);
+}
+
+.sidebar-mobile[data-state="open"] {
+  transform: translateX(0);
+}
+
+@media (min-width: 768px) {
+
+  .sidebar-mobile[data-state="closed"],
+  .sidebar-mobile[data-state="open"] {
+    transform: translateX(0);
+  }
+}

@@ -32,18 +32,14 @@ export function HomeShell({ children, isAuthenticated, userInfo, userId }: HomeS
           userInfo={userInfo}
           onNavigate={() => setIsSidebarOpen(false)}
           onClose={() => setIsSidebarOpen(false)}
-          className={cn(
-            "fixed inset-y-0 left-0 z-50 w-72 border-r bg-card/95 shadow-xl transition-[transform,opacity] duration-300 ease-in-out md:sticky md:top-0 md:w-64 md:translate-x-0 md:shadow-none md:h-screen",
-            isSidebarOpen
-              ? "translate-x-0 opacity-100 pointer-events-auto"
-              : "-translate-x-full opacity-0 pointer-events-none md:translate-x-0 md:opacity-100 md:pointer-events-auto"
-          )}
+          className="fixed inset-y-0 left-0 z-[100] w-72 border-r bg-card/95 shadow-xl transition-transform duration-300 ease-in-out md:sticky md:top-0 md:w-64 md:shadow-none md:h-screen sidebar-mobile"
+          data-state={isSidebarOpen ? "open" : "closed"}
         />
 
         {/* Overlay for mobile */}
         {isSidebarOpen && (
           <button
-            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm md:hidden"
+            className="fixed inset-0 z-[90] bg-black/40 backdrop-blur-sm md:hidden"
             aria-label="Close navigation overlay"
             onClick={() => setIsSidebarOpen(false)}
             type="button"
