@@ -26,6 +26,7 @@ import { createAnnouncement, toggleReaction, updateAnnouncement, deleteAnnouncem
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
 import { AnnouncementSkeleton } from "@/components/skeletons"
+import { executeWithOfflineHandling } from "@/lib/offline-action-handler"
 
 type AnnouncementReaction = {
   userId: string
@@ -424,12 +425,30 @@ export function StreamTab({ classId, userId, userRole, announcements, classColor
 
   const handleCreate = async (formData: FormData) => {
     setError(null)
+    
+    if (!navigator.onLine) {
+      setError("You're offline. Please check your internet connection and try again.")
+      return
+    }
+
     startTransition(async () => {
-      const res = await createAnnouncement(classId, formData)
+      const res = await executeWithOfflineHandling(
+        () => createAnnouncement(classId, formData),
+        'create-announcement',
+        { classId, ...Object.fromEntries(formData.entries()) }
+      )
+
       if (!res.success) {
-        setError(res.error)
+        setError(res.error || "Failed to create announcement")
         return
       }
+
+      if (res.queued) {
+        setError("Announcement queued. It will be synced when you're back online.")
+        setTimeout(() => setOpen(false), 2000)
+        return
+      }
+
       setOpen(false)
     })
   }

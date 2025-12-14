@@ -36,7 +36,20 @@ export class BackgroundSync {
   }
 
   private async cachePages() {
-    const pages = ['/', '/home', '/classes', '/resources', '/messages', '/notifications']
+    // Cache all main pages
+    const pages = [
+      '/',
+      '/home',
+      '/classes',
+      '/resources',
+      '/messages',
+      '/notifications',
+      '/settings',
+      '/profile',
+      '/sign-in',
+      '/sign-up',
+      '/onboard',
+    ]
     
     for (const page of pages) {
       try {

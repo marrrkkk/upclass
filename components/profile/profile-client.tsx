@@ -28,6 +28,8 @@ import { cn } from "@/lib/utils"
 import { EditProfileDialog } from "@/components/profile/edit-profile-dialog"
 import { buttonVariants } from "@/components/ui/button"
 import { usePageHeaderStore } from "@/lib/stores/page-header-store"
+import { BackgroundCache } from "@/lib/background-cache"
+import { usePathname } from "next/navigation"
 
 type UserData = {
   id: string
@@ -88,11 +90,42 @@ export function ProfileClient({
   isAuthenticated = false,
 }: ProfileClientProps) {
   const setPageTitle = usePageHeaderStore((state) => state.setPageTitle)
+  const pathname = usePathname()
 
   useEffect(() => {
     setPageTitle(user.name)
     return () => setPageTitle(null)
   }, [user.name, setPageTitle])
+
+  // Cache profile page in background
+  useEffect(() => {
+    if (!navigator.onLine) return
+
+    const cacheProfilePage = async () => {
+      try {
+        const cache = BackgroundCache.getInstance()
+        
+        // Cache the page HTML
+        if (pathname) {
+          try {
+            const response = await fetch(pathname)
+            if (response.ok) {
+              const html = await response.text()
+              await cache.cachePage(pathname, html)
+            }
+          } catch (error) {
+            console.debug('Failed to cache profile page HTML:', error)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to cache profile page:', error)
+      }
+    }
+
+    // Debounce caching
+    const timeout = setTimeout(cacheProfilePage, 2000)
+    return () => clearTimeout(timeout)
+  }, [user, pathname])
 
   const initials = user.name
     .split(" ")

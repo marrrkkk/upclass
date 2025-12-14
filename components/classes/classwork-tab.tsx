@@ -43,6 +43,7 @@ import { createClasswork, submitClasswork, gradeSubmission, updateClasswork, del
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
 import { AnnouncementSkeleton } from "@/components/skeletons"
+import { executeWithOfflineHandling } from "@/lib/offline-action-handler"
 
 type ClassworkData = {
   id: string
@@ -159,24 +160,60 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
 
   const handleCreateClasswork = async (formData: FormData) => {
     setError(null)
+    
+    if (!navigator.onLine) {
+      setError("You're offline. Please check your internet connection and try again.")
+      return
+    }
+
     startTransition(async () => {
-      const res = await createClasswork(classId, formData)
+      const res = await executeWithOfflineHandling(
+        () => createClasswork(classId, formData),
+        'create-classwork',
+        { classId, ...Object.fromEntries(formData.entries()) }
+      )
+
       if (!res.success) {
-        setError(res.error)
+        setError(res.error || "Failed to create classwork")
         return
       }
+
+      if (res.queued) {
+        setError("Action queued. It will be synced when you're back online.")
+        setTimeout(() => setCreateOpen(false), 2000)
+        return
+      }
+
       setCreateOpen(false)
     })
   }
 
   const handleSubmit = async (classworkId: string, formData: FormData) => {
     setError(null)
+    
+    if (!navigator.onLine) {
+      setError("You're offline. Please check your internet connection and try again.")
+      return
+    }
+
     startTransition(async () => {
-      const res = await submitClasswork(classworkId, formData)
+      const res = await executeWithOfflineHandling(
+        () => submitClasswork(classworkId, formData),
+        'submit-classwork',
+        { classworkId, ...Object.fromEntries(formData.entries()) }
+      )
+
       if (!res.success) {
-        setError(res.error)
+        setError(res.error || "Failed to submit classwork")
         return
       }
+
+      if (res.queued) {
+        setError("Submission queued. It will be synced when you're back online.")
+        setTimeout(() => setSubmitOpen(null), 2000)
+        return
+      }
+
       setSubmitOpen(null)
     })
   }

@@ -17,7 +17,7 @@ export default function Icon() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'hsl(var(--primary) / 0.1)',
+          background: 'rgba(59, 130, 246, 0.1)',
           borderRadius: '6px',
         }}
       >
@@ -26,11 +26,10 @@ export default function Icon() {
           height="20"
           viewBox="0 0 32 32"
           fill="none"
-          style={{ color: 'hsl(var(--primary))' }}
         >
           <path
             d="M10 22L22 10M22 10H14M22 10V18"
-            stroke="currentColor"
+            stroke="rgb(59, 130, 246)"
             strokeWidth="3"
             strokeLinecap="round"
             strokeLinejoin="round"

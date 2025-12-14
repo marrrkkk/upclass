@@ -110,6 +110,101 @@ export class SyncManager {
         }
         break
       }
+      case 'create-class': {
+        // Sync class creation
+        const { createClass } = await import('@/app/actions/classes')
+        const formData = new FormData()
+        Object.entries(action.data).forEach(([key, value]) => {
+          formData.append(key, String(value))
+        })
+        const result = await createClass(formData)
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to sync class creation')
+        }
+        break
+      }
+      case 'create-resource': {
+        // Sync resource creation
+        const { createResource } = await import('@/app/actions/resources')
+        const formData = new FormData()
+        Object.entries(action.data).forEach(([key, value]) => {
+          formData.append(key, String(value))
+        })
+        const result = await createResource(formData)
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to sync resource creation')
+        }
+        break
+      }
+      case 'join-class': {
+        // Sync class join
+        const { joinClass } = await import('@/app/actions/classes')
+        const formData = new FormData()
+        Object.entries(action.data).forEach(([key, value]) => {
+          formData.append(key, String(value))
+        })
+        const result = await joinClass(formData)
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to sync class join')
+        }
+        break
+      }
+      case 'create-classwork': {
+        // Sync classwork creation
+        const { createClasswork } = await import('@/app/actions/class-detail')
+        const formData = new FormData()
+        Object.entries(action.data).forEach(([key, value]) => {
+          if (key !== 'classId') {
+            formData.append(key, String(value))
+          }
+        })
+        const result = await createClasswork(action.data.classId, formData)
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to sync classwork creation')
+        }
+        break
+      }
+      case 'submit-classwork': {
+        // Sync classwork submission
+        const { submitClasswork } = await import('@/app/actions/class-detail')
+        const formData = new FormData()
+        Object.entries(action.data).forEach(([key, value]) => {
+          if (key !== 'classworkId') {
+            formData.append(key, String(value))
+          }
+        })
+        const result = await submitClasswork(action.data.classworkId, formData)
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to sync classwork submission')
+        }
+        break
+      }
+      case 'create-announcement': {
+        // Sync announcement creation
+        const { createAnnouncement } = await import('@/app/actions/class-detail')
+        const formData = new FormData()
+        Object.entries(action.data).forEach(([key, value]) => {
+          if (key !== 'classId') {
+            formData.append(key, String(value))
+          }
+        })
+        const result = await createAnnouncement(action.data.classId, formData)
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to sync announcement creation')
+        }
+        break
+      }
+      case 'create-quiz': {
+        // Sync quiz creation
+        const { createQuiz } = await import('@/app/actions/quizzes')
+        const formData = new FormData()
+        formData.append('payload', JSON.stringify(action.data.payload))
+        const result = await createQuiz(action.data.classId, formData)
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to sync quiz creation')
+        }
+        break
+      }
       case 'message-send':
         // Sync message - implement when needed
         // const { sendMessage } = await import('@/app/actions/messages')

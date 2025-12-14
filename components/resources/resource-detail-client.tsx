@@ -39,6 +39,8 @@ import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
 import { updateResource, deleteResource } from "@/app/actions/resources"
 import { AIChatDialog } from "@/components/resources/ai-chat-dialog"
+import { BackgroundCache } from "@/lib/background-cache"
+import { usePathname } from "next/navigation"
 
 type ResourceData = {
   id: string
@@ -116,11 +118,43 @@ export function ResourceDetailClient({ resource, isOwner, currentUserId, isAuthe
   // Determine styles based on file type
   const fileInfo = getFileTypeInfo(resource.fileType)
 
+  const pathname = usePathname()
+
   // Set page title for breadcrumbs
   useEffect(() => {
     setPageTitle(resource.title)
     return () => setPageTitle(null)
   }, [resource.title, setPageTitle])
+
+  // Cache resource detail page in background
+  useEffect(() => {
+    if (!navigator.onLine) return
+
+    const cacheResourceDetail = async () => {
+      try {
+        const cache = BackgroundCache.getInstance()
+        
+        // Cache the page HTML
+        if (pathname) {
+          try {
+            const response = await fetch(pathname)
+            if (response.ok) {
+              const html = await response.text()
+              await cache.cachePage(pathname, html)
+            }
+          } catch (error) {
+            console.debug('Failed to cache resource detail page HTML:', error)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to cache resource detail:', error)
+      }
+    }
+
+    // Debounce caching
+    const timeout = setTimeout(cacheResourceDetail, 2000)
+    return () => clearTimeout(timeout)
+  }, [resource, pathname])
 
   const handleOpenEdit = () => {
     setTitle(resource.title)

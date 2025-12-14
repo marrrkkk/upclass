@@ -1034,7 +1034,7 @@ export function WhiteboardClient({
           const y = (canvas.height - height) / 2
 
           // Get the uploaded URL - try multiple possible properties
-          const imageUrl = uploadResults[0].url || uploadResults[0].ufsUrl || uploadResults[0].serverUrl || ""
+          const imageUrl = uploadResults[0].url || uploadResults[0].ufsUrl || ""
 
           if (!imageUrl) {
             console.error("No image URL returned from upload")

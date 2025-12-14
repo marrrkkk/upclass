@@ -43,6 +43,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { createQuiz, submitQuiz, deleteQuiz, updateQuiz } from "@/app/actions/quizzes"
+import { executeWithOfflineHandling } from "@/lib/offline-action-handler"
 
 type QuizTabProps = {
   classId: string
@@ -220,6 +221,12 @@ export function QuizTab({ classId, userId, userRole, quizzes, classColor }: Quiz
 
   const handleCreate = (publishAfterCreate = false) => {
     setError(null)
+    
+    if (!navigator.onLine) {
+      setError("You're offline. Please check your internet connection and try again.")
+      return
+    }
+
     startTransition(async () => {
       const payload = {
         title,
@@ -238,11 +245,40 @@ export function QuizTab({ classId, userId, userRole, quizzes, classColor }: Quiz
 
       const fd = new FormData()
       fd.append("payload", JSON.stringify(payload))
-      const res = await createQuiz(classId, fd)
+      
+      const res = await executeWithOfflineHandling(
+        () => createQuiz(classId, fd),
+        'create-quiz',
+        { classId, payload }
+      )
+
       if (!res.success) {
-        setError(res.error)
+        setError(res.error || "Failed to create quiz")
         return
       }
+
+      if (res.queued) {
+        setError("Quiz queued. It will be synced when you're back online.")
+        setTimeout(() => {
+          setCreateOpen(false)
+          setTitle("")
+          setDescription("")
+          setDueDate(null)
+          setTimeLimitSeconds("")
+          setQuestions([{
+            id: crypto.randomUUID(),
+            prompt: "",
+            type: "single_choice",
+            points: 1,
+            options: [
+              { id: crypto.randomUUID(), text: "Option 1", isCorrect: true },
+              { id: crypto.randomUUID(), text: "Option 2", isCorrect: false },
+            ],
+          }])
+        }, 2000)
+        return
+      }
+
       setCreateOpen(false)
       setTitle("")
       setDescription("")

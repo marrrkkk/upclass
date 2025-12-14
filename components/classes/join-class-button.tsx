@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { UserPlus } from "lucide-react"
 import { joinClass } from "@/app/actions/classes"
 import { Button, buttonVariants } from "@/components/ui/button"
+import { executeWithOfflineHandling } from "@/lib/offline-action-handler"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -30,16 +31,40 @@ export function JoinClassButton({ iconOnly = false }: JoinClassButtonProps) {
 
   const handleJoin = async (formData: FormData) => {
     setError(null)
+    
+    // Check if offline
+    if (!navigator.onLine) {
+      setError("You're offline. Please check your internet connection and try again.")
+      return
+    }
+
     startTransition(async () => {
-      const res = await joinClass(formData)
-      if (!res.success) {
-        setError(res.error)
+      let joinResult: any
+      
+      try {
+        joinResult = await joinClass(formData)
+      } catch (error) {
+        if (!navigator.onLine) {
+          setError("You're offline. This action will be queued and synced when you're back online.")
+          // Queue the action
+          const { queueOfflineAction } = await import('@/lib/offline-action-handler')
+          queueOfflineAction('join-class', Object.fromEntries(formData.entries()))
+          setTimeout(() => setOpen(false), 2000)
+          return
+        }
+        setError("Failed to join class. Please try again.")
         return
       }
+
+      if (!joinResult.success) {
+        setError(joinResult.error || "Failed to join class")
+        return
+      }
+
       setOpen(false)
       // Redirect to the class page
-      if (res.classId) {
-        router.push(`/classes/${res.classId}`)
+      if ('classId' in joinResult && joinResult.classId) {
+        router.push(`/classes/${joinResult.classId}`)
       }
     })
   }

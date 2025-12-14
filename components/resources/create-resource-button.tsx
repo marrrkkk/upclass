@@ -19,6 +19,8 @@ import {
 } from "@/components/ui/dialog"
 import { useUploadThing } from "@/lib/uploadthing"
 import { cn } from "@/lib/utils"
+import { executeWithOfflineHandling } from "@/lib/offline-action-handler"
+import { AlertCircle } from "lucide-react"
 
 type CreateResourceButtonProps = {
   iconOnly?: boolean
@@ -40,13 +42,19 @@ export function CreateResourceButton({ iconOnly = false }: CreateResourceButtonP
       return
     }
 
+    // Check if offline
+    if (!navigator.onLine) {
+      setError("You're offline. File uploads require an internet connection. Please check your connection and try again.")
+      return
+    }
+
     startTransition(async () => {
       try {
         // Upload file first
         const uploadResult = await startUpload([selectedFile])
 
         if (!uploadResult || !uploadResult[0]) {
-          setError("Failed to upload file")
+          setError("Failed to upload file. Please check your connection and try again.")
           return
         }
 
@@ -73,19 +81,41 @@ export function CreateResourceButton({ iconOnly = false }: CreateResourceButtonP
         formData.append("fileSize", uploadedFile.size?.toString() || selectedFile.size.toString())
         formData.append("fileType", getFileType(fileExt))
 
-        // Create resource
-        const res = await createResource(formData)
+        // Create resource with offline handling
+        const res = await executeWithOfflineHandling(
+          () => createResource(formData),
+          'create-resource',
+          Object.fromEntries(formData.entries())
+        )
+
         if (!res.success) {
-          setError(res.error)
+          setError(res.error || "Failed to create resource")
           return
         }
+
+        if (res.queued) {
+          setError("Action queued. It will be synced when you're back online.")
+          setTimeout(() => {
+            setOpen(false)
+            setSelectedFile(null)
+            if (fileInputRef.current) {
+              fileInputRef.current.value = ""
+            }
+          }, 2000)
+          return
+        }
+
         setOpen(false)
         setSelectedFile(null)
         if (fileInputRef.current) {
           fileInputRef.current.value = ""
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to upload file")
+        if (!navigator.onLine) {
+          setError("You're offline. Please check your internet connection and try again.")
+        } else {
+          setError(err instanceof Error ? err.message : "Failed to upload file")
+        }
       }
     })
   }

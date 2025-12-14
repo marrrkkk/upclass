@@ -92,11 +92,14 @@ export class BackgroundCache {
         await Promise.all(
           batch.map(cls => {
             if (!cls.id) return Promise.resolve()
-            return store.put({ ...cls, cachedAt: Date.now() })
+            return new Promise<void>((resolve, reject) => {
+              const request = store.put({ ...cls, cachedAt: Date.now() })
+              request.onsuccess = () => resolve()
+              request.onerror = () => reject(request.error)
+            })
           })
         )
       }
-      await tx.complete
     } catch (error) {
       console.error('Failed to cache classes:', error)
     }
@@ -135,11 +138,14 @@ export class BackgroundCache {
         await Promise.all(
           batch.map(res => {
             if (!res.id) return Promise.resolve()
-            return store.put({ ...res, cachedAt: Date.now() })
+            return new Promise<void>((resolve, reject) => {
+              const request = store.put({ ...res, cachedAt: Date.now() })
+              request.onsuccess = () => resolve()
+              request.onerror = () => reject(request.error)
+            })
           })
         )
       }
-      await tx.complete
     } catch (error) {
       console.error('Failed to cache resources:', error)
     }
@@ -195,10 +201,15 @@ export class BackgroundCache {
       for (let i = 0; i < messagesToCache.length; i += batchSize) {
         const batch = messagesToCache.slice(i, i + batchSize)
         await Promise.all(
-          batch.map(msg => store.put(msg))
+          batch.map(msg => {
+            return new Promise<void>((resolve, reject) => {
+              const request = store.put(msg)
+              request.onsuccess = () => resolve()
+              request.onerror = () => reject(request.error)
+            })
+          })
         )
       }
-      await tx.complete
     } catch (error) {
       console.error('Failed to cache messages:', error)
     }
@@ -231,9 +242,12 @@ export class BackgroundCache {
       await Promise.all(conversations.map(conv => {
         // Ensure userId exists as key
         if (!conv.userId) return Promise.resolve()
-        return store.put({ ...conv, cachedAt: Date.now() })
+        return new Promise<void>((resolve, reject) => {
+          const request = store.put({ ...conv, cachedAt: Date.now() })
+          request.onsuccess = () => resolve()
+          request.onerror = () => reject(request.error)
+        })
       }))
-      await tx.complete
     } catch (error) {
       console.error('Failed to cache conversations:', error)
     }
@@ -272,11 +286,14 @@ export class BackgroundCache {
         await Promise.all(
           batch.map(notif => {
             if (!notif.id) return Promise.resolve()
-            return store.put({ ...notif, cachedAt: Date.now() })
+            return new Promise<void>((resolve, reject) => {
+              const request = store.put({ ...notif, cachedAt: Date.now() })
+              request.onsuccess = () => resolve()
+              request.onerror = () => reject(request.error)
+            })
           })
         )
       }
-      await tx.complete
     } catch (error) {
       console.error('Failed to cache notifications:', error)
     }
@@ -306,8 +323,11 @@ export class BackgroundCache {
       const tx = db.transaction('images', 'readwrite')
       const store = tx.objectStore('images')
       
-      await store.put({ url, blob, cachedAt: Date.now() })
-      await tx.complete
+      await new Promise<void>((resolve, reject) => {
+        const request = store.put({ url, blob, cachedAt: Date.now() })
+        request.onsuccess = () => resolve()
+        request.onerror = () => reject(request.error)
+      })
     } catch (error) {
       console.error('Failed to cache image:', error)
     }
@@ -340,8 +360,11 @@ export class BackgroundCache {
       const tx = db.transaction('pages', 'readwrite')
       const store = tx.objectStore('pages')
       
-      await store.put({ url, html, cachedAt: Date.now() })
-      await tx.complete
+      await new Promise<void>((resolve, reject) => {
+        const request = store.put({ url, html, cachedAt: Date.now() })
+        request.onsuccess = () => resolve()
+        request.onerror = () => reject(request.error)
+      })
     } catch (error) {
       console.error('Failed to cache page:', error)
     }
@@ -386,8 +409,11 @@ export class BackgroundCache {
       
       const tx = db.transaction('classDetails', 'readwrite')
       const store = tx.objectStore('classDetails')
-      await store.put({ id: classId, ...data, cachedAt: Date.now() })
-      await tx.complete
+      await new Promise<void>((resolve, reject) => {
+        const request = store.put({ id: classId, ...data, cachedAt: Date.now() })
+        request.onsuccess = () => resolve()
+        request.onerror = () => reject(request.error)
+      })
     } catch (error) {
       console.error('Failed to cache class detail:', error)
     }

@@ -8,6 +8,8 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { executeWithOfflineHandling } from "@/lib/offline-action-handler"
+import { AlertCircle } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -34,11 +36,29 @@ export function CreateClassButton({ iconOnly = false }: CreateClassButtonProps) 
   const handleCreate = async (formData: FormData) => {
     setError(null)
     startTransition(async () => {
-      const res = await createClass(formData)
-      if (!res.success) {
-        setError(res.error)
+      // Check if offline
+      if (!navigator.onLine) {
+        setError("You're offline. Please check your internet connection and try again.")
         return
       }
+
+      const res = await executeWithOfflineHandling(
+        () => createClass(formData),
+        'create-class',
+        Object.fromEntries(formData.entries())
+      )
+
+      if (!res.success) {
+        setError(res.error || "Failed to create class")
+        return
+      }
+      
+      if (res.queued) {
+        setError("Action queued. It will be synced when you're back online.")
+        setTimeout(() => setOpen(false), 2000)
+        return
+      }
+      
       setOpen(false)
     })
   }
