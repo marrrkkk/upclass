@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition, useRef } from "react"
+import { useState, useTransition, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
 import { Save, User, Bell, Lock, Globe, Trash2, Camera, Mail, Shield, AlertTriangle, Palette, Sun, Moon, Monitor } from "lucide-react"
@@ -21,7 +21,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useUploadThing } from "@/lib/uploadthing"
 import { updateSettings, deleteAccount } from "@/app/actions/settings"
 import { cn } from "@/lib/utils"
-import { ImageCropper } from "./image-cropper"
+import { ImageCropper } from "./profile-image-cropper"
+import { useSettingsStore } from "@/lib/stores/settings-store"
 
 type UserData = {
   id: string
@@ -139,15 +140,22 @@ function AppearanceSection() {
 
 export function SettingsClient({ userData }: SettingsClientProps) {
   const router = useRouter()
+  const { setUserData, userData: storeUserData, updateUserData } = useSettingsStore()
   const [pending, startTransition] = useTransition()
   const [activeTab, setActiveTab] = useState("profile")
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
+  useEffect(() => {
+    setUserData(userData)
+  }, [userData, setUserData])
+
+  const currentUserData = storeUserData || userData
+
   // Profile state
-  const [name, setName] = useState(userData.name)
-  const [bio, setBio] = useState(userData.bio || "")
-  const [imageUrl, setImageUrl] = useState(userData.image || "")
+  const [name, setName] = useState(currentUserData.name)
+  const [bio, setBio] = useState(currentUserData.bio || "")
+  const [imageUrl, setImageUrl] = useState(currentUserData.image || "")
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { startUpload, isUploading } = useUploadThing("imageUploader")
@@ -157,16 +165,16 @@ export function SettingsClient({ userData }: SettingsClientProps) {
   const [cropImageSrc, setCropImageSrc] = useState<string | null>(null)
 
   // Notification state
-  const [emailNotifications, setEmailNotifications] = useState(userData.emailNotifications)
-  const [pushNotifications, setPushNotifications] = useState(userData.pushNotifications)
-  const [classNotifications, setClassNotifications] = useState(userData.classNotifications)
-  const [messageNotifications, setMessageNotifications] = useState(userData.messageNotifications)
+  const [emailNotifications, setEmailNotifications] = useState(currentUserData.emailNotifications)
+  const [pushNotifications, setPushNotifications] = useState(currentUserData.pushNotifications)
+  const [classNotifications, setClassNotifications] = useState(currentUserData.classNotifications)
+  const [messageNotifications, setMessageNotifications] = useState(currentUserData.messageNotifications)
 
   // Privacy state
-  const [profileVisibility, setProfileVisibility] = useState(userData.profileVisibility)
-  const [showEmail, setShowEmail] = useState(userData.showEmail)
-  const [showClasses, setShowClasses] = useState(userData.showClasses)
-  const [showResources, setShowResources] = useState(userData.showResources)
+  const [profileVisibility, setProfileVisibility] = useState(currentUserData.profileVisibility)
+  const [showEmail, setShowEmail] = useState(currentUserData.showEmail)
+  const [showClasses, setShowClasses] = useState(currentUserData.showClasses)
+  const [showResources, setShowResources] = useState(currentUserData.showResources)
 
   // Account deletion state
   const [deleteConfirm, setDeleteConfirm] = useState("")
@@ -222,6 +230,11 @@ export function SettingsClient({ userData }: SettingsClientProps) {
 
       const res = await updateSettings(formData, "profile")
       if (res.success) {
+        updateUserData({
+          name,
+          bio,
+          image: imageUrl && !imageUrl.startsWith("blob:") && !imageUrl.startsWith("data:") ? imageUrl : currentUserData.image,
+        })
         setSuccess("Profile updated successfully")
         router.refresh()
         setTimeout(() => setSuccess(null), 3000)
@@ -244,6 +257,12 @@ export function SettingsClient({ userData }: SettingsClientProps) {
 
       const res = await updateSettings(formData, "notifications")
       if (res.success) {
+        updateUserData({
+          emailNotifications,
+          pushNotifications,
+          classNotifications,
+          messageNotifications,
+        })
         setSuccess("Notification settings updated successfully")
         router.refresh()
         setTimeout(() => setSuccess(null), 3000)
@@ -266,6 +285,12 @@ export function SettingsClient({ userData }: SettingsClientProps) {
 
       const res = await updateSettings(formData, "privacy")
       if (res.success) {
+        updateUserData({
+          profileVisibility,
+          showEmail,
+          showClasses,
+          showResources,
+        })
         setSuccess("Privacy settings updated successfully")
         router.refresh()
         setTimeout(() => setSuccess(null), 3000)

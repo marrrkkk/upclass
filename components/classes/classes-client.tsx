@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
 import { GraduationCap, Clock, Search } from "lucide-react"
 
@@ -14,6 +14,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
+import { useClassesStore } from "@/lib/stores/classes-store"
 
 type ClassCardData = {
   id: string
@@ -40,10 +41,18 @@ export function ClassesClient({
   enrolledClasses,
   isAuthenticated = false,
 }: ClassesClientProps) {
+  const { setTeachingClasses, setEnrolledClasses, setIsAuthenticated, teachingClasses: storeTeachingClasses, enrolledClasses: storeEnrolledClasses } = useClassesStore()
+  
+  useEffect(() => {
+    setTeachingClasses(teachingClasses)
+    setEnrolledClasses(enrolledClasses)
+    setIsAuthenticated(isAuthenticated)
+  }, [teachingClasses, enrolledClasses, isAuthenticated, setTeachingClasses, setEnrolledClasses, setIsAuthenticated])
+
   const [activeTab, setActiveTab] = useState<"teaching" | "enrolled">("teaching")
   const [searchQuery, setSearchQuery] = useState("")
 
-  const list = activeTab === "teaching" ? teachingClasses : enrolledClasses
+  const list = activeTab === "teaching" ? storeTeachingClasses : storeEnrolledClasses
 
   const filteredList = useMemo(() => {
     if (!searchQuery.trim()) return list

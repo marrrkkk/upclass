@@ -11,6 +11,7 @@ import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
 import { NewConversationDialog } from "@/components/messages/new-conversation-dialog"
 import { formatDistanceToNow, parseISO } from "date-fns"
+import { useMessagesStore } from "@/lib/stores/messages-store"
 
 type Conversation = {
   userId: string
@@ -27,7 +28,13 @@ type MessagesClientProps = {
 }
 
 export function MessagesClient({ conversations: initialConversations, userId }: MessagesClientProps) {
-  const [conversations, setConversations] = useState(initialConversations)
+  const { setConversations, setCurrentUserId, conversations: storeConversations, updateConversation } = useMessagesStore()
+  
+  useEffect(() => {
+    setConversations(initialConversations)
+    setCurrentUserId(userId)
+  }, [initialConversations, userId, setConversations, setCurrentUserId])
+
   const [searchQuery, setSearchQuery] = useState("")
 
   useEffect(() => {
@@ -60,7 +67,7 @@ export function MessagesClient({ conversations: initialConversations, userId }: 
     }
   }, [userId])
 
-  const filteredConversations = conversations.filter((conv) =>
+  const filteredConversations = storeConversations.filter((conv) =>
     conv.userName.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
@@ -90,7 +97,7 @@ export function MessagesClient({ conversations: initialConversations, userId }: 
             Connect with your classmates and teachers.
           </p>
         </div>
-        <NewConversationDialog currentUserId={userId} />
+        <NewConversationDialog currentUserId={userId || ""} />
       </div>
 
       <div className="flex flex-col gap-4 flex-1 overflow-hidden">

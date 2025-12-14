@@ -21,7 +21,7 @@ import {
 import { useUploadThing } from "@/lib/uploadthing"
 import { cn } from "@/lib/utils"
 import { CoverCropper } from "./cover-cropper"
-import { ImageCropper } from "@/components/settings/image-cropper"
+import { ImageCropper } from "@/components/settings/profile-image-cropper"
 
 type EditProfileDialogProps = {
   user: {

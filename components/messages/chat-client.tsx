@@ -17,6 +17,7 @@ import { UrlLinkify } from "@/components/messages/url-linkify"
 import { ImageViewerDialog } from "@/components/messages/image-viewer-dialog"
 import { formatDistanceToNow, isSameDay, format } from "date-fns"
 import { usePageHeaderStore } from "@/lib/stores/page-header-store"
+import { useMessagesStore } from "@/lib/stores/messages-store"
 
 type MediaFile = {
   url: string
@@ -49,7 +50,14 @@ type ChatClientProps = {
 
 export function ChatClient({ messages: initialMessages, currentUserId, otherUser }: ChatClientProps) {
   const router = useRouter()
-  const [messages, setMessages] = useState(initialMessages)
+  const { setCurrentMessages, setCurrentUserId, setCurrentOtherUser, currentMessages: messages, addMessage, updateMessage, setUserPresence, getUserPresence } = useMessagesStore()
+  const [otherUserPresence, setOtherUserPresence] = useState<{ isOnline: boolean; lastSeen: string | null }>({ isOnline: false, lastSeen: null })
+  
+  useEffect(() => {
+    setCurrentMessages(initialMessages)
+    setCurrentUserId(currentUserId)
+    setCurrentOtherUser(otherUser)
+  }, [initialMessages, currentUserId, otherUser, setCurrentMessages, setCurrentUserId, setCurrentOtherUser])
   const [newMessage, setNewMessage] = useState("")
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [pending, startTransition] = useTransition()
@@ -61,6 +69,7 @@ export function ChatClient({ messages: initialMessages, currentUserId, otherUser
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { startUpload, isUploading } = useUploadThing("messageMediaUploader")
+  const presenceChannelRef = useRef<any>(null)
 
   // Store optimistic timestamps to preserve them
   const optimisticTimestamps = useRef<Map<string, string>>(new Map())
@@ -92,6 +101,114 @@ export function ChatClient({ messages: initialMessages, currentUserId, otherUser
     return () => setPageTitle(null)
   }, [otherUser.name, setPageTitle])
 
+  // Set up presence tracking
+  useEffect(() => {
+    if (!currentUserId) return
+
+    // Fallback: Use last message time to determine if user was recently active (within last 5 minutes)
+    const checkLastActivity = () => {
+      const otherUserMessages = messages.filter((m) => m.senderId === otherUser.id)
+      if (otherUserMessages.length > 0) {
+        const lastMessage = otherUserMessages[otherUserMessages.length - 1]
+        const lastMessageTime = new Date(lastMessage.createdAt).getTime()
+        const fiveMinutesAgo = Date.now() - 5 * 60 * 1000
+        const wasRecentlyActive = lastMessageTime > fiveMinutesAgo
+        
+        if (wasRecentlyActive) {
+          setOtherUserPresence({ isOnline: true, lastSeen: null })
+          setUserPresence(otherUser.id, true)
+        } else {
+          setOtherUserPresence({ isOnline: false, lastSeen: lastMessage.createdAt })
+          setUserPresence(otherUser.id, false, lastMessage.createdAt)
+        }
+      } else {
+        // No messages from this user, assume offline
+        setOtherUserPresence({ isOnline: false, lastSeen: null })
+        setUserPresence(otherUser.id, false, null)
+      }
+    }
+
+    // Initial check
+    checkLastActivity()
+
+    // Check periodically (every 30 seconds)
+    const activityInterval = setInterval(checkLastActivity, 30000)
+
+    // If Supabase is available, use real-time presence
+    if (supabase) {
+      try {
+        // Use a shared presence channel for all users
+        const presenceChannel = supabase.channel("online-users", {
+          config: {
+            presence: {
+              key: currentUserId,
+            },
+          },
+        })
+
+        // Track current user as online
+        presenceChannel
+          .on("presence", { event: "sync" }, () => {
+            const state = presenceChannel.presenceState()
+            // Check if other user is online
+            const otherUserState = state[otherUser.id]
+            const isOnline = !!otherUserState && Object.keys(otherUserState).length > 0
+            setOtherUserPresence((prev) => ({ isOnline, lastSeen: isOnline ? null : prev.lastSeen }))
+            setUserPresence(otherUser.id, isOnline, isOnline ? null : null)
+          })
+          .on("presence", { event: "join" }, ({ key, newPresences }) => {
+            if (key === otherUser.id) {
+              setOtherUserPresence({ isOnline: true, lastSeen: null })
+              setUserPresence(otherUser.id, true)
+            }
+          })
+          .on("presence", { event: "leave" }, ({ key, leftPresences }) => {
+            if (key === otherUser.id) {
+              const lastSeen = new Date().toISOString()
+              setOtherUserPresence({ isOnline: false, lastSeen })
+              setUserPresence(otherUser.id, false, lastSeen)
+            }
+          })
+          .subscribe(async (status) => {
+            if (status === "SUBSCRIBED") {
+              // Track current user as online
+              await presenceChannel.track({
+                user_id: currentUserId,
+                online_at: new Date().toISOString(),
+              })
+            }
+          })
+
+        presenceChannelRef.current = presenceChannel
+
+        return () => {
+          clearInterval(activityInterval)
+          if (presenceChannelRef.current) {
+            presenceChannelRef.current.unsubscribe()
+            supabase?.removeChannel(presenceChannelRef.current)
+          }
+        }
+      } catch (error) {
+        console.warn("Presence tracking not available, using fallback:", error)
+        return () => clearInterval(activityInterval)
+      }
+    } else {
+      return () => clearInterval(activityInterval)
+    }
+  }, [currentUserId, otherUser.id, setUserPresence, messages])
+
+  // Update other user presence from store periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const presence = getUserPresence(otherUser.id)
+      if (presence) {
+        setOtherUserPresence({ isOnline: presence.isOnline, lastSeen: presence.lastSeen })
+      }
+    }, 2000) // Check every 2 seconds
+
+    return () => clearInterval(interval)
+  }, [otherUser.id, getUserPresence])
+
   useEffect(() => {
     if (!supabase || !currentUserId) return
 
@@ -111,57 +228,50 @@ export function ChatClient({ messages: initialMessages, currentUserId, otherUser
           const newMsg = payload.new as any
           if (newMsg.receiver_id === otherUser.id) {
             // Replace optimistic message with real one
-            setMessages((prev) => {
-              // Find and remove temp message with matching content and media
-              const tempIndex = prev.findIndex(
-                (m) =>
-                  m.id.startsWith("temp-") &&
-                  m.content === (newMsg.content || "") &&
-                  m.senderId === currentUserId &&
-                  m.receiverId === otherUser.id &&
-                  JSON.stringify(m.media) === JSON.stringify(newMsg.media ? (typeof newMsg.media === 'string' ? JSON.parse(newMsg.media) : newMsg.media) : null)
-              )
+            const prevMessages = useMessagesStore.getState().currentMessages
+            // Find and remove temp message with matching content and media
+            const tempIndex = prevMessages.findIndex(
+              (m) =>
+                m.id.startsWith("temp-") &&
+                m.content === (newMsg.content || "") &&
+                m.senderId === currentUserId &&
+                m.receiverId === otherUser.id &&
+                JSON.stringify(m.media) === JSON.stringify(newMsg.media ? (typeof newMsg.media === 'string' ? JSON.parse(newMsg.media) : newMsg.media) : null)
+            )
 
-              // Check if real message already exists
-              const exists = prev.some((m) => m.id === newMsg.id)
-              if (exists) return prev
-
-              // Replace temp with real, or add if no temp found
+            // Check if real message already exists
+            const exists = prevMessages.some((m) => m.id === newMsg.id)
+            if (!exists) {
               if (tempIndex >= 0) {
-                const updated = [...prev]
-                const tempMsg = updated[tempIndex]
+                const tempMsg = prevMessages[tempIndex]
                 // Preserve optimistic timestamp if it exists
                 const preservedTimestamp = optimisticTimestamps.current.get(tempMsg.id) || normalizeTimestamp(newMsg.created_at)
                 optimisticTimestamps.current.delete(tempMsg.id)
 
-                updated[tempIndex] = {
+                updateMessage(tempMsg.id, {
                   id: newMsg.id,
                   senderId: newMsg.sender_id,
                   receiverId: newMsg.receiver_id,
                   content: newMsg.content || "",
                   media: newMsg.media ? (typeof newMsg.media === 'string' ? JSON.parse(newMsg.media) : newMsg.media) : null,
-                  url: null, // URLs are now in content
+                  url: null,
                   read: newMsg.read,
                   createdAt: preservedTimestamp,
-                }
-                return updated
+                })
               } else {
                 // No temp found, just add the real message
-                return [
-                  ...prev,
-                  {
-                    id: newMsg.id,
-                    senderId: newMsg.sender_id,
-                    receiverId: newMsg.receiver_id,
-                    content: newMsg.content || "",
-                    media: newMsg.media ? (typeof newMsg.media === 'string' ? JSON.parse(newMsg.media) : newMsg.media) : null,
-                    url: null, // URLs are now in content
-                    read: newMsg.read,
-                    createdAt: normalizeTimestamp(newMsg.created_at),
-                  },
-                ]
+                addMessage({
+                  id: newMsg.id,
+                  senderId: newMsg.sender_id,
+                  receiverId: newMsg.receiver_id,
+                  content: newMsg.content || "",
+                  media: newMsg.media ? (typeof newMsg.media === 'string' ? JSON.parse(newMsg.media) : newMsg.media) : null,
+                  url: null,
+                  read: newMsg.read,
+                  createdAt: normalizeTimestamp(newMsg.created_at),
+                })
               }
-            })
+            }
           }
         },
       )
@@ -177,24 +287,20 @@ export function ChatClient({ messages: initialMessages, currentUserId, otherUser
           // Message received from other user
           const newMsg = payload.new as any
           if (newMsg.receiver_id === currentUserId) {
-            setMessages((prev) => {
-              const exists = prev.some((m) => m.id === newMsg.id)
-              if (exists) return prev
-
-              return [
-                ...prev,
-                {
-                  id: newMsg.id,
-                  senderId: newMsg.sender_id,
-                  receiverId: newMsg.receiver_id,
-                  content: newMsg.content || "",
-                  media: newMsg.media ? (typeof newMsg.media === 'string' ? JSON.parse(newMsg.media) : newMsg.media) : null,
-                  url: null, // URLs are now in content
-                  read: newMsg.read,
-                  createdAt: normalizeTimestamp(newMsg.created_at),
-                },
-              ]
-            })
+            const prevMessages = useMessagesStore.getState().currentMessages
+            const exists = prevMessages.some((m) => m.id === newMsg.id)
+            if (!exists) {
+              addMessage({
+                id: newMsg.id,
+                senderId: newMsg.sender_id,
+                receiverId: newMsg.receiver_id,
+                content: newMsg.content || "",
+                media: newMsg.media ? (typeof newMsg.media === 'string' ? JSON.parse(newMsg.media) : newMsg.media) : null,
+                url: null,
+                read: newMsg.read,
+                createdAt: normalizeTimestamp(newMsg.created_at),
+              })
+            }
             // Mark as read
             markConversationAsRead(otherUser.id)
           }
@@ -281,7 +387,7 @@ export function ChatClient({ messages: initialMessages, currentUserId, otherUser
       read: false,
       createdAt: optimisticTimestamp,
     }
-    setMessages((prev) => [...prev, optimisticMessage])
+    addMessage(optimisticMessage)
 
     startTransition(async () => {
       const mediaJson = mediaFiles.length > 0 ? JSON.stringify(mediaFiles) : undefined
@@ -293,7 +399,8 @@ export function ChatClient({ messages: initialMessages, currentUserId, otherUser
       )
       if (!res.success) {
         setError(res.error)
-        setMessages((prev) => prev.filter((m) => m.id !== tempId))
+        const currentMessages = useMessagesStore.getState().currentMessages
+        useMessagesStore.getState().setCurrentMessages(currentMessages.filter((m) => m.id !== tempId))
         optimisticTimestamps.current.delete(tempId)
       } else {
         // Clear form
@@ -304,23 +411,21 @@ export function ChatClient({ messages: initialMessages, currentUserId, otherUser
         }
         // Real-time subscription will replace optimistic message
         setTimeout(() => {
-          setMessages((prev) => {
-            const hasTemp = prev.some((m) => m.id === tempId)
-            if (hasTemp) {
-              const hasReal = prev.some(
-                (m) =>
-                  !m.id.startsWith("temp-") &&
-                  m.content === messageContent &&
-                  m.senderId === currentUserId &&
-                  m.receiverId === otherUser.id &&
-                  JSON.stringify(m.media) === JSON.stringify(mediaFiles.length > 0 ? mediaFiles : null)
-              )
-              if (hasReal) {
-                return prev.filter((m) => m.id !== tempId)
-              }
+          const currentMessages = useMessagesStore.getState().currentMessages
+          const hasTemp = currentMessages.some((m) => m.id === tempId)
+          if (hasTemp) {
+            const hasReal = currentMessages.some(
+              (m) =>
+                !m.id.startsWith("temp-") &&
+                m.content === messageContent &&
+                m.senderId === currentUserId &&
+                m.receiverId === otherUser.id &&
+                JSON.stringify(m.media) === JSON.stringify(mediaFiles.length > 0 ? mediaFiles : null)
+            )
+            if (hasReal) {
+              useMessagesStore.getState().setCurrentMessages(currentMessages.filter((m) => m.id !== tempId))
             }
-            return prev
-          })
+          }
         }, 2000)
       }
     })
@@ -361,11 +466,22 @@ export function ChatClient({ messages: initialMessages, currentUserId, otherUser
                 {getInitials(otherUser.name)}
               </AvatarFallback>
             </Avatar>
-            <div className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-background"></div>
+            {otherUserPresence.isOnline && (
+              <div className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 border-2 border-background"></div>
+            )}
+            {!otherUserPresence.isOnline && (
+              <div className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-gray-400 border-2 border-background"></div>
+            )}
           </div>
           <div>
             <p className="font-semibold text-sm leading-none">{otherUser.name}</p>
-            <p className="text-xs text-muted-foreground mt-1">Active now</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {otherUserPresence.isOnline
+                ? "Active now"
+                : otherUserPresence.lastSeen
+                ? `Last seen ${formatDistanceToNow(new Date(otherUserPresence.lastSeen), { addSuffix: true })}`
+                : "Offline"}
+            </p>
           </div>
         </div>
 

@@ -18,6 +18,7 @@ import { NotificationsSection } from "@/components/sidebar/notifications-section
 import { MessagesSection } from "@/components/sidebar/messages-section"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useUserStore } from "@/lib/stores/user-store"
 
 const navItems = [
   { label: "Home", href: "/home", icon: Home },
@@ -41,6 +42,14 @@ type SidebarProps = {
 export function Sidebar({ userId, userInfo, className, "data-state": dataState, onNavigate, onClose }: SidebarProps = {}) {
   const pathname = usePathname()
   const currentPath = pathname || "/home"
+  const { user: storeUser } = useUserStore()
+  
+  const currentUserInfo = storeUser ? {
+    name: storeUser.name,
+    email: storeUser.email,
+    image: storeUser.image,
+  } : userInfo
+  const currentUserId = storeUser?.id || userId
 
   return (
     <aside
@@ -113,14 +122,14 @@ export function Sidebar({ userId, userInfo, className, "data-state": dataState, 
         </div>
 
         {/* Connect Section */}
-        {userId && (
+        {currentUserId && (
           <div className="space-y-1">
             <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
               Connect
             </h3>
             <div className="space-y-0.5">
-              <NotificationsSection userId={userId} />
-              <MessagesSection userId={userId} />
+              <NotificationsSection userId={currentUserId} />
+              <MessagesSection userId={currentUserId} />
             </div>
           </div>
         )}
@@ -154,7 +163,7 @@ export function Sidebar({ userId, userInfo, className, "data-state": dataState, 
       {/* Profile Section */}
       <div className="p-3 border-t border-border/40">
         <Link
-          href={userId ? `/user/${userId}` : "/profile"}
+          href={currentUserId ? `/user/${currentUserId}` : "/profile"}
           className={cn(
             "flex items-center gap-3 rounded-xl p-3 text-sm font-medium transition-all duration-200 border border-transparent",
             currentPath?.startsWith("/user/")
@@ -163,12 +172,12 @@ export function Sidebar({ userId, userInfo, className, "data-state": dataState, 
           )}
           onClick={onNavigate}
         >
-          {userInfo ? (
+          {currentUserInfo ? (
             <Avatar className="h-9 w-9 border border-border/50">
-              <AvatarImage src={userInfo.image || undefined} alt={userInfo.name || "User"} />
+              <AvatarImage src={currentUserInfo.image || undefined} alt={currentUserInfo.name || "User"} />
               <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-500 text-white text-xs font-semibold">
-                {userInfo.name
-                  ? userInfo.name
+                {currentUserInfo.name
+                  ? currentUserInfo.name
                     .split(" ")
                     .map((n) => n[0])
                     .join("")
@@ -183,7 +192,7 @@ export function Sidebar({ userId, userInfo, className, "data-state": dataState, 
             </div>
           )}
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-foreground truncate">{userInfo?.name || "My Profile"}</p>
+            <p className="font-semibold text-foreground truncate">{currentUserInfo?.name || "My Profile"}</p>
             <p className="text-xs text-muted-foreground truncate">View account</p>
           </div>
         </Link>

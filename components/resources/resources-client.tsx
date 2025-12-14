@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import {
   FileText,
   Search,
@@ -22,6 +22,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
+import { useResourcesStore } from "@/lib/stores/resources-store"
 
 type ResourceCardData = {
   id: string
@@ -71,11 +72,18 @@ const formatFileSize = (size: string | null) => {
 }
 
 export function ResourcesClient({ resources, isAuthenticated = false }: ResourcesClientProps) {
+  const { setResources, setIsAuthenticated, resources: storeResources } = useResourcesStore()
+  
+  useEffect(() => {
+    setResources(resources)
+    setIsAuthenticated(isAuthenticated)
+  }, [resources, isAuthenticated, setResources, setIsAuthenticated])
+
   const [selectedFilter, setSelectedFilter] = useState<string>("all")
   const [searchQuery, setSearchQuery] = useState<string>("")
 
   const filteredResources = useMemo(() => {
-    let filtered = resources
+    let filtered = storeResources
 
     // Filter by file type
     if (selectedFilter !== "all") {
@@ -106,7 +114,7 @@ export function ResourcesClient({ resources, isAuthenticated = false }: Resource
     }
 
     return filtered
-  }, [resources, selectedFilter, searchQuery])
+  }, [storeResources, selectedFilter, searchQuery])
 
   return (
     <div className="flex flex-col gap-6">

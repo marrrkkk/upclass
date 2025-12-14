@@ -10,6 +10,7 @@ import { markNotificationAsRead, markAllNotificationsAsRead } from "@/app/action
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
 import { formatDistanceToNow } from "date-fns"
+import { useNotificationsStore } from "@/lib/stores/notifications-store"
 
 type NotificationData = {
   id: string
@@ -29,8 +30,13 @@ type NotificationsClientProps = {
 }
 
 export function NotificationsClient({ notifications: initialNotifications, userId }: NotificationsClientProps) {
-  const [notifications, setNotifications] = useState(initialNotifications)
+  const { setNotifications, setUserId, notifications: storeNotifications, addNotification, updateNotification, markAsRead, markAllAsRead, unreadCount } = useNotificationsStore()
   const [pending, startTransition] = useTransition()
+  
+  useEffect(() => {
+    setNotifications(initialNotifications)
+    setUserId(userId)
+  }, [initialNotifications, userId, setNotifications, setUserId])
 
   useEffect(() => {
     if (!supabase || !userId) return
@@ -58,32 +64,20 @@ export function NotificationsClient({ notifications: initialNotifications, userI
               read: boolean
               created_at: string
             }
-            setNotifications((prev) => [
-              {
-                id: newNotif.id,
-                type: newNotif.type,
-                title: newNotif.title,
-                message: newNotif.message,
-                classId: newNotif.class_id,
-                relatedId: newNotif.related_id,
-                read: newNotif.read,
-                createdAt: newNotif.created_at,
-                className: null, // Will be fetched if needed
-              },
-              ...prev,
-            ])
+            addNotification({
+              id: newNotif.id,
+              type: newNotif.type,
+              title: newNotif.title,
+              message: newNotif.message,
+              classId: newNotif.class_id,
+              relatedId: newNotif.related_id,
+              read: newNotif.read,
+              createdAt: newNotif.created_at,
+              className: null, // Will be fetched if needed
+            })
           } else if (payload.eventType === "UPDATE") {
             const updatedNotif = payload.new as { id: string; read: boolean }
-            setNotifications((prev) =>
-              prev.map((n) =>
-                n.id === updatedNotif.id
-                  ? {
-                    ...n,
-                    read: updatedNotif.read,
-                  }
-                  : n,
-              ),
-            )
+            updateNotification(updatedNotif.id, { read: updatedNotif.read })
           }
         },
       )
@@ -97,20 +91,16 @@ export function NotificationsClient({ notifications: initialNotifications, userI
   const handleMarkAsRead = (notificationId: string) => {
     startTransition(async () => {
       await markNotificationAsRead(notificationId)
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n)),
-      )
+      markAsRead(notificationId)
     })
   }
 
   const handleMarkAllAsRead = () => {
     startTransition(async () => {
       await markAllNotificationsAsRead()
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+      markAllAsRead()
     })
   }
-
-  const unreadCount = notifications.filter((n) => !n.read).length
 
   const getNotificationLink = (notif: NotificationData) => {
     if (!notif.classId) return "#"
@@ -153,7 +143,7 @@ export function NotificationsClient({ notifications: initialNotifications, userI
         )}
       </div>
 
-      {notifications.length === 0 ? (
+      {storeNotifications.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center animate-in fade-in zoom-in-50 duration-500">
           <div className="rounded-full bg-muted/50 p-6 mb-6">
             <BellOff className="h-10 w-10 text-muted-foreground/50" />
@@ -165,7 +155,7 @@ export function NotificationsClient({ notifications: initialNotifications, userI
         </div>
       ) : (
         <div className="space-y-3">
-          {notifications.map((notif) => {
+          {storeNotifications.map((notif) => {
             const style = getNotificationStyle(notif.type)
             return (
               <Link

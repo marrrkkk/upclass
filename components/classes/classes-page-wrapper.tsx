@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { CreateClassButton } from "./create-class-button"
 import { JoinClassButton } from "./join-class-button"
 import { usePageHeaderStore } from "@/lib/stores/page-header-store"
+import { useClassesStore } from "@/lib/stores/classes-store"
 
 type ClassesPageWrapperProps = {
   children: React.ReactNode
@@ -14,21 +15,27 @@ type ClassesPageWrapperProps = {
 export function ClassesPageWrapper({ children, userRole, isAuthenticated = false }: ClassesPageWrapperProps) {
   const setRightSideContent = usePageHeaderStore((state) => state.setRightSideContent)
   const setMobileRightSideContent = usePageHeaderStore((state) => state.setMobileRightSideContent)
+  const { setUserRole, setIsAuthenticated: setClassesIsAuthenticated, userRole: storeUserRole, isAuthenticated: storeIsAuthenticated } = useClassesStore()
 
   useEffect(() => {
-    if (isAuthenticated) {
+    setUserRole(userRole)
+    setClassesIsAuthenticated(isAuthenticated)
+  }, [userRole, isAuthenticated, setUserRole, setClassesIsAuthenticated])
+
+  useEffect(() => {
+    if (storeIsAuthenticated) {
       // Desktop version with text
       setRightSideContent(
         <div className="flex items-center gap-2">
           <JoinClassButton />
-          {userRole === "teacher" && <CreateClassButton />}
+          {storeUserRole === "teacher" && <CreateClassButton />}
         </div>
       )
       // Mobile version with icon only
       setMobileRightSideContent(
         <div className="flex items-center gap-2">
           <JoinClassButton iconOnly />
-          {userRole === "teacher" && <CreateClassButton iconOnly />}
+          {storeUserRole === "teacher" && <CreateClassButton iconOnly />}
         </div>
       )
     } else {
@@ -39,7 +46,7 @@ export function ClassesPageWrapper({ children, userRole, isAuthenticated = false
       setRightSideContent(null)
       setMobileRightSideContent(null)
     }
-  }, [setRightSideContent, setMobileRightSideContent, userRole, isAuthenticated])
+  }, [setRightSideContent, setMobileRightSideContent, storeUserRole, storeIsAuthenticated])
 
   return <>{children}</>
 }

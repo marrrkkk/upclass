@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Menu } from "lucide-react"
 
@@ -8,6 +8,7 @@ import { Sidebar } from "@/components/sidebar"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { useUserStore } from "@/lib/stores/user-store"
 
 type HomeShellProps = {
   children: React.ReactNode
@@ -21,7 +22,40 @@ type HomeShellProps = {
 }
 
 export function HomeShell({ children, isAuthenticated, userInfo, userId }: HomeShellProps) {
+  const { setUser, setIsAuthenticated: setUserIsAuthenticated, user: storeUser, isAuthenticated: storeIsAuthenticated } = useUserStore()
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+
+  useEffect(() => {
+    if (isAuthenticated && userInfo && userId) {
+      setUser({
+        id: userId,
+        name: userInfo.name || "",
+        email: userInfo.email || "",
+        image: userInfo.image,
+        role: null,
+        bio: null,
+        emailNotifications: false,
+        pushNotifications: false,
+        classNotifications: false,
+        messageNotifications: false,
+        profileVisibility: "public",
+        showEmail: false,
+        showClasses: false,
+        showResources: false,
+      })
+      setUserIsAuthenticated(true)
+    } else {
+      setUser(null)
+      setUserIsAuthenticated(false)
+    }
+  }, [isAuthenticated, userInfo, userId, setUser, setUserIsAuthenticated])
+
+  const currentUserInfo = storeUser ? {
+    name: storeUser.name,
+    email: storeUser.email,
+    image: storeUser.image,
+  } : userInfo
+  const currentIsAuthenticated = storeIsAuthenticated || isAuthenticated
 
   return (
     <div className="min-h-screen bg-background">
@@ -67,9 +101,9 @@ export function HomeShell({ children, isAuthenticated, userInfo, userId }: HomeS
               </div>
 
               <div className="flex flex-1 items-center justify-end min-w-0">
-                {isAuthenticated && userInfo ? (
+                {currentIsAuthenticated && currentUserInfo ? (
                   <div className="w-full">
-                    <PageHeader user={userInfo} userId={userId} />
+                    <PageHeader user={currentUserInfo} userId={userId} />
                   </div>
                 ) : (
                   <div className="flex w-full items-center justify-between gap-3">

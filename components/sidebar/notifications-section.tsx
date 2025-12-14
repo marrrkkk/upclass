@@ -6,13 +6,18 @@ import { usePathname } from "next/navigation"
 import { Bell } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase-client"
+import { useNotificationsStore } from "@/lib/stores/notifications-store"
 
 type NotificationsSectionProps = {
   userId: string
 }
 
 export function NotificationsSection({ userId }: NotificationsSectionProps) {
-  const [unreadCount, setUnreadCount] = useState(0)
+  const { unreadCount, updateUnreadCount, setUserId } = useNotificationsStore()
+
+  useEffect(() => {
+    setUserId(userId)
+  }, [userId, setUserId])
 
   useEffect(() => {
     if (!supabase || !userId) return
@@ -27,7 +32,7 @@ export function NotificationsSection({ userId }: NotificationsSectionProps) {
           .eq("read", false)
 
         if (!error && count !== null) {
-          setUnreadCount(count)
+          updateUnreadCount(count)
         }
       } catch (err) {
         console.error("Error fetching unread count:", err)
@@ -50,7 +55,8 @@ export function NotificationsSection({ userId }: NotificationsSectionProps) {
         (payload) => {
           const newNotif = payload.new as { read: boolean }
           if (newNotif.read === false) {
-            setUnreadCount((prev) => prev + 1)
+            const currentCount = useNotificationsStore.getState().unreadCount
+            updateUnreadCount(currentCount + 1)
           }
         },
       )
@@ -69,10 +75,12 @@ export function NotificationsSection({ userId }: NotificationsSectionProps) {
           // Only update count if read status actually changed
           if (oldNotif.read === false && updatedNotif.read === true) {
             // Decrement count when notification is marked as read
-            setUnreadCount((prev) => Math.max(0, prev - 1))
+            const currentCount = useNotificationsStore.getState().unreadCount
+            updateUnreadCount(Math.max(0, currentCount - 1))
           } else if (oldNotif.read === true && updatedNotif.read === false) {
             // Increment count if marked as unread
-            setUnreadCount((prev) => prev + 1)
+            const currentCount = useNotificationsStore.getState().unreadCount
+            updateUnreadCount(currentCount + 1)
           }
         },
       )
@@ -87,7 +95,8 @@ export function NotificationsSection({ userId }: NotificationsSectionProps) {
         (payload) => {
           const deletedNotif = payload.old as { read: boolean }
           if (deletedNotif.read === false) {
-            setUnreadCount((prev) => Math.max(0, prev - 1))
+            const currentCount = useNotificationsStore.getState().unreadCount
+            updateUnreadCount(Math.max(0, currentCount - 1))
           }
         },
       )
@@ -96,7 +105,7 @@ export function NotificationsSection({ userId }: NotificationsSectionProps) {
     return () => {
       supabase?.removeChannel(channel)
     }
-  }, [userId])
+  }, [userId, updateUnreadCount])
 
   const pathname = usePathname()
   const isActive = pathname === "/notifications"
@@ -114,7 +123,7 @@ export function NotificationsSection({ userId }: NotificationsSectionProps) {
           .eq("read", false)
 
         if (!error && count !== null) {
-          setUnreadCount(count)
+          updateUnreadCount(count)
         }
       } catch (err) {
         console.error("Error refetching unread count:", err)
@@ -122,7 +131,7 @@ export function NotificationsSection({ userId }: NotificationsSectionProps) {
     }
 
     refetchCount()
-  }, [isActive, userId])
+  }, [isActive, userId, updateUnreadCount])
 
 
   return (
