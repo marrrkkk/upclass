@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/empty"
 import { useClassesStore } from "@/lib/stores/classes-store"
 import { usePrefetch } from "@/lib/hooks/use-prefetch"
+import { useCacheData } from "@/lib/cache-hooks"
+import { BackgroundSync } from "@/lib/background-sync"
 
 type ClassCardData = {
   id: string
@@ -49,6 +51,24 @@ export function ClassesClient({
     setEnrolledClasses(enrolledClasses)
     setIsAuthenticated(isAuthenticated)
   }, [teachingClasses, enrolledClasses, isAuthenticated, setTeachingClasses, setEnrolledClasses, setIsAuthenticated])
+
+  // Cache all classes in background
+  const allClasses = [...storeTeachingClasses, ...storeEnrolledClasses]
+  useCacheData(allClasses, 'classes', true)
+
+  // Cache all teacher images in background
+  useEffect(() => {
+    if (allClasses.length > 0 && navigator.onLine) {
+      const imageUrls = allClasses
+        .map(cls => cls.teacherImage)
+        .filter((url): url is string => !!url)
+      
+      if (imageUrls.length > 0) {
+        const sync = BackgroundSync.getInstance()
+        sync.cacheImages(imageUrls)
+      }
+    }
+  }, [allClasses])
 
   const [activeTab, setActiveTab] = useState<"teaching" | "enrolled">("teaching")
   const [searchQuery, setSearchQuery] = useState("")

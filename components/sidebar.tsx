@@ -11,7 +11,6 @@ import {
   User,
   BookOpen,
   PanelLeftClose,
-  ArrowUpRight
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { NotificationsSection } from "@/components/sidebar/notifications-section"
@@ -20,6 +19,7 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useUserStore } from "@/lib/stores/user-store"
 import { usePrefetch } from "@/lib/hooks/use-prefetch"
+import { Logo } from "@/components/logo"
 
 const navItems = [
   { label: "Home", href: "/home", icon: Home },
@@ -64,16 +64,7 @@ export function Sidebar({ userId, userInfo, className, "data-state": dataState, 
     >
       {/* Header */}
       <div className="flex items-center justify-between p-4 h-[4rem] border-b border-border/40">
-        <Link
-          href="/home"
-          className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
-          onClick={onNavigate}
-        >
-          <div className="bg-primary/10 p-1.5 rounded-lg text-primary">
-            <ArrowUpRight className="h-6 w-6" strokeWidth={3} />
-          </div>
-          <span className="font-bold text-lg tracking-tight">UpClass</span>
-        </Link>
+        <Logo href="/home" size="md" onClick={onNavigate} />
         <Button
           variant="ghost"
           size="icon"
@@ -110,7 +101,12 @@ export function Sidebar({ userId, userInfo, className, "data-state": dataState, 
                       ? "bg-primary text-primary-foreground shadow-md"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   )}
-                  onClick={onNavigate}
+                  onClick={() => {
+                    // Close sidebar on mobile after navigation
+                    if (onNavigate) {
+                      onNavigate()
+                    }
+                  }}
                 >
                   <Icon className={cn(
                     "h-4 w-4 transition-transform group-hover/item:scale-110",

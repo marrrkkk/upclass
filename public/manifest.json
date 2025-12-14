@@ -1,0 +1,42 @@
+{
+  "name": "UpClass - Learning Management System",
+  "short_name": "UpClass",
+  "description": "Manage courses, engage students, and track progress with UpClass.",
+  "start_url": "/home",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "hsl(var(--primary))",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    }
+  ],
+  "categories": ["education", "productivity"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Classes",
+      "short_name": "Classes",
+      "description": "View your classes",
+      "url": "/classes",
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Home",
+      "short_name": "Home",
+      "description": "Go to home",
+      "url": "/home",
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
+    }
+  ]
+}
+

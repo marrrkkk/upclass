@@ -1,7 +1,7 @@
 import SocialButton from "@/components/auth/social-button"
-import { ArrowUpRight } from "lucide-react"
 import Link from "next/link"
 import type { Metadata } from "next"
+import { Logo } from "@/components/logo"
 
 export const metadata: Metadata = {
     title: "Sign In",
@@ -19,12 +19,9 @@ export default function SignInPage() {
 
             <div className="w-full max-w-md space-y-8 relative z-10">
                 <div className="flex flex-col items-center text-center">
-                    <Link href="/" className="mb-6 flex items-center gap-2.5 hover:opacity-80 transition-opacity">
-                        <div className="bg-primary/10 p-2 rounded-xl ring-1 ring-primary/20 shadow-sm">
-                            <ArrowUpRight className="h-8 w-8 text-primary" strokeWidth={3} />
-                        </div>
-                        <span className="bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent font-bold text-3xl tracking-tight">UpClass</span>
-                    </Link>
+                    <div className="mb-6">
+                        <Logo href="/" size="lg" textClassName="bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent" />
+                    </div>
 
                     <h2 className="mt-2 text-2xl font-bold tracking-tight text-foreground">
                         Welcome back

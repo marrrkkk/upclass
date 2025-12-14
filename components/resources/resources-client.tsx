@@ -24,6 +24,8 @@ import {
 } from "@/components/ui/empty"
 import { useResourcesStore } from "@/lib/stores/resources-store"
 import { usePrefetch } from "@/lib/hooks/use-prefetch"
+import { useCacheData } from "@/lib/cache-hooks"
+import { BackgroundSync } from "@/lib/background-sync"
 
 type ResourceCardData = {
   id: string
@@ -79,6 +81,23 @@ export function ResourcesClient({ resources, isAuthenticated = false }: Resource
     setResources(resources)
     setIsAuthenticated(isAuthenticated)
   }, [resources, isAuthenticated, setResources, setIsAuthenticated])
+
+  // Cache resources in background
+  useCacheData(storeResources, 'resources', true)
+
+  // Cache all resource images in background
+  useEffect(() => {
+    if (storeResources.length > 0 && navigator.onLine) {
+      const imageUrls = storeResources
+        .map(resource => resource.authorImage)
+        .filter((url): url is string => !!url)
+      
+      if (imageUrls.length > 0) {
+        const sync = BackgroundSync.getInstance()
+        sync.cacheImages(imageUrls)
+      }
+    }
+  }, [storeResources])
 
   const [selectedFilter, setSelectedFilter] = useState<string>("all")
   const [searchQuery, setSearchQuery] = useState<string>("")

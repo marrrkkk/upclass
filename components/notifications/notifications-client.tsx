@@ -11,6 +11,7 @@ import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
 import { formatDistanceToNow } from "date-fns"
 import { useNotificationsStore } from "@/lib/stores/notifications-store"
+import { useCacheData } from "@/lib/cache-hooks"
 
 type NotificationData = {
   id: string
@@ -37,6 +38,9 @@ export function NotificationsClient({ notifications: initialNotifications, userI
     setNotifications(initialNotifications)
     setUserId(userId)
   }, [initialNotifications, userId, setNotifications, setUserId])
+
+  // Cache notifications in background
+  useCacheData(storeNotifications, 'notifications', true)
 
   useEffect(() => {
     if (!supabase || !userId) return

@@ -18,6 +18,7 @@ import { ImageViewerDialog } from "@/components/messages/image-viewer-dialog"
 import { formatDistanceToNow, isSameDay, format } from "date-fns"
 import { usePageHeaderStore } from "@/lib/stores/page-header-store"
 import { useMessagesStore } from "@/lib/stores/messages-store"
+import { useCacheData } from "@/lib/cache-hooks"
 
 type MediaFile = {
   url: string
@@ -58,6 +59,9 @@ export function ChatClient({ messages: initialMessages, currentUserId, otherUser
     setCurrentUserId(currentUserId)
     setCurrentOtherUser(otherUser)
   }, [initialMessages, currentUserId, otherUser, setCurrentMessages, setCurrentUserId, setCurrentOtherUser])
+
+  // Cache messages in background
+  useCacheData(messages, 'messages', true)
   const [newMessage, setNewMessage] = useState("")
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [pending, startTransition] = useTransition()

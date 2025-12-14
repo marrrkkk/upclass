@@ -14,6 +14,7 @@ import { NewConversationDialog } from "@/components/messages/new-conversation-di
 import { formatDistanceToNow, parseISO } from "date-fns"
 import { useMessagesStore } from "@/lib/stores/messages-store"
 import { usePrefetch } from "@/lib/hooks/use-prefetch"
+import { useCacheData } from "@/lib/cache-hooks"
 
 type Conversation = {
   userId: string
@@ -38,6 +39,9 @@ export function MessagesClient({ conversations: initialConversations, userId }: 
     setConversations(initialConversations)
     setCurrentUserId(userId)
   }, [initialConversations, userId, setConversations, setCurrentUserId])
+
+  // Don't cache conversations as messages - they have different structure
+  // Conversations will be cached separately if needed
 
   const [searchQuery, setSearchQuery] = useState("")
 

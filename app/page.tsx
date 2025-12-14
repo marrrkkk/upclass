@@ -3,7 +3,8 @@ import { headers } from "next/headers"
 import Link from "next/link"
 import { auth } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
-import { GraduationCap, ArrowRight, LayoutDashboard } from "lucide-react"
+import { ArrowRight, LayoutDashboard } from "lucide-react"
+import { Logo } from "@/components/logo"
 
 export default async function LandingPage() {
   const session = await auth.api.getSession({
@@ -23,12 +24,7 @@ export default async function LandingPage() {
 
       {/* Navbar */}
       <header className="container mx-auto px-6 py-6 relative z-10 flex items-center justify-between">
-        <div className="flex items-center gap-2 font-bold text-2xl text-primary">
-          <div className="bg-primary/10 p-2 rounded-xl">
-            <GraduationCap className="h-6 w-6" />
-          </div>
-          UpClass
-        </div>
+        <Logo href="/" size="md" />
       </header>
 
       {/* Hero Content */}

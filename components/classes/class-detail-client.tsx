@@ -10,6 +10,8 @@ import { QuizTab } from "@/components/classes/quiz-tab"
 import { PeopleTab } from "@/components/classes/people-tab"
 import { ClassSettingsDialog } from "@/components/classes/class-settings-dialog"
 import { usePageHeaderStore } from "@/lib/stores/page-header-store"
+import { BackgroundCache } from "@/lib/background-cache"
+import { usePathname } from "next/navigation"
 
 type ClassData = {
   id: string
@@ -155,11 +157,55 @@ export function ClassDetailClient({
   const [activeTab, setActiveTab] = useState<"stream" | "classwork" | "quizzes" | "people">("stream")
   const [copied, setCopied] = useState(false)
 
+  const pathname = usePathname()
+
   // Set page title for breadcrumbs
   useEffect(() => {
     setPageTitle(classData.title)
     return () => setPageTitle(null)
   }, [classData.title, setPageTitle])
+
+  // Cache class detail data and page in background
+  useEffect(() => {
+    if (!navigator.onLine) return
+
+    const cacheClassDetail = async () => {
+      try {
+        const cache = BackgroundCache.getInstance()
+        
+        // Cache the class detail data
+        await cache.cacheClassDetail(classData.id, {
+          classData,
+          announcements,
+          classwork,
+          submissions,
+          quizzes,
+          members,
+          userId,
+          userRole,
+        })
+
+        // Cache the page HTML
+        if (pathname) {
+          try {
+            const response = await fetch(pathname)
+            if (response.ok) {
+              const html = await response.text()
+              await cache.cachePage(pathname, html)
+            }
+          } catch (error) {
+            console.debug('Failed to cache class detail page HTML:', error)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to cache class detail:', error)
+      }
+    }
+
+    // Debounce caching
+    const timeout = setTimeout(cacheClassDetail, 2000)
+    return () => clearTimeout(timeout)
+  }, [classData, announcements, classwork, submissions, quizzes, members, pathname, userId, userRole])
 
   const handleCopyCode = async () => {
     await navigator.clipboard.writeText(classData.code)

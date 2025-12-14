@@ -10,10 +10,18 @@ export function useBackgroundRefresh(path: string, interval: number = 30000) {
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
+    // Don't refresh if offline
+    if (!navigator.onLine) {
+      return
+    }
+
     // Refresh in background every interval
     intervalRef.current = setInterval(() => {
-      // Use router.refresh() to refresh server components without full page reload
-      router.refresh()
+      // Only refresh if online
+      if (navigator.onLine) {
+        // Use router.refresh() to refresh server components without full page reload
+        router.refresh()
+      }
     }, interval)
 
     return () => {

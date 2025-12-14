@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import { PWAProvider } from "@/components/pwa-provider";
+import { OfflineIndicator } from "@/components/offline-indicator";
+import { OfflineErrorBoundary } from "@/components/offline-error-boundary";
 
 // Using Inter as requested - optimized loading
 const fontSans = Inter({
@@ -17,6 +20,29 @@ export const metadata: Metadata = {
     default: "UpClass - The Future of Learning Management",
   },
   description: "Manage courses, engage students, and track progress with UpClass.",
+  manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', sizes: 'any' },
+    ],
+    apple: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "UpClass",
+  },
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 5,
+    userScalable: true,
+  },
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "hsl(var(--primary))" },
+    { media: "(prefers-color-scheme: dark)", color: "hsl(var(--primary))" },
+  ],
 };
 
 export default function RootLayout({
@@ -35,7 +61,12 @@ export default function RootLayout({
           defaultTheme="system"
           enableSystem
         >
-          {children}
+          <PWAProvider>
+            <OfflineErrorBoundary>
+              <OfflineIndicator />
+              {children}
+            </OfflineErrorBoundary>
+          </PWAProvider>
         </ThemeProvider>
       </body>
     </html>
