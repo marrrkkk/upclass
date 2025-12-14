@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, memo } from "react"
 import Link from "next/link"
 import Image from "next/image"
+import { usePrefetch } from "@/lib/hooks/use-prefetch"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -39,9 +40,16 @@ type RecentClassesProps = {
     userRole: "teacher" | "student" | null
 }
 
-function ClassCard({ classItem }: { classItem: ClassItem }) {
+const ClassCard = memo(function ClassCard({ classItem }: { classItem: ClassItem }) {
+    const { prefetchOnHover, cancelPrefetch } = usePrefetch()
+    const classHref = `/classes/${classItem.id}`
     return (
-        <Link href={`/classes/${classItem.id}`}>
+        <Link 
+            href={classHref} 
+            prefetch={true}
+            onMouseEnter={() => prefetchOnHover(classHref)}
+            onMouseLeave={() => cancelPrefetch(classHref)}
+        >
             <Card className="group overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border-0 shadow-md bg-card ring-1 ring-border/50 h-full flex flex-col">
                 {/* Thumbnail or Color Banner */}
                 <div
@@ -62,6 +70,8 @@ function ClassCard({ classItem }: { classItem: ClassItem }) {
                             alt={classItem.title}
                             fill
                             className="object-cover transition-transform duration-500 group-hover:scale-105"
+                            loading="lazy"
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                         />
                     )}
 
@@ -110,7 +120,7 @@ function ClassCard({ classItem }: { classItem: ClassItem }) {
             </Card>
         </Link>
     )
-}
+})
 
 function AllClassesDialog({ classes, userRole, open, onOpenChange }: {
     classes: ClassItem[],

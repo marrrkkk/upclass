@@ -88,6 +88,7 @@ export function WhiteboardClient({
   const [cursors, setCursors] = useState<Map<string, CursorData>>(new Map())
   const [textInput, setTextInput] = useState<{ x: number; y: number } | null>(null)
   const [textValue, setTextValue] = useState("")
+  const [textFontSize, setTextFontSize] = useState(20)
   const [selection, setSelection] = useState<SelectionState>({
     elementId: null,
     isDragging: false,
@@ -102,6 +103,10 @@ export function WhiteboardClient({
   const lastUpdateRef = useRef<number>(0)
   const broadcastChannelRef = useRef<any>(null)
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const animationFrameRef = useRef<number | null>(null)
+  const pendingRedrawRef = useRef<boolean>(false)
+  const broadcastQueueRef = useRef<any[]>([])
+  const broadcastTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Initialize canvas
   useEffect(() => {
@@ -127,49 +132,8 @@ export function WhiteboardClient({
     }
   }, [])
 
-  // Redraw all elements on canvas
-  const redrawCanvas = useCallback(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const ctx = canvas.getContext("2d")
-    if (!ctx) return
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-
-    elements.forEach((element) => {
-      if (element.type === "draw") {
-        drawPath(ctx, element.data)
-      } else if (element.type === "image") {
-        drawImage(ctx, element.data)
-      } else if (element.type === "text") {
-        drawText(ctx, element.data)
-      } else if (element.type === "rectangle") {
-        drawRectangle(ctx, element.data)
-      } else if (element.type === "circle") {
-        drawCircle(ctx, element.data)
-      } else if (element.type === "line") {
-        drawLine(ctx, element.data)
-      } else if (element.type === "arrow") {
-        drawArrow(ctx, element.data)
-      }
-    })
-
-    // Draw selection handles
-    if (selection.elementId) {
-      const element = elements.find((e) => e.id === selection.elementId)
-      if (element && (element.type === "image" || element.type === "text")) {
-        drawSelectionHandles(ctx, element)
-      }
-    }
-  }, [elements, selection])
-
-  useEffect(() => {
-    redrawCanvas()
-  }, [redrawCanvas])
-
-  // Drawing functions
-  const drawPath = (ctx: CanvasRenderingContext2D, path: { points: Array<{ x: number; y: number }>; color: string; width: number }) => {
+  // Drawing functions - optimized (defined first)
+  const drawPath = useCallback((ctx: CanvasRenderingContext2D, path: { points: Array<{ x: number; y: number }>; color: string; width: number }) => {
     if (path.points.length < 2) return
 
     ctx.strokeStyle = path.color
@@ -180,35 +144,70 @@ export function WhiteboardClient({
     ctx.beginPath()
     ctx.moveTo(path.points[0].x, path.points[0].y)
 
-    for (let i = 1; i < path.points.length; i++) {
+    // Optimize: only draw every nth point for very long paths
+    const step = path.points.length > 100 ? Math.ceil(path.points.length / 100) : 1
+    for (let i = step; i < path.points.length; i += step) {
       ctx.lineTo(path.points[i].x, path.points[i].y)
+    }
+    
+    // Always draw the last point
+    if (path.points.length > 1) {
+      const lastPoint = path.points[path.points.length - 1]
+      ctx.lineTo(lastPoint.x, lastPoint.y)
     }
 
     ctx.stroke()
-  }
+  }, [])
 
-  const drawImage = (ctx: CanvasRenderingContext2D, data: { url: string; x: number; y: number; width: number; height: number }) => {
+  // Image cache for performance
+  const imageCacheRef = useRef<Map<string, HTMLImageElement>>(new Map())
+
+  const drawImage = useCallback((ctx: CanvasRenderingContext2D, data: { url: string; x: number; y: number; width: number; height: number }) => {
+    const cachedImg = imageCacheRef.current.get(data.url)
+    if (cachedImg && cachedImg.complete) {
+      ctx.drawImage(cachedImg, data.x, data.y, data.width, data.height)
+      return
+    }
+
     const img = new Image()
     img.crossOrigin = "anonymous"
     img.onload = () => {
+      imageCacheRef.current.set(data.url, img)
       ctx.drawImage(img, data.x, data.y, data.width, data.height)
+      // Trigger redraw when image loads
+      if (!pendingRedrawRef.current) {
+        pendingRedrawRef.current = true
+        if (animationFrameRef.current) {
+          cancelAnimationFrame(animationFrameRef.current)
+        }
+        animationFrameRef.current = requestAnimationFrame(() => {
+          redrawCanvas()
+        })
+      }
+    }
+    img.onerror = () => {
+      // Draw placeholder on error
+      ctx.fillStyle = "#f3f4f6"
+      ctx.fillRect(data.x, data.y, data.width, data.height)
+      ctx.strokeStyle = "#d1d5db"
+      ctx.strokeRect(data.x, data.y, data.width, data.height)
     }
     img.src = data.url
-  }
+  }, [])
 
-  const drawText = (ctx: CanvasRenderingContext2D, data: { text: string; x: number; y: number; color: string; fontSize: number }) => {
+  const drawText = useCallback((ctx: CanvasRenderingContext2D, data: { text: string; x: number; y: number; color: string; fontSize: number }) => {
     ctx.fillStyle = data.color
     ctx.font = `${data.fontSize}px Arial`
     ctx.fillText(data.text, data.x, data.y)
-  }
+  }, [])
 
-  const drawRectangle = (ctx: CanvasRenderingContext2D, data: { x: number; y: number; width: number; height: number; color: string; lineWidth: number }) => {
+  const drawRectangle = useCallback((ctx: CanvasRenderingContext2D, data: { x: number; y: number; width: number; height: number; color: string; lineWidth: number }) => {
     ctx.strokeStyle = data.color
     ctx.lineWidth = data.lineWidth
     ctx.strokeRect(data.x, data.y, data.width, data.height)
-  }
+  }, [])
 
-  const drawCircle = (ctx: CanvasRenderingContext2D, data: { x: number; y: number; width: number; height: number; color: string; lineWidth: number }) => {
+  const drawCircle = useCallback((ctx: CanvasRenderingContext2D, data: { x: number; y: number; width: number; height: number; color: string; lineWidth: number }) => {
     const centerX = data.x + data.width / 2
     const centerY = data.y + data.height / 2
     const radius = Math.min(Math.abs(data.width), Math.abs(data.height)) / 2
@@ -218,18 +217,18 @@ export function WhiteboardClient({
     ctx.beginPath()
     ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI)
     ctx.stroke()
-  }
+  }, [])
 
-  const drawLine = (ctx: CanvasRenderingContext2D, data: { x1: number; y1: number; x2: number; y2: number; color: string; lineWidth: number }) => {
+  const drawLine = useCallback((ctx: CanvasRenderingContext2D, data: { x1: number; y1: number; x2: number; y2: number; color: string; lineWidth: number }) => {
     ctx.strokeStyle = data.color
     ctx.lineWidth = data.lineWidth
     ctx.beginPath()
     ctx.moveTo(data.x1, data.y1)
     ctx.lineTo(data.x2, data.y2)
     ctx.stroke()
-  }
+  }, [])
 
-  const drawArrow = (ctx: CanvasRenderingContext2D, data: { x1: number; y1: number; x2: number; y2: number; color: string; lineWidth: number }) => {
+  const drawArrow = useCallback((ctx: CanvasRenderingContext2D, data: { x1: number; y1: number; x2: number; y2: number; color: string; lineWidth: number }) => {
     ctx.strokeStyle = data.color
     ctx.lineWidth = data.lineWidth
     ctx.beginPath()
@@ -254,23 +253,107 @@ export function WhiteboardClient({
       data.y2 - arrowLength * Math.sin(angle + arrowAngle)
     )
     ctx.stroke()
-  }
+  }, [])
+
+  // Optimized redraw with requestAnimationFrame
+  const redrawCanvas = useCallback(() => {
+    if (pendingRedrawRef.current) return
+    pendingRedrawRef.current = true
+
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current)
+    }
+
+    animationFrameRef.current = requestAnimationFrame(() => {
+      const canvas = canvasRef.current
+      if (!canvas) {
+        pendingRedrawRef.current = false
+        return
+      }
+
+      const ctx = canvas.getContext("2d", { alpha: false })
+      if (!ctx) {
+        pendingRedrawRef.current = false
+        return
+      }
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+      // Batch draw operations - optimize rendering order
+      // Draw shapes first, then images, then text, then drawings on top
+      const shapes = elements.filter(e => e.type === "rectangle" || e.type === "circle" || e.type === "line" || e.type === "arrow")
+      const images = elements.filter(e => e.type === "image")
+      const texts = elements.filter(e => e.type === "text")
+      const drawings = elements.filter(e => e.type === "draw")
+
+      shapes.forEach((element) => {
+        if (element.type === "rectangle") {
+          drawRectangle(ctx, element.data)
+        } else if (element.type === "circle") {
+          drawCircle(ctx, element.data)
+        } else if (element.type === "line") {
+          drawLine(ctx, element.data)
+        } else if (element.type === "arrow") {
+          drawArrow(ctx, element.data)
+        }
+      })
+
+      images.forEach((element) => {
+        drawImage(ctx, element.data)
+      })
+
+      texts.forEach((element) => {
+        drawText(ctx, element.data)
+      })
+
+      drawings.forEach((element) => {
+        drawPath(ctx, element.data)
+      })
+
+      // Draw selection handles
+      if (selection.elementId) {
+        const element = elements.find((e) => e.id === selection.elementId)
+        if (element && (element.type === "image" || element.type === "text" || element.type === "rectangle" || element.type === "circle" || element.type === "line" || element.type === "arrow")) {
+          drawSelectionHandles(ctx, element)
+        }
+      }
+
+      pendingRedrawRef.current = false
+    })
+  }, [elements, selection, drawPath, drawImage, drawText, drawRectangle, drawCircle, drawLine, drawArrow])
+
+  useEffect(() => {
+    redrawCanvas()
+  }, [redrawCanvas])
+
+  // Cleanup animation frame on unmount
+  useEffect(() => {
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+      }
+    }
+  }, [])
 
   const drawSelectionHandles = (ctx: CanvasRenderingContext2D, element: WhiteboardElement) => {
-    if (element.type === "image") {
-      const { x, y, width, height } = element.data
-      const handleSize = 8
+    ctx.strokeStyle = classColor
+    ctx.fillStyle = "white"
+    ctx.lineWidth = 2
+    const handleSize = 8
 
-      ctx.strokeStyle = classColor
-      ctx.fillStyle = "white"
-      ctx.lineWidth = 2
+    if (element.type === "image" || element.type === "rectangle" || element.type === "circle") {
+      const { x, y, width, height } = element.data
+      const minX = Math.min(x, x + width)
+      const maxX = Math.max(x, x + width)
+      const minY = Math.min(y, y + height)
+      const maxY = Math.max(y, y + height)
 
       // Corner handles
       const handles = [
-        { x, y }, // top-left
-        { x: x + width, y }, // top-right
-        { x: x + width, y: y + height }, // bottom-right
-        { x, y: y + height }, // bottom-left
+        { x: minX, y: minY }, // top-left
+        { x: maxX, y: minY }, // top-right
+        { x: maxX, y: maxY }, // bottom-right
+        { x: minX, y: maxY }, // bottom-left
       ]
 
       handles.forEach((handle) => {
@@ -281,13 +364,10 @@ export function WhiteboardClient({
       })
     } else if (element.type === "text") {
       const { x, y, fontSize, text } = element.data
+      ctx.font = `${fontSize}px Arial`
       const metrics = ctx.measureText(text)
       const width = metrics.width
       const height = fontSize
-
-      ctx.strokeStyle = classColor
-      ctx.fillStyle = "white"
-      ctx.lineWidth = 2
 
       const handles = [
         { x, y }, // top-left
@@ -299,6 +379,19 @@ export function WhiteboardClient({
       handles.forEach((handle) => {
         ctx.beginPath()
         ctx.rect(handle.x - 4, handle.y - 4, 8, 8)
+        ctx.fill()
+        ctx.stroke()
+      })
+    } else if (element.type === "line" || element.type === "arrow") {
+      const { x1, y1, x2, y2 } = element.data
+      const handles = [
+        { x: x1, y: y1 }, // start
+        { x: x2, y: y2 }, // end
+      ]
+
+      handles.forEach((handle) => {
+        ctx.beginPath()
+        ctx.arc(handle.x, handle.y, handleSize / 2, 0, 2 * Math.PI)
         ctx.fill()
         ctx.stroke()
       })
@@ -339,6 +432,27 @@ export function WhiteboardClient({
         if (x >= ex && x <= ex + width && y >= ey && y <= ey + height) {
           return element
         }
+      } else if (element.type === "rectangle" || element.type === "circle") {
+        const { x: ex, y: ey, width, height } = element.data
+        const minX = Math.min(ex, ex + width)
+        const maxX = Math.max(ex, ex + width)
+        const minY = Math.min(ey, ey + height)
+        const maxY = Math.max(ey, ey + height)
+        if (x >= minX && x <= maxX && y >= minY && y <= maxY) {
+          return element
+        }
+      } else if (element.type === "line" || element.type === "arrow") {
+        const { x1, y1, x2, y2, lineWidth } = element.data
+        const dist = Math.abs((y2 - y1) * x - (x2 - x1) * y + x2 * y1 - y2 * x1) / Math.sqrt(Math.pow(y2 - y1, 2) + Math.pow(x2 - x1, 2))
+        if (dist <= (lineWidth || 3) + 5) {
+          const minX = Math.min(x1, x2)
+          const maxX = Math.max(x1, x2)
+          const minY = Math.min(y1, y2)
+          const maxY = Math.max(y1, y2)
+          if (x >= minX - 10 && x <= maxX + 10 && y >= minY - 10 && y <= maxY + 10) {
+            return element
+          }
+        }
       }
     }
     return null
@@ -370,6 +484,23 @@ export function WhiteboardClient({
       if (Math.abs(x - (ex + width)) < threshold && Math.abs(y - ey) < threshold) return "ne"
       if (Math.abs(x - (ex + width)) < threshold && Math.abs(y - (ey + height)) < threshold) return "se"
       if (Math.abs(x - ex) < threshold && Math.abs(y - (ey + height)) < threshold) return "sw"
+    } else if (element.type === "rectangle" || element.type === "circle") {
+      const { x: ex, y: ey, width, height } = element.data
+      const minX = Math.min(ex, ex + width)
+      const maxX = Math.max(ex, ex + width)
+      const minY = Math.min(ey, ey + height)
+      const maxY = Math.max(ey, ey + height)
+      const threshold = 8
+
+      if (Math.abs(x - minX) < threshold && Math.abs(y - minY) < threshold) return "nw"
+      if (Math.abs(x - maxX) < threshold && Math.abs(y - minY) < threshold) return "ne"
+      if (Math.abs(x - maxX) < threshold && Math.abs(y - maxY) < threshold) return "se"
+      if (Math.abs(x - minX) < threshold && Math.abs(y - maxY) < threshold) return "sw"
+    } else if (element.type === "line" || element.type === "arrow") {
+      const { x1, y1, x2, y2 } = element.data
+      const threshold = 8
+      if (Math.abs(x - x1) < threshold && Math.abs(y - y1) < threshold) return "start"
+      if (Math.abs(x - x2) < threshold && Math.abs(y - y2) < threshold) return "end"
     }
     return null
   }
@@ -379,7 +510,7 @@ export function WhiteboardClient({
 
     if (tool === "select") {
       const element = getElementAt(pos.x, pos.y)
-      if (element && (element.type === "image" || element.type === "text")) {
+      if (element && (element.type === "image" || element.type === "text" || element.type === "rectangle" || element.type === "circle" || element.type === "line" || element.type === "arrow")) {
         const handle = getResizeHandle(pos.x, pos.y, element)
         if (handle) {
           setSelection({
@@ -429,27 +560,29 @@ export function WhiteboardClient({
           payload: { element: newElement },
         })
       }
-    } else if (tool === "eraser") {
+      } else if (tool === "eraser") {
       // Erase elements at this position
-      setElements((prev) => {
-        return prev.filter((el) => {
-          if (el.type === "draw") {
-            // Check if any point is near the eraser position
-            const threshold = 20
-            return !el.data.points.some((p: { x: number; y: number }) => {
-              const dist = Math.sqrt(Math.pow(p.x - pos.x, 2) + Math.pow(p.y - pos.y, 2))
-              return dist < threshold
-            })
-          } else if (el.type === "image" || el.type === "text") {
-            const { x: ex, y: ey, width, height } = el.data
-            return !(pos.x >= ex && pos.x <= ex + width && pos.y >= ey && pos.y <= ey + height)
-          }
-          return true
-        })
-      })
+      const elementToErase = getElementAt(pos.x, pos.y)
+      if (elementToErase) {
+        setElements((prev) => prev.filter((el) => el.id !== elementToErase.id))
+        if (broadcastChannelRef.current) {
+          broadcastChannelRef.current.send({
+            type: "broadcast",
+            event: "element-remove",
+            payload: { elementId: elementToErase.id },
+          })
+        }
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current)
+        }
+        saveTimeoutRef.current = setTimeout(() => {
+          saveWhiteboard()
+        }, 500)
+      }
     } else if (tool === "text") {
       setTextInput(pos)
       setTextValue("")
+      setTextFontSize(20)
     } else if (tool === "rectangle" || tool === "circle" || tool === "line" || tool === "arrow") {
       setShapeStart(pos)
     }
@@ -479,8 +612,7 @@ export function WhiteboardClient({
       const element = elements.find((e) => e.id === selection.elementId)
       if (!element) return
 
-      if (selection.isResizing && element.type === "image") {
-        const { x, y, width, height } = element.data
+      if (selection.isResizing) {
         const dx = pos.x - selection.dragStart.x
         const dy = pos.y - selection.dragStart.y
 
@@ -488,38 +620,39 @@ export function WhiteboardClient({
           return prev.map((el) => {
             if (el.id === element.id) {
               const newData = { ...el.data }
-              if (selection.resizeHandle === "nw") {
-                newData.x = x + dx
-                newData.y = y + dy
-                newData.width = width - dx
-                newData.height = height - dy
-              } else if (selection.resizeHandle === "ne") {
-                newData.y = y + dy
-                newData.width = width + dx
-                newData.height = height - dy
-              } else if (selection.resizeHandle === "se") {
-                newData.width = width + dx
-                newData.height = height + dy
-              } else if (selection.resizeHandle === "sw") {
-                newData.x = x + dx
-                newData.width = width - dx
-                newData.height = height + dy
+              if (el.type === "image" || el.type === "rectangle" || el.type === "circle") {
+                const { x, y, width, height } = el.data
+                if (selection.resizeHandle === "nw") {
+                  newData.x = x + dx
+                  newData.y = y + dy
+                  newData.width = width - dx
+                  newData.height = height - dy
+                } else if (selection.resizeHandle === "ne") {
+                  newData.y = y + dy
+                  newData.width = width + dx
+                  newData.height = height - dy
+                } else if (selection.resizeHandle === "se") {
+                  newData.width = width + dx
+                  newData.height = height + dy
+                } else if (selection.resizeHandle === "sw") {
+                  newData.x = x + dx
+                  newData.width = width - dx
+                  newData.height = height + dy
+                }
+              } else if (el.type === "text") {
+                const { fontSize } = el.data
+                const newFontSize = Math.max(12, Math.min(100, fontSize + dx * 0.5))
+                newData.fontSize = newFontSize
+              } else if (el.type === "line" || el.type === "arrow") {
+                if (selection.resizeHandle === "start") {
+                  newData.x1 = pos.x
+                  newData.y1 = pos.y
+                } else if (selection.resizeHandle === "end") {
+                  newData.x2 = pos.x
+                  newData.y2 = pos.y
+                }
               }
               return { ...el, data: newData }
-            }
-            return el
-          })
-        })
-        setSelection((prev) => ({ ...prev, dragStart: pos }))
-      } else if (selection.isResizing && element.type === "text") {
-        const { fontSize } = element.data
-        const dx = pos.x - selection.dragStart.x
-        const newFontSize = Math.max(12, Math.min(100, fontSize + dx * 0.5))
-
-        setElements((prev) => {
-          return prev.map((el) => {
-            if (el.id === element.id) {
-              return { ...el, data: { ...el.data, fontSize: newFontSize } }
             }
             return el
           })
@@ -532,10 +665,13 @@ export function WhiteboardClient({
         setElements((prev) => {
           return prev.map((el) => {
             if (el.id === element.id) {
-              if (el.type === "image") {
-                return { ...el, data: { ...el.data, x: el.data.x + dx, y: el.data.y + dy } } }
-              else if (el.type === "text") {
-                return { ...el, data: { ...el.data, x: el.data.x + dx, y: el.data.y + dy } } }
+              if (el.type === "image" || el.type === "text") {
+                return { ...el, data: { ...el.data, x: el.data.x + dx, y: el.data.y + dy } }
+              } else if (el.type === "rectangle" || el.type === "circle") {
+                return { ...el, data: { ...el.data, x: el.data.x + dx, y: el.data.y + dy } }
+              } else if (el.type === "line" || el.type === "arrow") {
+                return { ...el, data: { ...el.data, x1: el.data.x1 + dx, y1: el.data.y1 + dy, x2: el.data.x2 + dx, y2: el.data.y2 + dy } }
+              }
             }
             return el
           })
@@ -554,8 +690,9 @@ export function WhiteboardClient({
           return updated
         })
 
+        // Batch broadcast updates
         if (broadcastChannelRef.current) {
-          broadcastChannelRef.current.send({
+          broadcastQueueRef.current.push({
             type: "broadcast",
             event: "drawing-point",
             payload: {
@@ -563,6 +700,39 @@ export function WhiteboardClient({
               point: pos,
             },
           })
+          
+          if (broadcastTimeoutRef.current) {
+            clearTimeout(broadcastTimeoutRef.current)
+          }
+          
+          broadcastTimeoutRef.current = setTimeout(() => {
+            if (broadcastChannelRef.current && broadcastQueueRef.current.length > 0) {
+              // Send batched points
+              const points = broadcastQueueRef.current
+                .filter(p => p.event === "drawing-point" && p.payload.elementId === lastElement.id)
+                .map(p => p.payload.point)
+              
+              if (points.length > 0) {
+                broadcastChannelRef.current.send({
+                  type: "broadcast",
+                  event: "drawing-points-batch",
+                  payload: {
+                    elementId: lastElement.id,
+                    points,
+                  },
+                })
+              }
+              
+              // Send other events
+              broadcastQueueRef.current
+                .filter(p => p.event !== "drawing-point")
+                .forEach(event => {
+                  broadcastChannelRef.current.send(event)
+                })
+              
+              broadcastQueueRef.current = []
+            }
+          }, 50) // Batch every 50ms
         }
       }
     } else if ((tool === "rectangle" || tool === "circle" || tool === "line" || tool === "arrow") && shapeStart) {
@@ -583,6 +753,13 @@ export function WhiteboardClient({
           }
           return updated
         })
+        if (broadcastChannelRef.current) {
+          broadcastChannelRef.current.send({
+            type: "broadcast",
+            event: "element-update",
+            payload: { element: lastElement },
+          })
+        }
       }
     }
   }
@@ -602,44 +779,64 @@ export function WhiteboardClient({
         }
       }
 
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current)
-      }
-      saveTimeoutRef.current = setTimeout(() => {
-        saveWhiteboard()
-      }, 500)
+      saveWhiteboard()
     }
 
     if (selection.isDragging || selection.isResizing) {
+      const element = elements.find((e) => e.id === selection.elementId)
+      if (element && broadcastChannelRef.current) {
+        broadcastChannelRef.current.send({
+          type: "broadcast",
+          event: "element-update",
+          payload: { element },
+        })
+      }
       setSelection((prev) => ({
         ...prev,
         isDragging: false,
         isResizing: false,
         dragStart: null,
       }))
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current)
-      }
-      saveTimeoutRef.current = setTimeout(() => {
-        saveWhiteboard()
-      }, 500)
+      saveWhiteboard()
     }
 
     if (shapeStart) {
-      setShapeStart(null)
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current)
+      const lastElement = elements[elements.length - 1]
+      if (lastElement && (lastElement.type === "rectangle" || lastElement.type === "circle" || lastElement.type === "line" || lastElement.type === "arrow")) {
+        if (broadcastChannelRef.current) {
+          broadcastChannelRef.current.send({
+            type: "broadcast",
+            event: "element-add",
+            payload: { element: lastElement },
+          })
+        }
       }
-      saveTimeoutRef.current = setTimeout(() => {
-        saveWhiteboard()
-      }, 500)
+      setShapeStart(null)
+      saveWhiteboard()
     }
   }
 
-  // Save whiteboard to database
-  const saveWhiteboard = async () => {
-    await updateWhiteboard(whiteboardId, JSON.stringify(elements))
-  }
+  // Save whiteboard to database - debounced
+  const saveWhiteboard = useCallback(async () => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
+    }
+    saveTimeoutRef.current = setTimeout(async () => {
+      await updateWhiteboard(whiteboardId, JSON.stringify(elements))
+    }, 1000) // Debounce saves to 1 second
+  }, [whiteboardId])
+  
+  // Save when elements change
+  useEffect(() => {
+    if (elements.length > 0) {
+      saveWhiteboard()
+    }
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+      }
+    }
+  }, [elements, saveWhiteboard])
 
   // Handle image upload
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -723,7 +920,7 @@ export function WhiteboardClient({
         x: textInput.x,
         y: textInput.y,
         color,
-        fontSize: 20,
+        fontSize: textFontSize,
       },
       userId: currentUser.id,
       createdAt: Date.now(),
@@ -742,13 +939,6 @@ export function WhiteboardClient({
         payload: { element: newElement },
       })
     }
-
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current)
-    }
-    saveTimeoutRef.current = setTimeout(() => {
-      saveWhiteboard()
-    }, 500)
   }
 
   // Handle shape creation
@@ -781,7 +971,8 @@ export function WhiteboardClient({
         })
       }
 
-      saveWhiteboard()
+      // Save immediately
+      updateWhiteboard(whiteboardId, JSON.stringify([]))
     }
   }
 
@@ -834,6 +1025,17 @@ export function WhiteboardClient({
           return updated
         })
       })
+      .on("broadcast", { event: "drawing-points-batch" }, (payload) => {
+        const { elementId, points } = payload.payload as any
+        setElements((prev) => {
+          const updated = [...prev]
+          const element = updated.find((e) => e.id === elementId)
+          if (element && element.type === "draw" && element.userId !== currentUser.id) {
+            element.data.points.push(...points)
+          }
+          return updated
+        })
+      })
       .on("broadcast", { event: "drawing-complete" }, (payload) => {
         const { element } = payload.payload as any
         if (element.userId !== currentUser.id) {
@@ -855,6 +1057,17 @@ export function WhiteboardClient({
       })
       .on("broadcast", { event: "clear" }, () => {
         setElements([])
+        setSelection({ elementId: null, isDragging: false, isResizing: false, resizeHandle: null, dragStart: null })
+      })
+      .on("broadcast", { event: "element-update" }, (payload) => {
+        const { element } = payload.payload as any
+        if (element.userId !== currentUser.id) {
+          setElements((prev) => prev.map((el) => el.id === element.id ? element : el))
+        }
+      })
+      .on("broadcast", { event: "element-remove" }, (payload) => {
+        const { elementId } = payload.payload as any
+        setElements((prev) => prev.filter((el) => el.id !== elementId))
       })
       .on("broadcast", { event: "cursor-move" }, (payload) => {
         const { userId, x, y, user } = payload.payload as any
@@ -925,6 +1138,12 @@ export function WhiteboardClient({
       }
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current)
+      }
+      if (broadcastTimeoutRef.current) {
+        clearTimeout(broadcastTimeoutRef.current)
+      }
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
       }
       broadcastChannelRef.current = null
     }
@@ -1048,57 +1267,47 @@ export function WhiteboardClient({
   )
 
   return (
-    <div className={cn("flex flex-col bg-background", isFullscreen && "fixed inset-0 z-50")}>
-      {!isFullscreen && (
-        <>
-          {/* Header */}
-          <div className="border-b px-6 py-4 flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold">{className} - Whiteboard</h1>
-              <p className="text-sm text-muted-foreground">Collaborative whiteboard</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={toggleFullscreen}>
-                <Maximize className="h-4 w-4 mr-2" />
-                Fullscreen
-              </Button>
-              <Button variant="outline" onClick={handleClear}>
-                <Trash2 className="h-4 w-4 mr-2" />
-                Clear
-              </Button>
-            </div>
-          </div>
-
-          {/* Toolbar */}
-          <div className="border-b px-6 py-3" style={{ backgroundColor: `${classColor}10` }}>
-            {toolbarButtons}
-          </div>
-        </>
-      )}
+    <div className="flex flex-col bg-background fixed inset-0 z-50">
+      {/* Toolbar - Always visible at top */}
+      <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
+        <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow-lg p-2 border">
+          {toolbarButtons}
+        </div>
+        <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow-lg p-2 border flex flex-col gap-2">
+          <Button variant="outline" size="sm" onClick={handleClear}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
 
       {/* Canvas Container */}
       <div ref={containerRef} className="flex-1 relative overflow-hidden bg-white">
-        {isFullscreen && (
-          <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
-            <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow-lg p-2 border">
-              {toolbarButtons}
-            </div>
-            <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow-lg p-2 border flex flex-col gap-2">
-              <Button variant="outline" size="sm" onClick={toggleFullscreen}>
-                <Minimize className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleClear}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        )}
         <canvas
           ref={canvasRef}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
+          onDoubleClick={(e) => {
+            if (tool === "select") {
+              const pos = getMousePos(e)
+              const element = getElementAt(pos.x, pos.y)
+              if (element && element.type === "text") {
+                setTextInput({ x: element.data.x, y: element.data.y })
+                setTextValue(element.data.text)
+                setTextFontSize(element.data.fontSize)
+                setColor(element.data.color)
+                setElements((prev) => prev.filter((el) => el.id !== element.id))
+                if (broadcastChannelRef.current) {
+                  broadcastChannelRef.current.send({
+                    type: "broadcast",
+                    event: "element-remove",
+                    payload: { elementId: element.id },
+                  })
+                }
+              }
+            }
+          }}
           className={cn(
             "absolute inset-0",
             tool === "draw" || tool === "eraser" ? "cursor-crosshair" : 
@@ -1132,7 +1341,7 @@ export function WhiteboardClient({
         {/* Text Input */}
         {textInput && (
           <div
-            className="absolute z-20"
+            className="absolute z-20 flex flex-col gap-2"
             style={{ left: textInput.x, top: textInput.y }}
           >
             <input
@@ -1150,8 +1359,20 @@ export function WhiteboardClient({
               }}
               autoFocus
               className="px-2 py-1 border rounded bg-white"
-              style={{ color, fontSize: 20 }}
+              style={{ color, fontSize: textFontSize }}
             />
+            <div className="flex items-center gap-2 bg-white/90 backdrop-blur-sm rounded p-2 border">
+              <label className="text-xs text-muted-foreground">Font Size:</label>
+              <input
+                type="range"
+                min="12"
+                max="100"
+                value={textFontSize}
+                onChange={(e) => setTextFontSize(Number(e.target.value))}
+                className="w-24"
+              />
+              <span className="text-xs text-muted-foreground">{textFontSize}px</span>
+            </div>
           </div>
         )}
       </div>

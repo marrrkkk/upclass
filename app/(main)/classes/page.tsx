@@ -24,6 +24,8 @@ export const metadata: Metadata = {
   title: "Classes",
 }
 
+export const revalidate = 30 // Revalidate every 30 seconds
+
 export default async function ClassesPage() {
   const session = await auth.api.getSession({
     headers: await headers(),

@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, memo } from "react"
 import Link from "next/link"
+import { usePrefetch } from "@/lib/hooks/use-prefetch"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -67,13 +68,20 @@ function formatValidDate(date: Date) {
     return format(date, "MMM d")
 }
 
-function DeadlineCard({ deadline }: { deadline: DeadlineItem }) {
+const DeadlineCard = memo(function DeadlineCard({ deadline }: { deadline: DeadlineItem }) {
+    const { prefetchOnHover, cancelPrefetch } = usePrefetch()
     const urgency = getUrgencyLevel(deadline.dueDate)
     const urgencyColor = getUrgencyColors(urgency)
     const TypeIcon = deadline.type === "quiz" ? ClipboardCheck : FileText
+    const classHref = `/classes/${deadline.classId}`
 
     return (
-        <Link href={`/classes/${deadline.classId}`}>
+        <Link 
+            href={classHref} 
+            prefetch={true}
+            onMouseEnter={() => prefetchOnHover(classHref)}
+            onMouseLeave={() => cancelPrefetch(classHref)}
+        >
             <div className="group relative flex items-center gap-4 p-3 rounded-xl border border-transparent hover:bg-muted/40 hover:border-border/50 transition-all duration-200">
                 {/* Date Box */}
                 <div className={cn(
@@ -134,7 +142,7 @@ function DeadlineCard({ deadline }: { deadline: DeadlineItem }) {
             </div>
         </Link>
     )
-}
+})
 
 function AllDeadlinesDialog({ deadlines, role, open, onOpenChange }: {
     deadlines: DeadlineItem[],

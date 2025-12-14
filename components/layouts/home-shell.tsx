@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { Menu } from "lucide-react"
 
 import { Sidebar } from "@/components/sidebar"
@@ -9,6 +10,7 @@ import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useUserStore } from "@/lib/stores/user-store"
+import { useBackgroundRefresh } from "@/lib/hooks/use-background-refresh"
 
 type HomeShellProps = {
   children: React.ReactNode
@@ -22,8 +24,15 @@ type HomeShellProps = {
 }
 
 export function HomeShell({ children, isAuthenticated, userInfo, userId }: HomeShellProps) {
+  const pathname = usePathname()
   const { setUser, setIsAuthenticated: setUserIsAuthenticated, user: storeUser, isAuthenticated: storeIsAuthenticated } = useUserStore()
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  
+  // Background refresh for current page (only on main pages, not whiteboard)
+  useBackgroundRefresh(
+    pathname || "/",
+    pathname?.includes("/whiteboard") ? 0 : 30000 // Don't refresh whiteboard automatically
+  )
 
   useEffect(() => {
     if (isAuthenticated && userInfo && userId) {

@@ -19,6 +19,7 @@ import { MessagesSection } from "@/components/sidebar/messages-section"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useUserStore } from "@/lib/stores/user-store"
+import { usePrefetch } from "@/lib/hooks/use-prefetch"
 
 const navItems = [
   { label: "Home", href: "/home", icon: Home },
@@ -43,6 +44,7 @@ export function Sidebar({ userId, userInfo, className, "data-state": dataState, 
   const pathname = usePathname()
   const currentPath = pathname || "/home"
   const { user: storeUser } = useUserStore()
+  const { prefetchOnHover, cancelPrefetch } = usePrefetch()
   
   const currentUserInfo = storeUser ? {
     name: storeUser.name,
@@ -99,6 +101,9 @@ export function Sidebar({ userId, userInfo, className, "data-state": dataState, 
                 <Link
                   key={item.label}
                   href={item.href}
+                  prefetch={true}
+                  onMouseEnter={() => prefetchOnHover(item.href)}
+                  onMouseLeave={() => cancelPrefetch(item.href)}
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 group/item",
                     isActive
@@ -142,6 +147,9 @@ export function Sidebar({ userId, userInfo, className, "data-state": dataState, 
           <nav className="space-y-0.5">
             <Link
               href="/settings"
+              prefetch={true}
+              onMouseEnter={() => prefetchOnHover("/settings")}
+              onMouseLeave={() => cancelPrefetch("/settings")}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 group/item",
                 currentPath === "/settings"
@@ -164,6 +172,9 @@ export function Sidebar({ userId, userInfo, className, "data-state": dataState, 
       <div className="p-3 border-t border-border/40">
         <Link
           href={currentUserId ? `/user/${currentUserId}` : "/profile"}
+          prefetch={true}
+          onMouseEnter={() => prefetchOnHover(currentUserId ? `/user/${currentUserId}` : "/profile")}
+          onMouseLeave={() => cancelPrefetch(currentUserId ? `/user/${currentUserId}` : "/profile")}
           className={cn(
             "flex items-center gap-3 rounded-xl p-3 text-sm font-medium transition-all duration-200 border border-transparent",
             currentPath?.startsWith("/user/")

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, memo } from "react"
 import {
   FileText,
   Search,
@@ -23,6 +23,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 import { useResourcesStore } from "@/lib/stores/resources-store"
+import { usePrefetch } from "@/lib/hooks/use-prefetch"
 
 type ResourceCardData = {
   id: string
@@ -101,16 +102,24 @@ export function ResourcesClient({ resources, isAuthenticated = false }: Resource
       })
     }
 
-    // Filter by search query
+    // Filter by search query - optimized
     if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase()
-      filtered = filtered.filter(
-        (resource) =>
-          resource.title.toLowerCase().includes(query) ||
-          resource.description?.toLowerCase().includes(query) ||
-          resource.category?.toLowerCase().includes(query) ||
-          resource.fileName.toLowerCase().includes(query),
-      )
+      const query = searchQuery.toLowerCase().trim()
+      const queryWords = query.split(/\s+/)
+      
+      filtered = filtered.filter((resource) => {
+        const searchableText = [
+          resource.title,
+          resource.description,
+          resource.category,
+          resource.fileName,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+
+        return queryWords.every(word => searchableText.includes(word))
+      })
     }
 
     return filtered
@@ -179,19 +188,29 @@ export function ResourcesClient({ resources, isAuthenticated = false }: Resource
   )
 }
 
-function ResourceCard({ data }: { data: ResourceCardData }) {
-  const createdDate = data.createdAt
-    ? new Intl.DateTimeFormat("en", {
-      month: "short",
-      day: "numeric",
-    }).format(new Date(data.createdAt))
-    : ""
+const ResourceCard = memo(function ResourceCard({ data }: { data: ResourceCardData }) {
+  const { prefetchOnHover, cancelPrefetch } = usePrefetch()
+  const resourceHref = `/resources/${data.id}`
+  const createdDate = useMemo(() => {
+    return data.createdAt
+      ? new Intl.DateTimeFormat("en", {
+          month: "short",
+          day: "numeric",
+        }).format(new Date(data.createdAt))
+      : ""
+  }, [data.createdAt])
 
-  const fileInfo = getFileTypeInfo(data.fileType)
+  const fileInfo = useMemo(() => getFileTypeInfo(data.fileType), [data.fileType])
 
   return (
     <div className="group relative flex flex-col overflow-hidden rounded-2xl border bg-card transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-primary/20 h-full">
-      <Link href={`/resources/${data.id}`} className="absolute inset-0 z-10">
+      <Link 
+        href={resourceHref} 
+        prefetch={true}
+        onMouseEnter={() => prefetchOnHover(resourceHref)}
+        onMouseLeave={() => cancelPrefetch(resourceHref)}
+        className="absolute inset-0 z-10"
+      >
         <span className="sr-only">View {data.title}</span>
       </Link>
 
@@ -265,5 +284,5 @@ function ResourceCard({ data }: { data: ResourceCardData }) {
       </div>
     </div>
   )
-}
+})
 

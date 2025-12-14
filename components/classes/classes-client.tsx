@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, memo } from "react"
 import Link from "next/link"
 import { GraduationCap, Clock, Search } from "lucide-react"
 
@@ -15,6 +15,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 import { useClassesStore } from "@/lib/stores/classes-store"
+import { usePrefetch } from "@/lib/hooks/use-prefetch"
 
 type ClassCardData = {
   id: string
@@ -57,15 +58,23 @@ export function ClassesClient({
   const filteredList = useMemo(() => {
     if (!searchQuery.trim()) return list
 
-    const query = searchQuery.toLowerCase()
+    const query = searchQuery.toLowerCase().trim()
+    const queryWords = query.split(/\s+/)
+    
     return list.filter((classItem) => {
-      const titleMatch = classItem.title.toLowerCase().includes(query)
-      const descriptionMatch = classItem.description?.toLowerCase().includes(query)
-      const categoryMatch = classItem.category?.toLowerCase().includes(query)
-      const teacherMatch = classItem.teacherName?.toLowerCase().includes(query)
-      const scheduleMatch = classItem.schedule?.toLowerCase().includes(query)
+      const searchableText = [
+        classItem.title,
+        classItem.description,
+        classItem.category,
+        classItem.teacherName,
+        classItem.schedule,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
 
-      return titleMatch || descriptionMatch || categoryMatch || teacherMatch || scheduleMatch
+      // Match all words in query
+      return queryWords.every(word => searchableText.includes(word))
     })
   }, [list, searchQuery])
 
@@ -143,19 +152,29 @@ export function ClassesClient({
   )
 }
 
-function ClassCard({ data }: { data: ClassCardData }) {
+const ClassCard = memo(function ClassCard({ data }: { data: ClassCardData }) {
+  const { prefetchOnHover, cancelPrefetch } = usePrefetch()
   const classColor = data.color || "#3b82f6"
-  const teacherInitials = data.teacherName
-    ? data.teacherName
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2)
-    : "T"
+  const classHref = `/classes/${data.id}`
+  const teacherInitials = useMemo(() => {
+    return data.teacherName
+      ? data.teacherName
+          .split(" ")
+          .map((n) => n[0])
+          .join("")
+          .toUpperCase()
+          .slice(0, 2)
+      : "T"
+  }, [data.teacherName])
 
   return (
-    <Link href={`/classes/${data.id}`} className="group block h-full">
+    <Link 
+      href={classHref} 
+      prefetch={true}
+      onMouseEnter={() => prefetchOnHover(classHref)}
+      onMouseLeave={() => cancelPrefetch(classHref)}
+      className="group block h-full"
+    >
       <div className="relative h-full flex flex-col overflow-hidden rounded-2xl border bg-card transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-primary/20">
         {/* Banner with Pattern */}
         <div
@@ -219,5 +238,5 @@ function ClassCard({ data }: { data: ClassCardData }) {
       </div>
     </Link>
   )
-}
+})
 

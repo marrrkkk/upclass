@@ -7,6 +7,8 @@ import { db } from "@/db"
 import { classes, classMembership, whiteboards, user } from "@/db/schema"
 import { WhiteboardClient } from "@/components/whiteboard/whiteboard-client"
 
+export const revalidate = 0 // Always fresh for whiteboard
+
 export default async function WhiteboardPage({
   params,
 }: {
@@ -97,15 +99,17 @@ export default async function WhiteboardPage({
     .where(eq(classMembership.classId, id))
 
   return (
-    <WhiteboardClient
-      whiteboardId={whiteboard[0].id}
-      classId={id}
-      className={classData[0].title}
-      classColor={classData[0].color || "#3b82f6"}
-      initialData={whiteboard[0].data}
-      currentUser={currentUser[0]}
-      members={members}
-    />
+    <div className="fixed inset-0 z-50 bg-background">
+      <WhiteboardClient
+        whiteboardId={whiteboard[0].id}
+        classId={id}
+        className={classData[0].title}
+        classColor={classData[0].color || "#3b82f6"}
+        initialData={whiteboard[0].data}
+        currentUser={currentUser[0]}
+        members={members}
+      />
+    </div>
   )
 }
 

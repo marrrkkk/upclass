@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { MessageSquare, Send, Search, PlusCircle, Users } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
@@ -12,6 +13,7 @@ import { cn } from "@/lib/utils"
 import { NewConversationDialog } from "@/components/messages/new-conversation-dialog"
 import { formatDistanceToNow, parseISO } from "date-fns"
 import { useMessagesStore } from "@/lib/stores/messages-store"
+import { usePrefetch } from "@/lib/hooks/use-prefetch"
 
 type Conversation = {
   userId: string
@@ -28,6 +30,8 @@ type MessagesClientProps = {
 }
 
 export function MessagesClient({ conversations: initialConversations, userId }: MessagesClientProps) {
+  const router = useRouter()
+  const { prefetchOnHover, cancelPrefetch } = usePrefetch()
   const { setConversations, setCurrentUserId, conversations: storeConversations, updateConversation } = useMessagesStore()
   
   useEffect(() => {
@@ -52,12 +56,8 @@ export function MessagesClient({ conversations: initialConversations, userId }: 
           filter: `receiver_id=eq.${userId}`,
         },
         () => {
-          // In a real app, we'd fetch the latest conversation data here.
-          // For now, reloading ensures we get the fresh state from the server data prop if re-fetched,
-          // but a better approach is optimistic updates or re-fetching via router.refresh().
-          // Replacing window.location.reload() with router refresh is better UX but requires logic.
-          // We'll stick to the existing behavior for now but safeguard it.
-          window.location.reload()
+          // Use router.refresh() instead of window.location.reload() for better UX
+          router.refresh()
         },
       )
       .subscribe()
@@ -65,7 +65,7 @@ export function MessagesClient({ conversations: initialConversations, userId }: 
     return () => {
       supabase?.removeChannel(channel)
     }
-  }, [userId])
+  }, [userId, router])
 
   const filteredConversations = storeConversations.filter((conv) =>
     conv.userName.toLowerCase().includes(searchQuery.toLowerCase()),
@@ -131,39 +131,48 @@ export function MessagesClient({ conversations: initialConversations, userId }: 
             </div>
           ) : (
             <div className="space-y-2">
-              {filteredConversations.map((conv) => (
-                <Link key={conv.userId} href={`/messages/${conv.userId}`}>
-                  <div className="group flex items-center gap-4 p-4 rounded-xl border border-transparent hover:bg-card hover:border-border hover:shadow-sm transition-all duration-200 cursor-pointer bg-card/40">
-                    <Avatar className="h-12 w-12 border border-border/50">
-                      <AvatarImage src={conv.userImage || undefined} alt={conv.userName} />
-                      <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-medium">
-                        {getInitials(conv.userName)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <span className="font-semibold text-foreground truncate">{conv.userName}</span>
-                        <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                          {formatLastMessageTime(conv.lastMessageTime)}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <p className={cn(
-                          "text-sm truncate pr-4",
-                          conv.unreadCount > 0 ? "text-foreground font-medium" : "text-muted-foreground"
-                        )}>
-                          {conv.lastMessage}
-                        </p>
-                        {conv.unreadCount > 0 && (
-                          <Badge variant="default" className="h-5 min-w-[1.25rem] px-1.5 flex justify-center items-center rounded-full text-[10px] font-bold">
-                            {conv.unreadCount}
-                          </Badge>
-                        )}
+              {filteredConversations.map((conv) => {
+                const messageHref = `/messages/${conv.userId}`
+                return (
+                  <Link 
+                    key={conv.userId} 
+                    href={messageHref} 
+                    prefetch={true}
+                    onMouseEnter={() => prefetchOnHover(messageHref)}
+                    onMouseLeave={() => cancelPrefetch(messageHref)}
+                  >
+                    <div className="group flex items-center gap-4 p-4 rounded-xl border border-transparent hover:bg-card hover:border-border hover:shadow-sm transition-all duration-200 cursor-pointer bg-card/40">
+                      <Avatar className="h-12 w-12 border border-border/50">
+                        <AvatarImage src={conv.userImage || undefined} alt={conv.userName} />
+                        <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-medium">
+                          {getInitials(conv.userName)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <span className="font-semibold text-foreground truncate">{conv.userName}</span>
+                          <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                            {formatLastMessageTime(conv.lastMessageTime)}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <p className={cn(
+                            "text-sm truncate pr-4",
+                            conv.unreadCount > 0 ? "text-foreground font-medium" : "text-muted-foreground"
+                          )}>
+                            {conv.lastMessage}
+                          </p>
+                          {conv.unreadCount > 0 && (
+                            <Badge variant="default" className="h-5 min-w-[1.25rem] px-1.5 flex justify-center items-center rounded-full text-[10px] font-bold">
+                              {conv.unreadCount}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                )
+              })}
             </div>
           )}
         </div>

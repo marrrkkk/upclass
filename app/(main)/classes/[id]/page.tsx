@@ -21,6 +21,8 @@ import {
 } from "@/db/schema"
 import { ClassDetailClient } from "@/components/classes/class-detail-client"
 
+export const revalidate = 30 // Revalidate every 30 seconds
+
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params
   const classData = await db

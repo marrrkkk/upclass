@@ -12,6 +12,8 @@ export const metadata: Metadata = {
   title: "Messages",
 }
 
+export const revalidate = 10 // Revalidate every 10 seconds for messages
+
 export default async function MessagesPage() {
   const session = await auth.api.getSession({
     headers: await headers(),
