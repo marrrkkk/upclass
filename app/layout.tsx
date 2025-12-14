@@ -64,7 +64,7 @@ export default function RootLayout({
           <PWAProvider>
             <OfflineErrorBoundary>
               <OfflineIndicator />
-              {children}
+          {children}
             </OfflineErrorBoundary>
           </PWAProvider>
         </ThemeProvider>

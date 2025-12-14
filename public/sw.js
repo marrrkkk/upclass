@@ -94,6 +94,37 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Handle Next.js RSC requests (React Server Components)
+  if (url.searchParams.has('_rsc') || request.headers.get('RSC') === '1') {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          // Cache successful RSC responses
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(RUNTIME_CACHE).then((cache) => {
+              cache.put(request, clone);
+            });
+          }
+          return response;
+        })
+        .catch(() => {
+          // Try cache for RSC requests
+          return caches.match(request).then((cachedResponse) => {
+            if (cachedResponse) {
+              return cachedResponse;
+            }
+            // Return a minimal RSC response if no cache
+            return new Response('', { 
+              status: 503,
+              headers: { 'Content-Type': 'text/plain' }
+            });
+          });
+        })
+    );
+    return;
+  }
+
   // For images, cache aggressively
   if (request.destination === 'image' || url.pathname.match(/\.(jpg|jpeg|png|gif|webp|svg|ico)$/i)) {
     event.respondWith(

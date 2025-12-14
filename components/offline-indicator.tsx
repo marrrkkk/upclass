@@ -11,27 +11,39 @@ export function OfflineIndicator() {
   const [isSyncing, setIsSyncing] = useState(false)
   const [showIndicator, setShowIndicator] = useState(false)
 
-  // Check if server is actually reachable
+  // Check if server is actually reachable (with retry and less aggressive)
   const checkServerStatus = async () => {
+    // If browser says offline, don't check server
+    if (!navigator.onLine) {
+      return false
+    }
+    
     try {
-      // Try to fetch a lightweight endpoint with timeout
+      // Try to fetch a lightweight endpoint with shorter timeout
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 3000) // 3 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 2000) // 2 second timeout
       
       try {
         const response = await fetch(window.location.origin, { 
           method: 'HEAD',
           cache: 'no-cache',
-          signal: controller.signal
+          signal: controller.signal,
+          // Don't fail on network errors, just timeout
         })
         clearTimeout(timeoutId)
-        return response.ok
+        return response.ok || response.status < 500 // Accept any non-server-error
       } catch (fetchError) {
         clearTimeout(timeoutId)
+        // Only return false if it's a real network error, not just timeout
+        if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+          // Timeout - assume server might be slow, not necessarily offline
+          return true
+        }
         return false
       }
     } catch (error) {
-      return false
+      // On any other error, assume online (less aggressive)
+      return navigator.onLine
     }
   }
 
@@ -69,11 +81,13 @@ export function OfflineIndicator() {
     initialCheck()
     
     // Check periodically when browser says online (to catch server being down)
+    // But be less aggressive - only check every 30 seconds
     statusInterval = setInterval(async () => {
       if (navigator.onLine) {
         const serverReachable = await checkServerStatus()
         setIsOnline((prev) => {
           if (!serverReachable && prev) {
+            // Only show indicator if we're actually offline
             setShowIndicator(true)
             return false
           } else if (serverReachable && !prev) {
@@ -82,8 +96,12 @@ export function OfflineIndicator() {
           }
           return prev
         })
+      } else {
+        // Browser says offline - definitely offline
+        setIsOnline(false)
+        setShowIndicator(true)
       }
-    }, 5000) // Check every 5 seconds
+    }, 30000) // Check every 30 seconds (less aggressive)
 
     // Listen for online/offline events
     const handleOnline = async () => {

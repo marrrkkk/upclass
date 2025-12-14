@@ -5,6 +5,7 @@ import { AlertCircle, RefreshCw, Home } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import Link from "next/link"
+import { BackgroundCache } from "@/lib/background-cache"
 
 interface Props {
   children: ReactNode
@@ -15,6 +16,8 @@ interface State {
   hasError: boolean
   error: Error | null
   isOffline: boolean
+  hasCache: boolean
+  checkingCache: boolean
 }
 
 export class OfflineErrorBoundary extends Component<Props, State> {
@@ -25,6 +28,8 @@ export class OfflineErrorBoundary extends Component<Props, State> {
       hasError: false,
       error: null,
       isOffline: false, // Will be updated in componentDidMount
+      hasCache: false,
+      checkingCache: true,
     }
   }
 
@@ -32,7 +37,54 @@ export class OfflineErrorBoundary extends Component<Props, State> {
     return {
       hasError: true,
       error,
-      isOffline: !navigator.onLine,
+      isOffline: typeof navigator !== 'undefined' && !navigator.onLine,
+      hasCache: false,
+      checkingCache: true,
+    }
+  }
+
+  async checkCacheAvailability() {
+    if (typeof window === 'undefined') return false
+    
+    try {
+      const cache = BackgroundCache.getInstance()
+      const db = await cache['ensureDB']()
+      
+      // Check if we have any cached data
+      const stores = ['classes', 'resources', 'messages', 'notifications', 'pages']
+      for (const storeName of stores) {
+        if (db.objectStoreNames.contains(storeName)) {
+          const tx = db.transaction(storeName, 'readonly')
+          const store = tx.objectStore(storeName)
+          const countRequest = store.count()
+          
+          const count = await new Promise<number>((resolve, reject) => {
+            countRequest.onsuccess = () => resolve(countRequest.result)
+            countRequest.onerror = () => reject(countRequest.error)
+          })
+          
+          if (count > 0) {
+            return true
+          }
+        }
+      }
+      
+      // Also check service worker cache
+      if ('caches' in window) {
+        const cacheNames = await caches.keys()
+        for (const cacheName of cacheNames) {
+          const cache = await caches.open(cacheName)
+          const keys = await cache.keys()
+          if (keys.length > 0) {
+            return true
+          }
+        }
+      }
+      
+      return false
+    } catch (error) {
+      console.error('Error checking cache:', error)
+      return false
     }
   }
 
@@ -40,8 +92,34 @@ export class OfflineErrorBoundary extends Component<Props, State> {
     console.error("Error caught by boundary:", error, errorInfo)
     
     // Check if it's a network error
-    if (error.message.includes('fetch') || error.message.includes('network') || !navigator.onLine) {
-      this.setState({ isOffline: true })
+    const isNetworkError = error.message.includes('fetch') || 
+                          error.message.includes('network') || 
+                          error.message.includes('Failed to fetch') ||
+                          error.message.includes('503') ||
+                          error.message.includes('Service Unavailable') ||
+                          (typeof navigator !== 'undefined' && !navigator.onLine)
+    
+    if (isNetworkError) {
+      // Check if we have cached data before showing offline error
+      this.checkCacheAvailability().then((hasCache) => {
+        this.setState({ 
+          isOffline: true,
+          hasCache,
+          checkingCache: false 
+        })
+      }).catch(() => {
+        this.setState({ 
+          isOffline: true,
+          hasCache: false,
+          checkingCache: false 
+        })
+      })
+    } else {
+      this.setState({ 
+        isOffline: false,
+        hasCache: false,
+        checkingCache: false 
+      })
     }
   }
 
@@ -53,12 +131,19 @@ export class OfflineErrorBoundary extends Component<Props, State> {
     this.setState({ isOffline: true })
   }
 
-  componentDidMount() {
+  async componentDidMount() {
     // Only run on client side
     if (typeof window === 'undefined') return
     
     // Set initial offline state
-    this.setState({ isOffline: !navigator.onLine })
+    const browserOffline = !navigator.onLine
+    this.setState({ isOffline: browserOffline, checkingCache: browserOffline })
+    
+    // If offline, check if we have cache
+    if (browserOffline) {
+      const hasCache = await this.checkCacheAvailability()
+      this.setState({ hasCache, checkingCache: false })
+    }
     
     // Listen for online/offline events
     window.addEventListener('online', this.handleOnline)
@@ -76,7 +161,13 @@ export class OfflineErrorBoundary extends Component<Props, State> {
   }
 
   render() {
-    if (this.state.hasError || this.state.isOffline) {
+    // Don't show error if we're checking cache or if we have cache available
+    if (this.state.checkingCache) {
+      return this.props.children
+    }
+    
+    // Only show error if we're offline AND have no cache
+    if ((this.state.hasError || this.state.isOffline) && !this.state.hasCache) {
       if (this.props.fallback) {
         return this.props.fallback
       }
