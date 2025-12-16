@@ -10,15 +10,17 @@ export function useBackgroundRefresh(path: string, interval: number = 30000) {
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
-    // Don't refresh if offline
-    if (!navigator.onLine) {
-      return
-    }
-
-    // Refresh in background every interval
+    // Refresh in background every interval, but only when we believe we're actually online.
+    // This respects both the browser's offline flag and the app-level server reachability flag
+    // that is maintained by the OfflineIndicator component.
     intervalRef.current = setInterval(() => {
-      // Only refresh if online
-      if (navigator.onLine) {
+      const browserOnline = typeof navigator !== "undefined" ? navigator.onLine : true
+      const serverOnline =
+        typeof window !== "undefined" && (window as any).__UPCLASS_SERVER_ONLINE__ === false
+          ? false
+          : true
+
+      if (browserOnline && serverOnline) {
         // Use router.refresh() to refresh server components without full page reload
         router.refresh()
       }

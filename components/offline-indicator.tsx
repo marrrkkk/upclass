@@ -1,15 +1,22 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Wifi, WifiOff, Cloud } from "lucide-react"
+import { Wifi, WifiOff, Cloud, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { SyncManager } from "@/lib/sync-manager"
+
+// Helper to share server connectivity status with other parts of the app
+const setGlobalServerOnline = (online: boolean) => {
+  if (typeof window === "undefined") return
+  ;(window as any).__UPCLASS_SERVER_ONLINE__ = online
+}
 
 export function OfflineIndicator() {
   // Always start with same values on server and client to avoid hydration mismatch
   const [isOnline, setIsOnline] = useState(true)
   const [isSyncing, setIsSyncing] = useState(false)
   const [showIndicator, setShowIndicator] = useState(false)
+  const [dismissedOffline, setDismissedOffline] = useState(false)
 
   // Check if server is actually reachable (with retry and less aggressive)
   const checkServerStatus = async () => {
@@ -34,15 +41,12 @@ export function OfflineIndicator() {
         return response.ok || response.status < 500 // Accept any non-server-error
       } catch (fetchError) {
         clearTimeout(timeoutId)
-        // Only return false if it's a real network error, not just timeout
-        if (fetchError instanceof Error && fetchError.name === 'AbortError') {
-          // Timeout - assume server might be slow, not necessarily offline
-          return true
-        }
+        // Treat both real network errors and timeouts as offline so the banner
+        // doesn't incorrectly flip to "Back online" every interval
         return false
       }
     } catch (error) {
-      // On any other error, assume online (less aggressive)
+      // On any unexpected error, fall back to the browser's online status
       return navigator.onLine
     }
   }
@@ -59,6 +63,7 @@ export function OfflineIndicator() {
       if (!browserOnline) {
         setIsOnline(false)
         setShowIndicator(true)
+        setGlobalServerOnline(false)
         return
       }
       
@@ -69,6 +74,7 @@ export function OfflineIndicator() {
         
         setIsOnline(actuallyOnline)
         setShowIndicator(!actuallyOnline)
+        setGlobalServerOnline(actuallyOnline)
       }
       
       // Check immediately
@@ -89,9 +95,11 @@ export function OfflineIndicator() {
           if (!serverReachable && prev) {
             // Only show indicator if we're actually offline
             setShowIndicator(true)
+            setGlobalServerOnline(false)
             return false
           } else if (serverReachable && !prev) {
             setShowIndicator(true)
+            setGlobalServerOnline(true)
             return true
           }
           return prev
@@ -100,6 +108,7 @@ export function OfflineIndicator() {
         // Browser says offline - definitely offline
         setIsOnline(false)
         setShowIndicator(true)
+        setGlobalServerOnline(false)
       }
     }, 30000) // Check every 30 seconds (less aggressive)
 
@@ -110,12 +119,14 @@ export function OfflineIndicator() {
       if (!serverReachable) {
         setIsOnline(false)
         setShowIndicator(true)
+        setGlobalServerOnline(false)
         return
       }
       
       setIsOnline(true)
       setIsSyncing(true)
       setShowIndicator(true)
+      setGlobalServerOnline(true)
       
       // Trigger sync
       if ('serviceWorker' in navigator && 'sync' in window.ServiceWorkerRegistration.prototype) {
@@ -147,6 +158,7 @@ export function OfflineIndicator() {
       setIsOnline(false)
       setIsSyncing(false)
       setShowIndicator(true)
+      setGlobalServerOnline(false)
     }
 
     window.addEventListener('online', handleOnline)
@@ -161,6 +173,7 @@ export function OfflineIndicator() {
         
         setIsOnline(actuallyOnline)
         setShowIndicator(!actuallyOnline)
+        setGlobalServerOnline(actuallyOnline)
       }
     }
 
@@ -178,7 +191,9 @@ export function OfflineIndicator() {
     <div
       className={cn(
         "fixed top-0 left-0 right-0 z-[9999] transition-all duration-300",
-        showIndicator ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-full pointer-events-none"
+        showIndicator && (!dismissedOffline || isOnline)
+          ? "opacity-100 translate-y-0"
+          : "opacity-0 -translate-y-full pointer-events-none"
       )}
     >
       <div
@@ -206,8 +221,22 @@ export function OfflineIndicator() {
         ) : (
           <>
             <WifiOff className="h-4 w-4" />
-            <span className="text-sm font-medium">You're offline. Using cached data. Changes will sync when connection is restored.</span>
+            <span className="text-sm font-medium">
+              You're offline. Using cached data. Changes will sync when connection is restored.
+            </span>
           </>
+        )}
+
+        {/* Close button (only meaningful for offline state; returns after full page refresh) */}
+        {!isOnline && (
+          <button
+            type="button"
+            onClick={() => setDismissedOffline(true)}
+            className="ml-3 inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/40 text-white/90 hover:bg-white/15 hover:text-white transition-colors"
+            aria-label="Dismiss offline status message"
+          >
+            <X className="h-3 w-3" />
+          </button>
         )}
       </div>
     </div>
