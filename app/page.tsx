@@ -1,5 +1,6 @@
 
 import { headers } from "next/headers"
+import { redirect } from "next/navigation"
 import Link from "next/link"
 import { auth } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
@@ -12,6 +13,11 @@ export default async function LandingPage() {
   })
 
   const isAuthenticated = !!session?.user
+
+  // Redirect authenticated users to /home
+  if (isAuthenticated) {
+    redirect("/home")
+  }
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden flex flex-col">
