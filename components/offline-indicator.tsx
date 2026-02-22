@@ -18,141 +18,48 @@ export function OfflineIndicator() {
   const [showIndicator, setShowIndicator] = useState(false)
   const [dismissedOffline, setDismissedOffline] = useState(false)
 
-  // Check if server is actually reachable (with retry and less aggressive)
-  const checkServerStatus = async () => {
-    // If browser says offline, don't check server
-    if (!navigator.onLine) {
-      return false
-    }
-    
+  // Check if server is reachable (used only for sync after coming back online).
+  // We do NOT use this to show "offline" - only navigator.onLine is used for that,
+  // to avoid false "offline" when the server is slow or a request times out.
+  const checkServerStatus = async (): Promise<boolean> => {
+    if (!navigator.onLine) return false
     try {
-      // Try to fetch a lightweight endpoint with shorter timeout
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 2000) // 2 second timeout
-      
+      const timeoutId = setTimeout(() => controller.abort(), 3000)
       try {
-        const response = await fetch(window.location.origin, { 
-          method: 'HEAD',
-          cache: 'no-cache',
+        const response = await fetch(window.location.origin, {
+          method: "HEAD",
+          cache: "no-cache",
           signal: controller.signal,
-          // Don't fail on network errors, just timeout
         })
         clearTimeout(timeoutId)
-        return response.ok || response.status < 500 // Accept any non-server-error
-      } catch (fetchError) {
+        return response.ok || response.status < 500
+      } catch {
         clearTimeout(timeoutId)
-        // Treat both real network errors and timeouts as offline so the banner
-        // doesn't incorrectly flip to "Back online" every interval
         return false
       }
-    } catch (error) {
-      // On any unexpected error, fall back to the browser's online status
+    } catch {
       return navigator.onLine
     }
   }
 
   useEffect(() => {
-    // Only run on client side
-    if (typeof window === 'undefined') return
-    
-    let statusInterval: NodeJS.Timeout | null = null
-    
-    // Set initial online status - check immediately
-    const initialCheck = async () => {
-      const browserOnline = navigator.onLine
-      if (!browserOnline) {
-        setIsOnline(false)
-        setShowIndicator(true)
-        setGlobalServerOnline(false)
-        return
-      }
-      
-      // Check server status immediately, then again after a short delay
-      const checkNow = async () => {
-        const serverReachable = await checkServerStatus()
-        const actuallyOnline = browserOnline && serverReachable
-        
-        setIsOnline(actuallyOnline)
-        setShowIndicator(!actuallyOnline)
-        setGlobalServerOnline(actuallyOnline)
-      }
-      
-      // Check immediately
-      checkNow()
-      
-      // Also check after a short delay to catch server going down
-      setTimeout(checkNow, 1000)
-    }
-    
-    initialCheck()
-    
-    // Check periodically when browser says online (to catch server being down)
-    // But be less aggressive - only check every 30 seconds
-    statusInterval = setInterval(async () => {
-      if (navigator.onLine) {
-        const serverReachable = await checkServerStatus()
-        setIsOnline((prev) => {
-          if (!serverReachable && prev) {
-            // Only show indicator if we're actually offline
-            setShowIndicator(true)
-            setGlobalServerOnline(false)
-            return false
-          } else if (serverReachable && !prev) {
-            setShowIndicator(true)
-            setGlobalServerOnline(true)
-            return true
-          }
-          return prev
-        })
-      } else {
-        // Browser says offline - definitely offline
-        setIsOnline(false)
-        setShowIndicator(true)
-        setGlobalServerOnline(false)
-      }
-    }, 30000) // Check every 30 seconds (less aggressive)
+    if (typeof window === "undefined") return
 
-    // Listen for online/offline events
-    const handleOnline = async () => {
-      // Verify server is actually reachable
-      const serverReachable = await checkServerStatus()
-      if (!serverReachable) {
-        setIsOnline(false)
+    // Derive offline state only from navigator.onLine so we never show
+    // "You're offline" when the user actually has connectivity.
+    const updateFromNavigator = () => {
+      const online = navigator.onLine
+      setIsOnline(online)
+      setGlobalServerOnline(online)
+      if (!online) {
         setShowIndicator(true)
-        setGlobalServerOnline(false)
-        return
-      }
-      
-      setIsOnline(true)
-      setIsSyncing(true)
-      setShowIndicator(true)
-      setGlobalServerOnline(true)
-      
-      // Trigger sync
-      if ('serviceWorker' in navigator && 'sync' in window.ServiceWorkerRegistration.prototype) {
-        navigator.serviceWorker.ready.then((registration) => {
-          return (registration as any).sync.register('sync-data').catch(() => {
-            // Sync registration might fail, that's okay
-          })
-        })
-      }
-
-      // Sync pending actions
-      try {
-        const syncManager = SyncManager.getInstance()
-        await syncManager.syncPendingActions()
-      } catch (error) {
-        console.error('Sync failed:', error)
-      }
-
-      // Hide indicator after sync completes
-      setTimeout(() => {
         setIsSyncing(false)
-        setTimeout(() => {
-          setShowIndicator(false)
-        }, 2000)
-      }, 1500)
+      }
     }
+
+    // Initial state from browser
+    updateFromNavigator()
 
     const handleOffline = () => {
       setIsOnline(false)
@@ -161,29 +68,40 @@ export function OfflineIndicator() {
       setGlobalServerOnline(false)
     }
 
-    window.addEventListener('online', handleOnline)
-    window.addEventListener('offline', handleOffline)
+    const handleOnline = async () => {
+      setIsOnline(true)
+      setGlobalServerOnline(true)
+      setIsSyncing(true)
+      setShowIndicator(true)
 
-    // Also listen for visibility changes to check connection
-    const handleVisibilityChange = async () => {
-      if (!document.hidden && typeof window !== 'undefined') {
-        const browserOnline = navigator.onLine
-        const serverReachable = browserOnline ? await checkServerStatus() : false
-        const actuallyOnline = browserOnline && serverReachable
-        
-        setIsOnline(actuallyOnline)
-        setShowIndicator(!actuallyOnline)
-        setGlobalServerOnline(actuallyOnline)
+      if ("serviceWorker" in navigator && "sync" in window.ServiceWorkerRegistration.prototype) {
+        navigator.serviceWorker.ready.then((registration) => {
+          ;(registration as any).sync.register("sync-data").catch(() => {})
+        })
       }
+
+      try {
+        const serverReachable = await checkServerStatus()
+        if (serverReachable) {
+          const syncManager = SyncManager.getInstance()
+          await syncManager.syncPendingActions()
+        }
+      } catch (error) {
+        console.error("Sync failed:", error)
+      }
+
+      setTimeout(() => {
+        setIsSyncing(false)
+        setTimeout(() => setShowIndicator(false), 2000)
+      }, 1500)
     }
 
-    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener("online", handleOnline)
+    window.addEventListener("offline", handleOffline)
 
     return () => {
-      if (statusInterval) clearInterval(statusInterval)
-      window.removeEventListener('online', handleOnline)
-      window.removeEventListener('offline', handleOffline)
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener("online", handleOnline)
+      window.removeEventListener("offline", handleOffline)
     }
   }, [])
 
