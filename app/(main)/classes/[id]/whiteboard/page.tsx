@@ -87,29 +87,17 @@ export default async function WhiteboardPage({
     .where(eq(user.id, session.user.id))
     .limit(1)
 
-  // Get all members for cursor display
-  const members = await db
-    .select({
-      id: user.id,
-      name: user.name,
-      image: user.image,
-    })
-    .from(classMembership)
-    .innerJoin(user, eq(classMembership.userId, user.id))
-    .where(eq(classMembership.classId, id))
-
   return (
-    <div className="fixed inset-0 z-50 bg-background">
+    <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 md:px-8">
       <WhiteboardClient
         whiteboardId={whiteboard[0].id}
         classId={id}
         className={classData[0].title}
         classColor={classData[0].color || "#3b82f6"}
         initialData={whiteboard[0].data}
+        initialSequence={whiteboard[0].lastSequence}
         currentUser={currentUser[0]}
-        members={members}
       />
     </div>
   )
 }
-

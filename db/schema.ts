@@ -1,10 +1,11 @@
-import { relations, sql } from "drizzle-orm";
+import { relations } from "drizzle-orm";
 import {
   pgEnum,
   pgTable,
   text,
   timestamp,
   boolean,
+  integer,
   index,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
@@ -620,11 +621,35 @@ export const whiteboards = pgTable(
       .notNull()
       .references(() => classes.id, { onDelete: "cascade" }),
     data: text("data").notNull(), // JSON string of whiteboard elements
+    lastSequence: integer("last_sequence").default(0).notNull(),
+    snapshotSequence: integer("snapshot_sequence").default(0).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
     index("whiteboards_class_idx").on(table.classId),
+  ],
+);
+
+export const whiteboardOperations = pgTable(
+  "whiteboard_operations",
+  {
+    id: text("id").primaryKey(),
+    whiteboardId: text("whiteboard_id")
+      .notNull()
+      .references(() => whiteboards.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    sequence: integer("sequence").notNull(),
+    opType: text("op_type").notNull(),
+    payload: text("payload").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("whiteboard_operations_whiteboard_idx").on(table.whiteboardId),
+    index("whiteboard_operations_user_idx").on(table.userId),
+    uniqueIndex("whiteboard_operations_sequence_unique").on(table.whiteboardId, table.sequence),
   ],
 );
 
@@ -654,6 +679,7 @@ export const whiteboardRelations = relations(whiteboards, ({ one, many }) => ({
     references: [classes.id],
   }),
   cursors: many(whiteboardCursors),
+  operations: many(whiteboardOperations),
 }));
 
 export const whiteboardCursorRelations = relations(whiteboardCursors, ({ one }) => ({
@@ -663,6 +689,17 @@ export const whiteboardCursorRelations = relations(whiteboardCursors, ({ one }) 
   }),
   user: one(user, {
     fields: [whiteboardCursors.userId],
+    references: [user.id],
+  }),
+}));
+
+export const whiteboardOperationRelations = relations(whiteboardOperations, ({ one }) => ({
+  whiteboard: one(whiteboards, {
+    fields: [whiteboardOperations.whiteboardId],
+    references: [whiteboards.id],
+  }),
+  user: one(user, {
+    fields: [whiteboardOperations.userId],
     references: [user.id],
   }),
 }));

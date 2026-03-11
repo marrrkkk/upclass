@@ -1,7 +1,6 @@
 "use server"
 
 import { headers } from "next/headers"
-import { revalidatePath } from "next/cache"
 import { eq, and } from "drizzle-orm"
 
 import { db } from "@/db"
@@ -120,4 +119,3 @@ export async function updateCursor(
     return { success: false, error: "Failed to update cursor" }
   }
 }
-

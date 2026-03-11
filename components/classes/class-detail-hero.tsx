@@ -1,10 +1,11 @@
 "use client"
 
+import Link from "next/link"
 import { Check, Copy, PenTool, Settings } from "lucide-react"
 
 import { ClassSettingsDialog } from "@/components/classes/class-settings-dialog"
 
-import type { ClassData } from "@/components/classes/types"
+import type { ClassData } from "@/types/classes"
 
 type ClassDetailHeroProps = {
   classData: ClassData
@@ -84,15 +85,13 @@ export function ClassDetailHero({
                 </div>
               )}
 
-              <a
+              <Link
                 href={`/classes/${classData.id}/whiteboard`}
-                target="_blank"
-                rel="noopener noreferrer"
                 className="inline-flex items-center justify-center gap-2 rounded-lg bg-white text-blue-600 px-5 py-3 font-semibold shadow-sm hover:bg-blue-50 transition-colors w-full sm:w-auto whitespace-nowrap"
               >
                 <PenTool className="h-4 w-4" />
                 Open Whiteboard
-              </a>
+              </Link>
             </div>
           </div>
         </div>
