@@ -4,7 +4,7 @@ import { useEffect } from "react"
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime"
 
 import { supabase } from "@/lib/supabase-client"
-import type { ClassworkData } from "@/components/classes/types"
+import type { ClassworkData } from "@/types/classes"
 
 type UseClassworkRealtimeParams = {
   classId: string

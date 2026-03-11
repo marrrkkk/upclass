@@ -4,9 +4,9 @@ import { useState } from "react"
 
 import { ClassesGrid } from "@/components/classes/classes-grid"
 import { ClassesSearchControls } from "@/components/classes/classes-search-controls"
-import { useClassesData } from "@/components/classes/use-classes-data"
+import { useClassesData } from "@/hooks/classes/use-classes-data"
 
-import type { ClassCardData } from "@/components/classes/types"
+import type { ClassCardData } from "@/types/classes"
 
 type ClassesClientProps = {
   teachingClasses: ClassCardData[]

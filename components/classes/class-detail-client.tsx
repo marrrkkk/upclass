@@ -8,7 +8,7 @@ import { StreamTab } from "@/components/classes/stream-tab"
 import { ClassworkTab } from "@/components/classes/classwork-tab"
 import { QuizTab } from "@/components/classes/quiz-tab"
 import { PeopleTab } from "@/components/classes/people-tab"
-import { useClassDetailCache } from "@/components/classes/use-class-detail-cache"
+import { useClassDetailCache } from "@/hooks/classes/use-class-detail-cache"
 import { usePageHeaderStore } from "@/lib/stores/page-header-store"
 import { usePathname, useSearchParams } from "next/navigation"
 import type {
@@ -18,7 +18,7 @@ import type {
   MemberData,
   QuizData,
   SubmissionData,
-} from "@/components/classes/types"
+} from "@/types/classes"
 
 type ClassDetailClientProps = {
   classData: ClassData

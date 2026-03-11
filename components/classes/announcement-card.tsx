@@ -27,7 +27,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 
-import type { AnnouncementData } from "@/components/classes/types"
+import type { AnnouncementData } from "@/types/classes"
 
 const REACTION_EMOJIS: Record<string, { emoji: string; label: string }> = {
   like: { emoji: "👍", label: "Like" },

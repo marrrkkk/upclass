@@ -11,7 +11,7 @@ import type {
   MemberData,
   QuizData,
   SubmissionData,
-} from "@/components/classes/types"
+} from "@/types/classes"
 
 type UseClassDetailCacheArgs = {
   classData: ClassData

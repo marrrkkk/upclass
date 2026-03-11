@@ -7,10 +7,10 @@ import { MessageSquare } from "lucide-react"
 import { createAnnouncement } from "@/app/actions/class-detail"
 import { AnnouncementCard } from "@/components/classes/announcement-card"
 import { AnnouncementComposer } from "@/components/classes/announcement-composer"
-import { useStreamRealtime } from "@/components/classes/use-stream-realtime"
+import { useStreamRealtime } from "@/hooks/classes/use-stream-realtime"
 import { executeWithOfflineHandling } from "@/lib/offline-action-handler"
 
-import type { AnnouncementData } from "@/components/classes/types"
+import type { AnnouncementData } from "@/types/classes"
 
 type StreamTabProps = {
   classId: string

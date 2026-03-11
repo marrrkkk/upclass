@@ -44,7 +44,7 @@ import {
 } from "@/components/classes/quiz-builder-utils"
 import { createQuiz, deleteQuiz, gradeQuizAttempt, updateQuiz } from "@/app/actions/quizzes"
 import { executeWithOfflineHandling } from "@/lib/offline-action-handler"
-import type { QuizData } from "@/components/classes/types"
+import type { QuizData } from "@/types/classes"
 
 type QuizTabProps = {
   classId: string

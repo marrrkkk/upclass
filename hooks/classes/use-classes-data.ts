@@ -7,7 +7,7 @@ import { usePrefetch } from "@/lib/hooks/use-prefetch"
 import { useClassesStore } from "@/lib/stores/classes-store"
 import { BackgroundSync } from "@/lib/background-sync"
 
-import type { ClassCardData } from "@/components/classes/types"
+import type { ClassCardData } from "@/types/classes"
 
 type UseClassesDataArgs = {
   teachingClasses: ClassCardData[]

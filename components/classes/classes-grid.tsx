@@ -4,7 +4,7 @@ import { GraduationCap } from "lucide-react"
 
 import { ClassCard } from "@/components/classes/class-card"
 
-import type { ClassCardData } from "@/components/classes/types"
+import type { ClassCardData } from "@/types/classes"
 
 type ClassesGridProps = {
   activeTab: "teaching" | "enrolled"
