@@ -438,6 +438,7 @@ export const notificationRelations = relations(notifications, ({ one }) => ({
 
 // Quiz system
 export const quizStatus = pgEnum("quiz_status", ["draft", "published"]);
+export const quizAttemptStatus = pgEnum("quiz_attempt_status", ["pending_review", "graded"]);
 export const quizQuestionType = pgEnum("quiz_question_type", [
   "single_choice",
   "multiple_select",
@@ -513,9 +514,11 @@ export const quizAttempts = pgTable(
     studentId: text("student_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
+    status: quizAttemptStatus("status").notNull().default("graded"),
     score: text("score"),
     startedAt: timestamp("started_at").defaultNow().notNull(),
     submittedAt: timestamp("submitted_at"),
+    gradedAt: timestamp("graded_at"),
     timeSpentSeconds: text("time_spent_seconds"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },

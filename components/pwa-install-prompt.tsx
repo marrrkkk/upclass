@@ -4,6 +4,8 @@ import { useState, useEffect } from "react"
 import { Download, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
+const PWA_PROMPT_SESSION_KEY = "pwa-install-prompt-seen"
+
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
@@ -15,7 +17,12 @@ export function PWAInstallPrompt() {
 
   useEffect(() => {
     const handler = (e: Event) => {
+      if (sessionStorage.getItem(PWA_PROMPT_SESSION_KEY) === "true") {
+        return
+      }
+
       e.preventDefault()
+      sessionStorage.setItem(PWA_PROMPT_SESSION_KEY, "true")
       setDeferredPrompt(e as BeforeInstallPromptEvent)
       setShowPrompt(true)
     }
@@ -39,22 +46,15 @@ export function PWAInstallPrompt() {
       console.log('User dismissed the install prompt')
     }
 
+    sessionStorage.setItem(PWA_PROMPT_SESSION_KEY, "true")
     setDeferredPrompt(null)
     setShowPrompt(false)
   }
 
   const handleDismiss = () => {
     setShowPrompt(false)
-    // Don't show again for this session
-    sessionStorage.setItem('pwa-prompt-dismissed', 'true')
+    sessionStorage.setItem(PWA_PROMPT_SESSION_KEY, "true")
   }
-
-  // Check if already dismissed in this session
-  useEffect(() => {
-    if (sessionStorage.getItem('pwa-prompt-dismissed') === 'true') {
-      setShowPrompt(false)
-    }
-  }, [])
 
   if (!showPrompt || !deferredPrompt) return null
 
@@ -89,4 +89,3 @@ export function PWAInstallPrompt() {
     </div>
   )
 }
-

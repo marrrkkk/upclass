@@ -19,6 +19,13 @@ type ActionResponse =
   | { success: true }
   | { success: false; error: string }
 
+type GradeQuizPayload = {
+  answers: Array<{
+    answerId: string
+    pointsAwarded: number
+  }>
+}
+
 type QuizPayload = {
   title: string
   description?: string
@@ -32,6 +39,124 @@ type QuizPayload = {
     options?: Array<{ text: string; isCorrect?: boolean }>
     order: number
   }>
+}
+
+type NormalizedQuizPayload = {
+  title: string
+  description: string | null
+  dueDate: string | null
+  status: "draft" | "published"
+  timeLimitSeconds: number | null
+  questions: Array<{
+    prompt: string
+    type: "single_choice" | "multiple_select" | "true_false" | "short_answer"
+    points: number
+    options: Array<{ text: string; isCorrect: boolean }>
+    order: number
+  }>
+}
+
+function normalizeQuizPayload(payload: QuizPayload):
+  | { success: true; data: NormalizedQuizPayload }
+  | { success: false; error: string } {
+  if (!payload.title?.trim()) return { success: false, error: "Title is required" }
+  if (!Array.isArray(payload.questions) || payload.questions.length === 0) {
+    return { success: false, error: "At least one question is required" }
+  }
+
+  const questions: NormalizedQuizPayload["questions"] = []
+
+  for (const [index, question] of payload.questions.entries()) {
+    if (!question.prompt?.trim()) {
+      return { success: false, error: `Question ${index + 1} requires a prompt` }
+    }
+
+    const points = Number(question.points)
+    if (!Number.isFinite(points) || points < 0) {
+      return { success: false, error: `Question ${index + 1} has invalid points` }
+    }
+
+    if (question.type === "short_answer") {
+      questions.push({
+        prompt: question.prompt.trim(),
+        type: question.type,
+        points,
+        options: [],
+        order: question.order ?? index,
+      })
+      continue
+    }
+
+    if (question.type === "true_false") {
+      const selectedCorrect = question.options?.find((option) => option.isCorrect)
+      const correctLabel = selectedCorrect?.text?.trim().toLowerCase() === "false" ? "False" : "True"
+
+      questions.push({
+        prompt: question.prompt.trim(),
+        type: question.type,
+        points,
+        order: question.order ?? index,
+        options: [
+          { text: "True", isCorrect: correctLabel === "True" },
+          { text: "False", isCorrect: correctLabel === "False" },
+        ],
+      })
+      continue
+    }
+
+    const options = (question.options || [])
+      .map((option) => ({
+        text: option.text?.trim() || "",
+        isCorrect: !!option.isCorrect,
+      }))
+      .filter((option) => option.text.length > 0)
+
+    if (options.length < 2) {
+      return { success: false, error: `Question ${index + 1} needs at least two options` }
+    }
+
+    if (question.type === "single_choice") {
+      const firstCorrectIndex = options.findIndex((option) => option.isCorrect)
+      questions.push({
+        prompt: question.prompt.trim(),
+        type: question.type,
+        points,
+        order: question.order ?? index,
+        options: options.map((option, optionIndex) => ({
+          text: option.text,
+          isCorrect: firstCorrectIndex >= 0 ? optionIndex === firstCorrectIndex : optionIndex === 0,
+        })),
+      })
+      continue
+    }
+
+    if (!options.some((option) => option.isCorrect)) {
+      return { success: false, error: `Question ${index + 1} needs at least one correct answer` }
+    }
+
+    questions.push({
+      prompt: question.prompt.trim(),
+      type: question.type,
+      points,
+      order: question.order ?? index,
+      options,
+    })
+  }
+
+  return {
+    success: true,
+    data: {
+      title: payload.title.trim(),
+      description: payload.description?.trim() || null,
+      dueDate: payload.dueDate || null,
+      status: payload.status,
+      timeLimitSeconds:
+        payload.timeLimitSeconds != null && Number.isFinite(Number(payload.timeLimitSeconds))
+          ? Number(payload.timeLimitSeconds)
+          : null,
+      questions,
+    },
+  }
 }
 
 export async function createQuiz(classId: string, formData: FormData): Promise<ActionResponse> {
@@ -70,27 +195,28 @@ export async function createQuiz(classId: string, formData: FormData): Promise<A
     return { success: false, error: "Invalid payload" }
   }
 
-  if (!payload.title?.trim()) return { success: false, error: "Title is required" }
-  if (!Array.isArray(payload.questions) || payload.questions.length === 0) {
-    return { success: false, error: "At least one question is required" }
-  }
+  const normalized = normalizeQuizPayload(payload)
+  if (!normalized.success) return normalized
+
+  const quizPayload = normalized.data
 
   try {
     const quizId = crypto.randomUUID()
-    const totalPoints = payload.questions.reduce((sum, q) => sum + (q.points || 0), 0)
+    const totalPoints = quizPayload.questions.reduce((sum, q) => sum + q.points, 0)
     await db.insert(quizzes).values({
       id: quizId,
       classId,
-      title: payload.title.trim(),
-      description: payload.description?.trim() || null,
-      status: payload.status,
-      dueDate: payload.dueDate ? new Date(payload.dueDate) : null,
-      timeLimitSeconds: payload.timeLimitSeconds != null ? String(payload.timeLimitSeconds) : null,
+      title: quizPayload.title,
+      description: quizPayload.description,
+      status: quizPayload.status,
+      dueDate: quizPayload.dueDate ? new Date(quizPayload.dueDate) : null,
+      timeLimitSeconds:
+        quizPayload.timeLimitSeconds != null ? String(quizPayload.timeLimitSeconds) : null,
       totalPoints: String(totalPoints),
       createdBy: session.user.id,
     })
 
-    for (const question of payload.questions) {
+    for (const question of quizPayload.questions) {
       const questionId = crypto.randomUUID()
       await db.insert(quizQuestions).values({
         id: questionId,
@@ -171,21 +297,22 @@ export async function updateQuiz(quizId: string, formData: FormData): Promise<Ac
     return { success: false, error: "Invalid payload" }
   }
 
-  if (!payload.title?.trim()) return { success: false, error: "Title is required" }
-  if (!Array.isArray(payload.questions) || payload.questions.length === 0) {
-    return { success: false, error: "At least one question is required" }
-  }
+  const normalized = normalizeQuizPayload(payload)
+  if (!normalized.success) return normalized
+
+  const quizPayload = normalized.data
 
   try {
-    const totalPoints = payload.questions.reduce((sum, q) => sum + (q.points || 0), 0)
+    const totalPoints = quizPayload.questions.reduce((sum, q) => sum + q.points, 0)
 
     // Update quiz
     await db.update(quizzes).set({
-      title: payload.title.trim(),
-      description: payload.description?.trim() || null,
-      status: payload.status,
-      dueDate: payload.dueDate ? new Date(payload.dueDate) : null,
-      timeLimitSeconds: payload.timeLimitSeconds != null ? String(payload.timeLimitSeconds) : null,
+      title: quizPayload.title,
+      description: quizPayload.description,
+      status: quizPayload.status,
+      dueDate: quizPayload.dueDate ? new Date(quizPayload.dueDate) : null,
+      timeLimitSeconds:
+        quizPayload.timeLimitSeconds != null ? String(quizPayload.timeLimitSeconds) : null,
       totalPoints: String(totalPoints),
       updatedAt: new Date(),
     }).where(eq(quizzes.id, quizId))
@@ -194,7 +321,7 @@ export async function updateQuiz(quizId: string, formData: FormData): Promise<Ac
     await db.delete(quizQuestions).where(eq(quizQuestions.quizId, quizId))
 
     // Insert new questions
-    for (const question of payload.questions) {
+    for (const question of quizPayload.questions) {
       const questionId = crypto.randomUUID()
       await db.insert(quizQuestions).values({
         id: questionId,
@@ -288,6 +415,7 @@ export async function submitQuiz(quizId: string, formData: FormData): Promise<Ac
       .from(quizQuestions)
       .where(eq(quizQuestions.quizId, quizId))
     const questionMap = new Map(questions.map((q) => [q.id, q]))
+    const requiresManualReview = questions.some((question) => question.type === "short_answer")
 
     const options = await db
       .select()
@@ -306,8 +434,10 @@ export async function submitQuiz(quizId: string, formData: FormData): Promise<Ac
       id: attemptId,
       quizId,
       studentId: session.user.id,
+      status: requiresManualReview ? "pending_review" : "graded",
       score: null,
-      submittedAt: null,
+      submittedAt: new Date(),
+      gradedAt: requiresManualReview ? null : new Date(),
       timeSpentSeconds: timeSpentSeconds || null,
     })
 
@@ -351,7 +481,7 @@ export async function submitQuiz(quizId: string, formData: FormData): Promise<Ac
         selectedOptionIds: ans.selectedOptionIds ? JSON.stringify(ans.selectedOptionIds) : null,
         textAnswer: ans.textAnswer || null,
         isCorrect,
-        pointsAwarded: String(awarded),
+        pointsAwarded: q.type === "short_answer" ? null : String(awarded),
       })
     }
 
@@ -359,17 +489,157 @@ export async function submitQuiz(quizId: string, formData: FormData): Promise<Ac
     await db
       .update(quizAttempts)
       .set({
-        score: String(score),
+        status: requiresManualReview ? "pending_review" : "graded",
+        score: requiresManualReview ? null : String(score),
         submittedAt: new Date(),
+        gradedAt: requiresManualReview ? null : new Date(),
         timeSpentSeconds: timeSpentSeconds || null,
       })
       .where(eq(quizAttempts.id, attemptId))
 
     revalidatePath(`/classes/${quizRow[0].classId}`)
+    revalidatePath(`/classes/${quizRow[0].classId}/quizzes/${quizId}`)
     return { success: true }
   } catch (err) {
     console.error("submitQuiz error", err)
     return { success: false, error: "Failed to submit quiz" }
+  }
+}
+
+export async function gradeQuizAttempt(attemptId: string, formData: FormData): Promise<ActionResponse> {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  })
+
+  if (!session?.user?.id) {
+    return { success: false, error: "Unauthorized" }
+  }
+
+  const raw = formData.get("grades") as string | null
+  if (!raw) return { success: false, error: "Missing grades" }
+
+  let payload: GradeQuizPayload
+  try {
+    payload = JSON.parse(raw) as GradeQuizPayload
+  } catch {
+    return { success: false, error: "Invalid grades payload" }
+  }
+
+  const attemptRows = await db
+    .select()
+    .from(quizAttempts)
+    .where(eq(quizAttempts.id, attemptId))
+    .limit(1)
+
+  if (attemptRows.length === 0) {
+    return { success: false, error: "Quiz attempt not found" }
+  }
+
+  const attempt = attemptRows[0]
+
+  const quizRows = await db
+    .select()
+    .from(quizzes)
+    .where(eq(quizzes.id, attempt.quizId))
+    .limit(1)
+
+  if (quizRows.length === 0) {
+    return { success: false, error: "Quiz not found" }
+  }
+
+  const quiz = quizRows[0]
+
+  const membership = await db
+    .select()
+    .from(classMembership)
+    .where(
+      and(
+        eq(classMembership.classId, quiz.classId),
+        eq(classMembership.userId, session.user.id),
+        eq(classMembership.role, "teacher"),
+      ),
+    )
+    .limit(1)
+
+  if (membership.length === 0) {
+    return { success: false, error: "Only teachers can grade quiz attempts" }
+  }
+
+  const questions = await db
+    .select()
+    .from(quizQuestions)
+    .where(eq(quizQuestions.quizId, quiz.id))
+  const questionMap = new Map(questions.map((question) => [question.id, question]))
+
+  const answers = await db
+    .select()
+    .from(quizAnswers)
+    .where(eq(quizAnswers.attemptId, attemptId))
+
+  const shortAnswerAnswers = answers.filter((answer) => {
+    const question = questionMap.get(answer.questionId)
+    return question?.type === "short_answer"
+  })
+
+  if (shortAnswerAnswers.length === 0) {
+    return { success: false, error: "This quiz attempt does not require manual grading" }
+  }
+
+  const gradeMap = new Map(payload.answers.map((answer) => [answer.answerId, answer.pointsAwarded]))
+
+  for (const answer of shortAnswerAnswers) {
+    if (!gradeMap.has(answer.id)) {
+      return { success: false, error: "Each short-answer response needs a grade" }
+    }
+  }
+
+  let totalScore = 0
+
+  try {
+    for (const answer of answers) {
+      const question = questionMap.get(answer.questionId)
+      if (!question) continue
+
+      if (question.type !== "short_answer") {
+        totalScore += Number(answer.pointsAwarded || 0)
+        continue
+      }
+
+      const awarded = Number(gradeMap.get(answer.id))
+      const maxPoints = Number(question.points)
+
+      if (!Number.isFinite(awarded) || awarded < 0 || awarded > maxPoints) {
+        return {
+          success: false,
+          error: `Short-answer grades must be between 0 and ${maxPoints}`,
+        }
+      }
+
+      totalScore += awarded
+
+      await db
+        .update(quizAnswers)
+        .set({
+          pointsAwarded: String(awarded),
+        })
+        .where(eq(quizAnswers.id, answer.id))
+    }
+
+    await db
+      .update(quizAttempts)
+      .set({
+        status: "graded",
+        score: String(totalScore),
+        gradedAt: new Date(),
+      })
+      .where(eq(quizAttempts.id, attemptId))
+
+    revalidatePath(`/classes/${quiz.classId}`)
+    revalidatePath(`/classes/${quiz.classId}/quizzes/${quiz.id}`)
+    return { success: true }
+  } catch (error) {
+    console.error("gradeQuizAttempt error", error)
+    return { success: false, error: "Failed to grade quiz attempt" }
   }
 }
 

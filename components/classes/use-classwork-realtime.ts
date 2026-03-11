@@ -1,0 +1,77 @@
+"use client"
+
+import { useEffect } from "react"
+import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime"
+
+import { supabase } from "@/lib/supabase-client"
+import type { ClassworkData } from "@/components/classes/types"
+
+type UseClassworkRealtimeParams = {
+  classId: string
+  classwork: ClassworkData[]
+  router: AppRouterInstance
+  userId?: string
+  userRole: "teacher" | "student" | null
+}
+
+export function useClassworkRealtime({
+  classId,
+  classwork,
+  router,
+  userId,
+  userRole,
+}: UseClassworkRealtimeParams) {
+  useEffect(() => {
+    if (!supabase) return
+
+    const classworkChannel = supabase
+      .channel(`classwork:${classId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "classwork",
+          filter: `class_id=eq.${classId}`,
+        },
+        () => {
+          router.refresh()
+        },
+      )
+      .subscribe()
+
+    const classworkIds = new Set(classwork.map((item) => item.id))
+
+    const submissionsChannel = supabase
+      .channel(`submissions:${classId}:${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "submissions",
+          ...(userRole === "student" ? { filter: `student_id=eq.${userId}` } : {}),
+        },
+        (payload) => {
+          if (userRole === "teacher") {
+            const newRecord = payload.new as { classwork_id?: string } | null
+            const oldRecord = payload.old as { classwork_id?: string } | null
+            const submissionClassworkId = newRecord?.classwork_id || oldRecord?.classwork_id
+
+            if (submissionClassworkId && classworkIds.has(submissionClassworkId)) {
+              router.refresh()
+            }
+            return
+          }
+
+          router.refresh()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase?.removeChannel(classworkChannel)
+      supabase?.removeChannel(submissionsChannel)
+    }
+  }, [classId, classwork, router, userId, userRole])
+}

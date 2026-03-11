@@ -196,13 +196,32 @@ export default async function ClassDetailPage({
     : []
   const quizAttemptsData = isAuthenticated && quizIds.length
     ? await db
-      .select()
+      .select({
+        id: quizAttempts.id,
+        quizId: quizAttempts.quizId,
+        studentId: quizAttempts.studentId,
+        status: quizAttempts.status,
+        score: quizAttempts.score,
+        startedAt: quizAttempts.startedAt,
+        submittedAt: quizAttempts.submittedAt,
+        gradedAt: quizAttempts.gradedAt,
+        timeSpentSeconds: quizAttempts.timeSpentSeconds,
+        createdAt: quizAttempts.createdAt,
+        student: {
+          id: user.id,
+          name: user.name,
+          image: user.image,
+        },
+      })
       .from(quizAttempts)
+      .innerJoin(user, eq(quizAttempts.studentId, user.id))
       .where(
-        and(
-          inArray(quizAttempts.quizId, quizIds),
-          eq(quizAttempts.studentId, session?.user?.id || ""),
-        ),
+        userRole === "teacher"
+          ? inArray(quizAttempts.quizId, quizIds)
+          : and(
+              inArray(quizAttempts.quizId, quizIds),
+              eq(quizAttempts.studentId, session?.user?.id || ""),
+            ),
       )
     : []
   const attemptIds = quizAttemptsData.map((a) => a.id)
@@ -241,7 +260,8 @@ export default async function ClassDetailPage({
         gradedAt: s.gradedAt?.toISOString() ?? null,
       }))}
       quizzes={quizzesData.map((q) => {
-        const attempt = quizAttemptsData.find((a) => a.quizId === q.id);
+        const attempt = quizAttemptsData.find((a) => a.quizId === q.id && a.studentId === userId);
+        const attempts = quizAttemptsData.filter((a) => a.quizId === q.id);
         return {
           ...q,
           dueDate: q.dueDate?.toISOString() ?? null,
@@ -258,17 +278,25 @@ export default async function ClassDetailPage({
             score: attempt.score?.toString() ?? null,
             startedAt: attempt.startedAt?.toISOString() ?? "",
             submittedAt: attempt.submittedAt?.toISOString() ?? null,
+            gradedAt: attempt.gradedAt?.toISOString() ?? null,
             timeSpentSeconds: attempt.timeSpentSeconds?.toString() ?? null,
             createdAt: attempt.createdAt?.toISOString() ?? "",
           } : null,
+          attempts: attempts.map((quizAttempt) => ({
+            ...quizAttempt,
+            score: quizAttempt.score?.toString() ?? null,
+            startedAt: quizAttempt.startedAt?.toISOString() ?? "",
+            submittedAt: quizAttempt.submittedAt?.toISOString() ?? null,
+            gradedAt: quizAttempt.gradedAt?.toISOString() ?? null,
+            timeSpentSeconds: quizAttempt.timeSpentSeconds?.toString() ?? null,
+            createdAt: quizAttempt.createdAt?.toISOString() ?? "",
+          })),
           answers: quizAnswersData.filter((a) =>
             quizAttemptsData.find((att) => att.id === a.attemptId && att.quizId === q.id),
           ),
         };
       })}
       members={membersData}
-      isAuthenticated={isAuthenticated}
     />
   )
 }
-
