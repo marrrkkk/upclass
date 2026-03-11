@@ -22,7 +22,7 @@ import { useUploadThing } from "@/lib/uploadthing"
 import { updateSettings, deleteAccount } from "@/app/actions/settings"
 import { cn } from "@/lib/utils"
 import { ImageCropper } from "./profile-image-cropper"
-import { useSettingsStore } from "@/lib/stores/settings-store"
+import { useSettingsStore } from "@/stores/settings-store"
 
 type UserData = {
   id: string
@@ -817,4 +817,3 @@ export function SettingsClient({ userData }: SettingsClientProps) {
     </div>
   )
 }
-

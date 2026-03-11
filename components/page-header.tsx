@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
 import { UserAvatarMenu } from "@/components/user-avatar-menu"
-import { usePageHeaderStore } from "@/lib/stores/page-header-store"
+import { usePageHeaderStore } from "@/stores/page-header-store"
 import {
   Breadcrumb,
   BreadcrumbItem,

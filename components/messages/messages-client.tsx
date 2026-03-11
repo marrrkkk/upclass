@@ -12,8 +12,8 @@ import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
 import { NewConversationDialog } from "@/components/messages/new-conversation-dialog"
 import { formatDistanceToNow, parseISO } from "date-fns"
-import { useMessagesStore } from "@/lib/stores/messages-store"
-import { usePrefetch } from "@/lib/hooks/use-prefetch"
+import { usePrefetch } from "@/hooks/use-prefetch"
+import { useMessagesStore } from "@/stores/messages-store"
 import { useCacheData } from "@/lib/cache-hooks"
 
 type Conversation = {
@@ -184,4 +184,3 @@ export function MessagesClient({ conversations: initialConversations, userId }: 
     </div>
   )
 }
-

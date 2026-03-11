@@ -3,8 +3,8 @@
 import { useEffect, useMemo } from "react"
 
 import { useCacheData } from "@/lib/cache-hooks"
-import { usePrefetch } from "@/lib/hooks/use-prefetch"
-import { useClassesStore } from "@/lib/stores/classes-store"
+import { usePrefetch } from "@/hooks/use-prefetch"
+import { useClassesStore } from "@/stores/classes-store"
 import { BackgroundSync } from "@/lib/background-sync"
 
 import type { ClassCardData } from "@/types/classes"

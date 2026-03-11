@@ -24,7 +24,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { usePageHeaderStore } from "@/lib/stores/page-header-store"
+import { usePageHeaderStore } from "@/stores/page-header-store"
 
 import {
   Dialog,
@@ -544,6 +544,5 @@ export function ResourceDetailClient({ resource, isOwner, currentUserId, isAuthe
     </div>
   )
 }
-
 
 

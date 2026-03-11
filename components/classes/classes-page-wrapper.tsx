@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react"
 import { CreateClassButton } from "./create-class-button"
 import { JoinClassButton } from "./join-class-button"
-import { usePageHeaderStore } from "@/lib/stores/page-header-store"
-import { useClassesStore } from "@/lib/stores/classes-store"
+import { useClassesStore } from "@/stores/classes-store"
+import { usePageHeaderStore } from "@/stores/page-header-store"
 
 type ClassesPageWrapperProps = {
   children: React.ReactNode
@@ -50,5 +50,4 @@ export function ClassesPageWrapper({ children, userRole, isAuthenticated = false
 
   return <>{children}</>
 }
-
 

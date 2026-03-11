@@ -16,8 +16,8 @@ import { Paperclip, X, Music, Image as ImageIcon } from "lucide-react"
 import { UrlLinkify } from "@/components/messages/url-linkify"
 import { ImageViewerDialog } from "@/components/messages/image-viewer-dialog"
 import { formatDistanceToNow, isSameDay, format } from "date-fns"
-import { usePageHeaderStore } from "@/lib/stores/page-header-store"
-import { useMessagesStore } from "@/lib/stores/messages-store"
+import { useMessagesStore } from "@/stores/messages-store"
+import { usePageHeaderStore } from "@/stores/page-header-store"
 import { useCacheData } from "@/lib/cache-hooks"
 
 type MediaFile = {
@@ -735,4 +735,3 @@ export function ChatClient({ messages: initialMessages, currentUserId, otherUser
     </div>
   )
 }
-

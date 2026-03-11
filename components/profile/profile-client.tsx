@@ -27,7 +27,7 @@ import {
 import { cn } from "@/lib/utils"
 import { EditProfileDialog } from "@/components/profile/edit-profile-dialog"
 import { buttonVariants } from "@/components/ui/button"
-import { usePageHeaderStore } from "@/lib/stores/page-header-store"
+import { usePageHeaderStore } from "@/stores/page-header-store"
 import { BackgroundCache } from "@/lib/background-cache"
 import { usePathname } from "next/navigation"
 
@@ -600,5 +600,4 @@ const formatFileSize = (size: string | null) => {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
-
 

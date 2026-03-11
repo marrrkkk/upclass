@@ -17,8 +17,8 @@ import { NotificationsSection } from "@/components/sidebar/notifications-section
 import { MessagesSection } from "@/components/sidebar/messages-section"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useUserStore } from "@/lib/stores/user-store"
-import { usePrefetch } from "@/lib/hooks/use-prefetch"
+import { usePrefetch } from "@/hooks/use-prefetch"
+import { useUserStore } from "@/stores/user-store"
 import { Logo } from "@/components/logo"
 
 const navItems = [

@@ -2,7 +2,7 @@
 
 import { useState, memo } from "react"
 import Link from "next/link"
-import { usePrefetch } from "@/lib/hooks/use-prefetch"
+import { usePrefetch } from "@/hooks/use-prefetch"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"

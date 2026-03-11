@@ -10,7 +10,7 @@ import { markNotificationAsRead, markAllNotificationsAsRead } from "@/app/action
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
 import { formatDistanceToNow } from "date-fns"
-import { useNotificationsStore } from "@/lib/stores/notifications-store"
+import { useNotificationsStore } from "@/stores/notifications-store"
 import { useCacheData } from "@/lib/cache-hooks"
 
 type NotificationData = {
@@ -247,4 +247,3 @@ export function NotificationsClient({ notifications: initialNotifications, userI
     </div>
   )
 }
-

@@ -2,7 +2,7 @@
 
 import { useEffect } from "react"
 import { CreateResourceButton } from "./create-resource-button"
-import { usePageHeaderStore } from "@/lib/stores/page-header-store"
+import { usePageHeaderStore } from "@/stores/page-header-store"
 
 export function ResourcesPageWrapper({ children, isAuthenticated = false }: { children: React.ReactNode; isAuthenticated?: boolean }) {
   const setRightSideContent = usePageHeaderStore((state) => state.setRightSideContent)
@@ -26,5 +26,4 @@ export function ResourcesPageWrapper({ children, isAuthenticated = false }: { ch
 
   return <>{children}</>
 }
-
 

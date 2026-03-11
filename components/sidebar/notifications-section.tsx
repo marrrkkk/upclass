@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation"
 import { Bell } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase-client"
-import { useNotificationsStore } from "@/lib/stores/notifications-store"
+import { useNotificationsStore } from "@/stores/notifications-store"
 
 type NotificationsSectionProps = {
   userId: string
@@ -162,4 +162,3 @@ export function NotificationsSection({ userId }: NotificationsSectionProps) {
     </Link>
   )
 }
-

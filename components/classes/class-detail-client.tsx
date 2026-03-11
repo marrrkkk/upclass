@@ -9,7 +9,7 @@ import { ClassworkTab } from "@/components/classes/classwork-tab"
 import { QuizTab } from "@/components/classes/quiz-tab"
 import { PeopleTab } from "@/components/classes/people-tab"
 import { useClassDetailCache } from "@/hooks/classes/use-class-detail-cache"
-import { usePageHeaderStore } from "@/lib/stores/page-header-store"
+import { usePageHeaderStore } from "@/stores/page-header-store"
 import { usePathname, useSearchParams } from "next/navigation"
 import type {
   AnnouncementData,

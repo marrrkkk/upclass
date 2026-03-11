@@ -9,8 +9,8 @@ import { Sidebar } from "@/components/sidebar"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { useUserStore } from "@/lib/stores/user-store"
-import { useBackgroundRefresh } from "@/lib/hooks/use-background-refresh"
+import { useBackgroundRefresh } from "@/hooks/use-background-refresh"
+import { useUserStore } from "@/stores/user-store"
 
 type HomeShellProps = {
   children: React.ReactNode
@@ -141,5 +141,4 @@ export function HomeShell({ children, isAuthenticated, userInfo, userId }: HomeS
     </div>
   )
 }
-
 

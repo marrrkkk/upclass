@@ -22,8 +22,8 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
-import { useResourcesStore } from "@/lib/stores/resources-store"
-import { usePrefetch } from "@/lib/hooks/use-prefetch"
+import { usePrefetch } from "@/hooks/use-prefetch"
+import { useResourcesStore } from "@/stores/resources-store"
 import { useCacheData } from "@/lib/cache-hooks"
 import { BackgroundSync } from "@/lib/background-sync"
 
@@ -304,4 +304,3 @@ const ResourceCard = memo(function ResourceCard({ data }: { data: ResourceCardDa
     </div>
   )
 })
-
