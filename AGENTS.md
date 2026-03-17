@@ -1,102 +1,25 @@
-# AGENTS.md – UpClass
+# Repository Guidelines
 
-Guidance for AI agents working in this codebase.
+## Project Structure & Module Organization
+`app/` contains the Next.js 16 App Router, including route groups, `app/actions/*.ts` server actions, and `app/api/*` handlers. `components/` is split by feature (`classes/`, `messages/`, `resources/`, `whiteboard/`) with shared shadcn primitives in `components/ui/`. `lib/` holds shared client/server utilities such as auth, caching, offline sync, Zustand stores, and Supabase realtime helpers. Database schema and migrations live in `db/`. Static assets, the service worker, and the PWA manifest are in `public/`.
 
-## Project overview
+## Build, Test, and Development Commands
+- `npm install`: install project dependencies.
+- `npm run dev`: start the local development server on `http://localhost:3000`.
+- `npm run build`: create a production build.
+- `npm run start`: serve the production build locally.
+- `npm run lint`: run ESLint for the repo.
 
-**UpClass** is a Learning Management System (LMS): classes, resources, messaging, real-time whiteboard, quizzes, classwork, notifications, and user profiles (teacher/student). It is a **Next.js 16** app with **PWA/offline support**, **Supabase Realtime**, and a **PostgreSQL** backend.
+There is currently no dedicated `test` or `type-check` script in `package.json`; add one if you introduce automated tests or a separate typecheck step.
 
-## Tech stack
+## Coding Style & Naming Conventions
+Use TypeScript with strict typing and existing path aliases such as `@/lib/utils`. Follow the current style: React components in PascalCase, hooks/utilities in camelCase, and route or feature folders in kebab-case where applicable. Prefer existing UI primitives from `components/ui/` and compose classes with `cn(...)` from `lib/utils.ts`. Keep server actions in `app/actions/` with `"use server"` at the top, and use Drizzle via `db/index.ts` for app data access.
 
-| Layer | Technology |
-|-------|------------|
-| Framework | Next.js 16 (App Router) |
-| Language | TypeScript (strict) |
-| UI | React 19, Tailwind CSS 4, shadcn/ui (Radix), `class-variance-authority`, `clsx` + `tailwind-merge` |
-| State | Zustand (client); server state via Server Actions + cache |
-| Auth | better-auth (Drizzle adapter, optional Google OAuth) |
-| Database | PostgreSQL via `postgres` (postgres-js), Drizzle ORM |
-| Realtime | Supabase Realtime (optional; `lib/supabase-client.ts`) |
-| File upload | UploadThing |
-| PWA / offline | Service worker, IndexedDB, background sync, offline action queue |
+## Testing Guidelines
+No test framework is wired up yet, and no `tests/` or `__tests__/` directory exists today. For changes with meaningful business logic, add focused tests alongside the feature or under a top-level `tests/` directory, and document the command needed to run them in your PR. At minimum, run `npm run lint` and exercise affected flows locally before submitting.
 
-## Paths and structure
+## Commit & Pull Request Guidelines
+Recent history uses Conventional Commit style, for example `feat(whiteboard,realtime): rebuild board sync and in-app flow` and `refactor(hooks,stores): move shared modules to root`. Keep commits scoped and descriptive. PRs should explain user-visible changes, note schema or env updates, link related issues, and include screenshots or short recordings for UI changes.
 
-- **Path alias**: `@/*` → project root (e.g. `@/lib/utils`, `@/db/schema`, `@/components/ui/button`).
-- **App Router**: `app/` – routes under `(auth)/`, `(main)/`, plus `app/actions/`, `app/api/`.
-- **Server Actions**: All in `app/actions/*.ts`; each file starts with `"use server"`.
-- **API routes**: `app/api/` (e.g. `uploadthing`, `ai/chat`, `users/by-email`). Catch-all for better-auth: `app/api/[...all]/route.ts`.
-- **Components**: `components/` – feature folders (`classes/`, `messages/`, `resources/`, `whiteboard/`, etc.) and `components/ui/` for shadcn primitives.
-- **Shared logic**: `lib/` – auth, Supabase client, stores, hooks, offline/sync, cache, `utils.ts` (e.g. `cn()`).
-- **Database**: `db/schema.ts` (Drizzle schema + relations), `db/index.ts` (Drizzle client using `DATABASE_URL`).
-
-## Conventions
-
-### Server Actions
-
-- Use `"use server"` at the top of files in `app/actions/`.
-- Get session with `auth.api.getSession({ headers: await headers() })` from `@/lib/auth`; return structured errors (e.g. `{ success: false, error: string }`) for client handling.
-- Validate inputs (e.g. required fields, role checks); use `revalidatePath` / `revalidateTag` when mutating data that affects the UI.
-- Prefer Drizzle for all DB access (no raw Supabase DB client for app data).
-
-### Database (Drizzle)
-
-- Schema and relations live in `db/schema.ts`; use `db` from `@/db` (postgres-js).
-- Use `eq`, `and`, `desc`, etc. from `drizzle-orm`; use transactions for multi-step writes.
-- IDs are typically `text` (e.g. `crypto.randomUUID()`); enums and indexes are defined in the schema.
-
-### Auth
-
-- better-auth is configured in `lib/auth.ts` (Drizzle adapter, optional Google). Client helpers in `lib/auth-client.ts`.
-- Protect actions and API routes by checking `session?.user?.id` (and optionally `user.role` from `user` table).
-
-### UI and styling
-
-- Use `cn(...)` from `@/lib/utils` for conditional Tailwind classes.
-- Prefer existing `components/ui/*` (Button, Card, Dialog, Input, etc.); extend with `cva` and Radix where needed.
-- Theme: CSS variables in `app/globals.css`; dark mode via `next-themes` (e.g. `ThemeProvider`).
-- Tailwind 4 with `@theme inline` and `@custom-variant`; avoid ad-hoc arbitrary values when a theme token exists.
-
-### Client state and data
-
-- Global client state: Zustand stores in `lib/stores/` (e.g. `user-store`, `classes-store`, `messages-store`).
-- Server data: fetch in Server Components or call Server Actions from Client Components; use loading.tsx and skeletons where appropriate.
-- Offline: respect `lib/offline-action-handler.ts`, `lib/sync-manager.ts`, and `lib/background-cache.ts`; avoid bypassing the offline queue for mutating actions.
-
-### File uploads
-
-- UploadThing: config in `app/api/uploadthing/core.ts` (middleware uses auth session); use `@uploadthing/react` and `lib/uploadthing.ts` on the client. Upload styles are imported in `app/globals.css`.
-
-### Realtime
-
-- Supabase is used for realtime only (e.g. presence, channels). Create client from `lib/supabase-client.ts`; handle missing env (realtime disabled) without throwing.
-
-## Environment
-
-- **Database**: `DATABASE_URL` (Postgres connection string).
-- **Auth**: `AUTH_SECRET`, `AUTH_URL` / `BETTER_AUTH_URL`; optional `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
-- **Supabase** (realtime): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
-- **UploadThing**: `UPLOADTHING_SECRET`, `UPLOADTHING_APP_ID`.
-
-See README for a full list and setup steps.
-
-## Commands
-
-- `npm run dev` – development server
-- `npm run build` – production build
-- `npm run lint` – ESLint (Next.js config)
-- No `npm run test` script in package.json; add tests under a `tests/` or `__tests__/` convention if introducing them.
-
-## What to avoid
-
-- Don’t use Supabase for primary app data or migrations; use Drizzle and `db/` only.
-- Don’t add new global state without considering existing Zustand stores and offline/sync behavior.
-- Don’t skip session/role checks in Server Actions or upload middleware.
-- Don’t break PWA/offline flows: keep action queue and cache layers in mind when changing mutations or navigation.
-
-## Quick reference
-
-- **New server action**: Add to appropriate file in `app/actions/`, `"use server"`, get session, validate, use `db` + Drizzle, return `{ success, error? }` or data.
-- **New API route**: Add under `app/api/<name>/route.ts`; protect with `auth.api.getSession` if needed.
-- **New UI component**: Prefer `components/ui/` for primitives (use `cn()` and existing variants); feature-specific components in the right feature folder under `components/`.
-- **New DB table/column**: Edit `db/schema.ts`, then run Drizzle migrations (e.g. `drizzle-kit generate` / `drizzle-kit migrate` as per project setup).
+## Security & Configuration Tips
+Required secrets include `DATABASE_URL`, auth settings, Supabase realtime keys, and UploadThing credentials. Never hardcode secrets or bypass session and role checks in server actions or API routes. When changing offline or realtime flows, preserve the queueing and sync behavior in `lib/offline-action-handler.ts` and `lib/sync-manager.ts`.
