@@ -24,9 +24,10 @@ export default function SignoutButton() {
     try {
       setPending(true)
       await authClient.signOut({
+        callbackURL: "/",
         fetchOptions: {
           onSuccess: () => {
-            router.push("/sign-in")
+            router.replace("/")
             router.refresh()
           },
         },

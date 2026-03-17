@@ -31,9 +31,10 @@ export function UserAvatarMenu({ name, email, image, userId }: UserAvatarMenuPro
     try {
       setPending(true)
       await authClient.signOut({
+        callbackURL: "/",
         fetchOptions: {
           onSuccess: () => {
-            router.push("/sign-in")
+            router.replace("/")
             router.refresh()
           },
         },
@@ -125,4 +126,3 @@ export function UserAvatarMenu({ name, email, image, userId }: UserAvatarMenuPro
     </DropdownMenu>
   )
 }
-
