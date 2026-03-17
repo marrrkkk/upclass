@@ -173,7 +173,7 @@ export function OnboardClient({ initialData }: OnboardClientProps) {
                     <School className="h-10 w-10" />
                   </div>
                   <div className="space-y-2">
-                    <h3 className="font-bold text-xl">I'm a Teacher</h3>
+                    <h3 className="font-bold text-xl">I am a Teacher</h3>
                     <p className="text-sm text-muted-foreground leading-relaxed">
                       Create classrooms, design curriculum, assignments, and track student progress.
                     </p>
@@ -202,7 +202,7 @@ export function OnboardClient({ initialData }: OnboardClientProps) {
                     <GraduationCap className="h-10 w-10" />
                   </div>
                   <div className="space-y-2">
-                    <h3 className="font-bold text-xl">I'm a Student</h3>
+                    <h3 className="font-bold text-xl">I am a Student</h3>
                     <p className="text-sm text-muted-foreground leading-relaxed">
                       Join classes, submit your work, collaborate with peers, and learn new skills.
                     </p>
@@ -319,7 +319,7 @@ export function OnboardClient({ initialData }: OnboardClientProps) {
 
       {/* Help Text */}
       <p className="text-center text-xs text-muted-foreground">
-        Need help? Contact support if you're unsure which role to choose.
+        Need help? Contact support if you are unsure which role to choose.
       </p>
     </div>
   )

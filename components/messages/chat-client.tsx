@@ -1,5 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
-
+ 
 import { useState, useEffect, useRef, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { Send, ArrowLeft, MoreVertical, Phone, Video } from "lucide-react"

@@ -22,9 +22,11 @@ export function ImageViewerDialog({ images, currentIndex, open, onOpenChange }: 
   const [index, setIndex] = useState(currentIndex)
 
   useEffect(() => {
-    if (open) {
+    if (!open) return
+    const id = window.setTimeout(() => {
       setIndex(currentIndex)
-    }
+    }, 0)
+    return () => window.clearTimeout(id)
   }, [open, currentIndex])
 
   const handlePrevious = () => {

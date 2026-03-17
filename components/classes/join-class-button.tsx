@@ -39,7 +39,7 @@ export function JoinClassButton({ iconOnly = false }: JoinClassButtonProps) {
     }
 
     startTransition(async () => {
-      let joinResult: any
+      let joinResult: { success: boolean; error?: string; classId?: string } | null = null
       
       try {
         joinResult = await joinClass(formData)
@@ -56,8 +56,8 @@ export function JoinClassButton({ iconOnly = false }: JoinClassButtonProps) {
         return
       }
 
-      if (!joinResult.success) {
-        setError(joinResult.error || "Failed to join class")
+      if (!joinResult?.success) {
+        setError(joinResult?.error || "Failed to join class")
         return
       }
 

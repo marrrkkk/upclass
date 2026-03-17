@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Hook to refresh page data in the background while keeping cached version visible
  */

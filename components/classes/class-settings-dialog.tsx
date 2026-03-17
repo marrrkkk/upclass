@@ -312,7 +312,7 @@ export function ClassSettingsDialog({ classData, trigger }: ClassSettingsDialogP
               Are you sure you want to permanently delete
             </p>
             <p className="text-lg font-semibold text-foreground truncate">
-              "{classData.title}"
+              {classData.title}
             </p>
             <p className="text-xs text-muted-foreground">
               All announcements, classwork, quizzes, and student submissions will be deleted.

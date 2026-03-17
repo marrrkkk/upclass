@@ -42,7 +42,7 @@ export async function updateProfile(formData: FormData): Promise<ActionResponse>
       .set({
         name,
         bio: bio || null,
-        role: role as any,
+        role: role as "teacher" | "student",
         image: image || null,
         cover: cover || null,
         coverColor: coverColor || "#3b82f6",

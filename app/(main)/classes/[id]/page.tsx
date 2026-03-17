@@ -136,7 +136,26 @@ export default async function ClassDetailPage({
     .orderBy(desc(classwork.createdAt))
 
   // Get all submissions for this class - only if user is a member
-  let allSubmissions: any[] = []
+  type SubmissionRow = {
+    id: string
+    classworkId: string
+    studentId: string
+    content: string | null
+    fileUrl: string | null
+    fileName: string | null
+    status: (typeof submissions.$inferSelect)["status"]
+    grade: string | null
+    feedback: string | null
+    submittedAt: Date | null
+    gradedAt: Date | null
+    student: {
+      id: string
+      name: string
+      image: string | null
+    }
+  }
+
+  let allSubmissions: SubmissionRow[] = []
   if (isAuthenticated && userRole) {
     allSubmissions = await db
       .select({

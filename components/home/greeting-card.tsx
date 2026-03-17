@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 
 type GreetingCardProps = {
@@ -42,11 +42,7 @@ function getMotivationalMessage(role: "teacher" | "student" | null): string {
 }
 
 export function GreetingCard({ userName, role }: GreetingCardProps) {
-    const [mounted, setMounted] = useState(false)
-
-    useEffect(() => {
-        setMounted(true)
-    }, [])
+    const [mounted] = useState(typeof window !== "undefined")
 
     // Default values for server/initial client render
     const defaultGreeting = { text: "Welcome", icon: <Sun className="h-6 w-6 text-orange-400" /> }

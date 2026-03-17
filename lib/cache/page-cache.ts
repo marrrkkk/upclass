@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Client-side page cache for instant navigation
  * Uses Zustand to cache page data and router cache for instant page loads

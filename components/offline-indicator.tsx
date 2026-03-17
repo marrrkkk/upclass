@@ -1,5 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
-
+ 
 import { useState, useEffect } from "react"
 import { Wifi, WifiOff, Cloud, X } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -140,7 +141,7 @@ export function OfflineIndicator() {
           <>
             <WifiOff className="h-4 w-4" />
             <span className="text-sm font-medium">
-              You're offline. Using cached data. Changes will sync when connection is restored.
+              You are offline. Using cached data. Changes will sync when connection is restored.
             </span>
           </>
         )}

@@ -174,15 +174,15 @@ export async function logActivity(input: LogActivityInput) {
     await db.insert(activityLog).values({
       id: crypto.randomUUID(),
       actorId: input.actorId,
-      eventType: input.eventType,
-      entityType: input.entityType,
+      eventType: input.eventType as (typeof activityLog.$inferInsert)["eventType"],
+      entityType: input.entityType as (typeof activityLog.$inferInsert)["entityType"],
       entityId: input.entityId,
       classId: input.classId ?? null,
       title: input.title,
       description: input.description ?? null,
       metadata: input.metadata ?? null,
       occurredAt: input.occurredAt ?? new Date(),
-    })
+    } satisfies typeof activityLog.$inferInsert)
   } catch (error) {
     if (isMissingActivitySchemaError(error)) {
       console.warn("Activity logging skipped because activity schema is not available yet.")

@@ -404,7 +404,7 @@ export function ResourceDetailClient({ resource, isOwner, currentUserId, isAuthe
           <DialogHeader className="p-6 pb-2 bg-gradient-to-r from-muted/50 to-muted/10 border-b border-border/50">
             <DialogTitle className="text-xl font-semibold tracking-tight">Edit Resource</DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              Update the resource details. Click save when you're done.
+              Update the resource details, then click save when you are finished.
             </DialogDescription>
           </DialogHeader>
 
@@ -507,7 +507,7 @@ export function ResourceDetailClient({ resource, isOwner, currentUserId, isAuthe
               Are you sure you want to permanently delete
             </p>
             <p className="text-lg font-semibold text-foreground truncate">
-              "{resource.title}"
+              {resource.title}
             </p>
             <p className="text-xs text-muted-foreground">
               The file and all associated data will be permanently removed.

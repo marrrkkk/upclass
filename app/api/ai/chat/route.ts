@@ -56,10 +56,11 @@ Keep your responses concise, helpful, and focused on the resource.`
     const text = response.text()
 
     return NextResponse.json({ response: text })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Gemini API error:", error)
+    const message = error instanceof Error ? error.message : "Failed to get AI response"
     return NextResponse.json(
-      { error: error.message || "Failed to get AI response" },
+      { error: message },
       { status: 500 }
     )
   }

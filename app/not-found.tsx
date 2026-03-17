@@ -33,7 +33,7 @@ export default function NotFound() {
                         Page not found
                     </h2>
                     <p className="mt-4 text-base text-muted-foreground max-w-[300px] mx-auto">
-                        Sorry, we couldn't find the page you're looking for. It might have been removed or doesn't exist.
+                        Sorry, we could not find the page you are looking for. It might have been removed or does not exist.
                     </p>
                 </div>
 

@@ -109,8 +109,9 @@ export function AIChatDialog({ open, onOpenChange, resourceContext }: AIChatDial
         timestamp: new Date(),
       }
       setMessages((prev) => [...prev, assistantMessage])
-    } catch (err: any) {
-      setError(err.message || "Failed to get AI response")
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to get AI response"
+      setError(message)
       console.error("AI chat error:", err)
     } finally {
       setIsLoading(false)
@@ -132,7 +133,7 @@ export function AIChatDialog({ open, onOpenChange, resourceContext }: AIChatDial
             AI Assistant
           </DialogTitle>
           <DialogDescription className="text-muted-foreground ml-1">
-            Asking about <span className="font-medium text-foreground">"{resourceContext.title}"</span>
+            Asking about <span className="font-medium text-foreground">{resourceContext.title}</span>
           </DialogDescription>
         </DialogHeader>
 
