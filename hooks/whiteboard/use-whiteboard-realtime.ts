@@ -16,8 +16,6 @@ import type {
 type UseWhiteboardRealtimeParams = {
   currentUser: WhiteboardUser
   onReconnect?: () => void
-  latestSequenceRef: { current: number }
-  onCommittedOperations?: (operations: WhiteboardOperation[]) => void
   setCursors: Dispatch<SetStateAction<Map<string, CursorData>>>
   setElements: Dispatch<SetStateAction<WhiteboardElement[]>>
   setSelection: Dispatch<SetStateAction<SelectionState>>
@@ -37,8 +35,6 @@ type BroadcastChannelLike = {
 export function useWhiteboardRealtime({
   currentUser,
   onReconnect,
-  latestSequenceRef,
-  onCommittedOperations,
   setCursors,
   setElements,
   setSelection,
@@ -133,7 +129,7 @@ export function useWhiteboardRealtime({
     const supabaseClient = supabase
 
     const channel = supabaseClient
-      .channel(`whiteboard-broadcast:${whiteboardId}`, {
+      .channel(`whiteboard:${whiteboardId}`, {
         config: { broadcast: { self: true } },
       })
       .on("broadcast", { event: "drawing-start" }, (payload) => {
@@ -174,17 +170,6 @@ export function useWhiteboardRealtime({
         const element = payload.payload.element as WhiteboardElement | undefined
         if (!element || element.userId === currentUser.id) return
         setElements((previous) => (previous.find((entry) => entry.id === element.id) ? previous : [...previous, element]))
-      })
-      .on("broadcast", { event: "operations-committed" }, (payload) => {
-        const operations = payload.payload.operations as WhiteboardOperation[] | undefined
-        if (!operations || operations.length === 0) return
-
-        const incomingMaxSequence = Math.max(
-          latestSequenceRef.current,
-          ...operations.map((operation) => operation.sequence),
-        )
-        latestSequenceRef.current = incomingMaxSequence
-        onCommittedOperations?.(operations)
       })
       .on("broadcast", { event: "element-update" }, (payload) => {
         const element = payload.payload.element as WhiteboardElement | undefined
@@ -258,7 +243,7 @@ export function useWhiteboardRealtime({
 
       broadcastChannelRef.current = null
     }
-  }, [currentUser, latestSequenceRef, onCommittedOperations, onReconnect, setCursors, setElements, setSelection, whiteboardId])
+  }, [currentUser, onReconnect, setCursors, setElements, setSelection, whiteboardId])
 
   return {
     broadcastCursor,

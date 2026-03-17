@@ -101,15 +101,6 @@ export class SyncManager {
 
   private async processAction(action: PendingAction): Promise<void> {
     switch (action.type) {
-      case 'whiteboard-update': {
-        // Sync whiteboard changes
-        const { updateWhiteboard } = await import('@/app/actions/whiteboard')
-        const result = await updateWhiteboard(action.data.whiteboardId, action.data.data)
-        if (!result.success) {
-          throw new Error(result.error || 'Failed to sync whiteboard')
-        }
-        break
-      }
       case 'create-class': {
         // Sync class creation
         const { createClass } = await import('@/app/actions/classes')

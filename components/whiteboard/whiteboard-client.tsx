@@ -6,14 +6,10 @@ import Link from "next/link"
 import { WhiteboardOverlays } from "@/components/whiteboard/whiteboard-overlays"
 import { WhiteboardToolbar } from "@/components/whiteboard/whiteboard-toolbar"
 import {
-  createAddOperation,
-  createClearOperation,
   createDrawElement,
   createImageElement,
-  createRemoveOperation,
   createShapeElement,
   createTextElement,
-  createUpdateOperation,
   getElementAt,
   getResizeHandle,
   isSelectableElement,
@@ -21,9 +17,7 @@ import {
   parseWhiteboardData,
 } from "@/components/whiteboard/whiteboard-utils"
 import { useWhiteboardCanvas } from "@/hooks/whiteboard/use-whiteboard-canvas"
-import { useWhiteboardPersistence } from "@/hooks/whiteboard/use-whiteboard-persistence"
 import { useWhiteboardRealtime } from "@/hooks/whiteboard/use-whiteboard-realtime"
-import { applyWhiteboardOperation } from "@/lib/whiteboard/operations"
 import { useUploadThing } from "@/lib/uploadthing"
 import { cn } from "@/lib/utils"
 import type {
@@ -35,8 +29,6 @@ import type {
   TextElementData,
   WhiteboardClientProps,
   WhiteboardElement,
-  WhiteboardOperation,
-  WhiteboardOperationInput,
   WhiteboardPoint,
   WhiteboardTool,
 } from "@/types/whiteboard"
@@ -55,7 +47,7 @@ export function WhiteboardClient({
   className,
   classColor,
   initialData,
-  initialSequence,
+  initialUpdatedAt,
   currentUser,
 }: WhiteboardClientProps) {
   const [elements, setElements] = useState<WhiteboardElement[]>(() => parseWhiteboardData(initialData))
@@ -75,15 +67,14 @@ export function WhiteboardClient({
   const selectionRef = useRef<SelectionState>(INITIAL_SELECTION)
   const pendingDrawPointsRef = useRef<WhiteboardPoint[]>([])
   const drawFlushFrameRef = useRef<number | null>(null)
+  const saveTimeoutRef = useRef<number | null>(null)
+  const lastSavedUpdatedAtRef = useRef<string | null>(initialUpdatedAt ?? null)
   const { startUpload } = useUploadThing("imageUploader")
 
   const { canvasRef, containerRef, imageCacheRef, getMousePos, getTouchPos } = useWhiteboardCanvas({
     classColor,
     elements,
     selectedElementId: selection.elementId,
-  })
-  const { commitOperations, fetchOperations, latestSequenceRef, setLatestSequence } = useWhiteboardPersistence({
-    whiteboardId,
   })
 
   useEffect(() => {
@@ -140,33 +131,75 @@ export function WhiteboardClient({
     })
   }, [flushPendingDrawPoints])
 
-  const applyCommittedOperations = useCallback((operations: WhiteboardOperation[]) => {
-    if (operations.some((operation) => operation.type === "clear")) {
-      setSelection(INITIAL_SELECTION)
+  const syncFromServer = useCallback(() => {
+    return fetch(`/api/whiteboards/${whiteboardId}`, { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error("Failed to load whiteboard document")
+        }
+        const data = (await response.json()) as {
+          data: string
+          updatedAt: string
+        }
+        const nextElements = parseWhiteboardData(data.data)
+        elementsRef.current = nextElements
+        lastSavedUpdatedAtRef.current = data.updatedAt
+        setElements(nextElements)
+      })
+  }, [whiteboardId])
+
+  const scheduleSave = useCallback(() => {
+    if (saveTimeoutRef.current) {
+      window.clearTimeout(saveTimeoutRef.current)
     }
 
-    setElements((previous) =>
-      operations.reduce((currentElements, operation) => applyWhiteboardOperation(currentElements, operation), previous),
-    )
-  }, [])
+    saveTimeoutRef.current = window.setTimeout(async () => {
+      saveTimeoutRef.current = null
+      try {
+        const response = await fetch(`/api/whiteboards/${whiteboardId}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            data: JSON.stringify(elementsRef.current),
+            clientUpdatedAt: lastSavedUpdatedAtRef.current,
+          }),
+        })
 
-  const reconcileOperations = useCallback(() => {
-    return fetchOperations().then((result) => {
-      if (result.operations.length > 0) {
-        applyCommittedOperations(result.operations)
+        if (response.status === 409) {
+          const conflict = (await response.json()) as {
+            data: string
+            updatedAt: string
+          }
+          const nextElements = parseWhiteboardData(conflict.data)
+          elementsRef.current = nextElements
+          lastSavedUpdatedAtRef.current = conflict.updatedAt
+          setElements(nextElements)
+          return
+        }
+
+        if (!response.ok) {
+          throw new Error("Failed to save whiteboard")
+        }
+
+        const result = (await response.json()) as {
+          updatedAt: string
+        }
+        lastSavedUpdatedAtRef.current = result.updatedAt
+      } catch (error) {
+        console.error("Failed to persist whiteboard document", error)
       }
-    })
-  }, [applyCommittedOperations, fetchOperations])
+    }, 600)
+  }, [whiteboardId])
 
   const { broadcastCursor, queueDrawingPoint, queueElementUpdate, sendBroadcast } = useWhiteboardRealtime({
     currentUser,
-    latestSequenceRef,
     onReconnect: () => {
-      void reconcileOperations().catch((error) => {
+      void syncFromServer().catch((error) => {
         console.error("Failed to sync whiteboard after reconnect", error)
       })
     },
-    onCommittedOperations: applyCommittedOperations,
     setCursors,
     setElements,
     setSelection,
@@ -174,55 +207,17 @@ export function WhiteboardClient({
   })
 
   useEffect(() => {
-    setLatestSequence(initialSequence)
-  }, [initialSequence, setLatestSequence])
+    // Persist whenever the local elements change, with debounce
+    scheduleSave()
+  }, [elements, scheduleSave])
 
-  const commitAndBroadcastOperations = useCallback(
-    async (operations: WhiteboardOperationInput[]) => {
-      try {
-        const result = await commitOperations(operations)
-        sendBroadcast("operations-committed", { operations: result.operations })
-        return result.operations
-      } catch (error) {
-        console.error("Failed to persist whiteboard operations", error)
-        return []
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        window.clearTimeout(saveTimeoutRef.current)
       }
-    },
-    [commitOperations, sendBroadcast],
-  )
-
-  useEffect(() => {
-    void fetchOperations(initialSequence)
-      .then((result) => {
-        if (result.operations.length > 0) {
-          applyCommittedOperations(result.operations)
-        }
-      })
-      .catch((error) => {
-        console.error("Failed to load recent whiteboard operations", error)
-      })
-  }, [applyCommittedOperations, fetchOperations, initialSequence])
-
-  useEffect(() => {
-    const handleOnline = () => {
-      void reconcileOperations().catch((error) => {
-        console.error("Failed to recover whiteboard operations", error)
-      })
     }
-
-    window.addEventListener("online", handleOnline)
-    return () => window.removeEventListener("online", handleOnline)
-  }, [reconcileOperations])
-
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      void reconcileOperations().catch((error) => {
-        console.error("Failed to reconcile whiteboard operations", error)
-      })
-    }, 2500)
-
-    return () => window.clearInterval(interval)
-  }, [reconcileOperations])
+  }, [])
 
   const selectedElement = useMemo(
     () => elements.find((element) => element.id === selection.elementId) ?? null,
@@ -267,7 +262,6 @@ export function WhiteboardClient({
         const nextElements = elements.filter((element) => element.id !== elementToErase.id)
         setElements(nextElements)
         sendBroadcast("element-remove", { elementId: elementToErase.id })
-        void commitAndBroadcastOperations([createRemoveOperation(elementToErase.id)])
         return
       }
 
@@ -285,7 +279,7 @@ export function WhiteboardClient({
         setSelection(INITIAL_SELECTION)
       }
     },
-    [canvasRef, color, commitAndBroadcastOperations, currentUser.id, elements, lineWidth, sendBroadcast, tool],
+    [canvasRef, color, currentUser.id, elements, lineWidth, sendBroadcast, tool],
   )
 
   const handlePointerMove = useCallback(
@@ -508,7 +502,6 @@ export function WhiteboardClient({
       pendingDrawPointsRef.current = []
       if (lastElement?.type === "draw") {
         sendBroadcast("drawing-complete", { element: lastElement })
-        void commitAndBroadcastOperations([createAddOperation(lastElement)])
       }
       return
     }
@@ -516,7 +509,6 @@ export function WhiteboardClient({
     if (selection.isDragging || selection.isResizing) {
       if (selectedElement) {
         sendBroadcast("element-update", { element: selectedElement })
-        void commitAndBroadcastOperations([createUpdateOperation(selectedElement)])
       }
       setSelection((previous) => ({
         ...previous,
@@ -539,11 +531,10 @@ export function WhiteboardClient({
         })
         setTool("select")
         sendBroadcast("element-add", { element: lastElement })
-        void commitAndBroadcastOperations([createAddOperation(lastElement)])
       }
       setShapeStart(null)
     }
-  }, [commitAndBroadcastOperations, flushPendingDrawPoints, isDrawing, selectedElement, selection, sendBroadcast, shapeStart])
+  }, [flushPendingDrawPoints, isDrawing, selectedElement, selection, sendBroadcast, shapeStart])
 
   const handleImageUpload = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -592,7 +583,6 @@ export function WhiteboardClient({
           })
           setTool("select")
           sendBroadcast("element-add", { element: newElement })
-          void commitAndBroadcastOperations([createAddOperation(newElement)])
 
           const cachedImage = new Image()
           cachedImage.crossOrigin = "anonymous"
@@ -611,7 +601,7 @@ export function WhiteboardClient({
         fileInputRef.current.value = ""
       }
     },
-    [canvasRef, commitAndBroadcastOperations, currentUser.id, elements, imageCacheRef, sendBroadcast, startUpload],
+    [canvasRef, currentUser.id, elements, imageCacheRef, sendBroadcast, startUpload],
   )
 
   const handleTextSubmit = useCallback(() => {
@@ -634,8 +624,7 @@ export function WhiteboardClient({
     setTextValue("")
     setTool("select")
     sendBroadcast("element-add", { element: newElement })
-    void commitAndBroadcastOperations([createAddOperation(newElement)])
-  }, [color, commitAndBroadcastOperations, currentUser.id, elements, sendBroadcast, textFontSize, textInput, textValue])
+  }, [color, currentUser.id, elements, sendBroadcast, textFontSize, textInput, textValue])
 
   const handleClear = useCallback(() => {
     if (!window.confirm("Are you sure you want to clear the whiteboard? This action cannot be undone.")) {
@@ -645,8 +634,7 @@ export function WhiteboardClient({
     setElements([])
     setSelection(INITIAL_SELECTION)
     sendBroadcast("clear", {})
-    void commitAndBroadcastOperations([createClearOperation()])
-  }, [commitAndBroadcastOperations, sendBroadcast])
+  }, [sendBroadcast])
 
   const toggleFullscreen = useCallback(() => {
     if (!isFullscreen) {
@@ -714,7 +702,6 @@ export function WhiteboardClient({
     setElements((previous) => previous.filter((entry) => entry.id !== element.id))
     setSelection(INITIAL_SELECTION)
     sendBroadcast("element-remove", { elementId: element.id })
-    void commitAndBroadcastOperations([createRemoveOperation(element.id)])
   }
 
   useEffect(() => {

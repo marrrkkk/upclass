@@ -148,7 +148,7 @@ export type WhiteboardClientProps = {
   className: string
   classColor: string
   initialData: string
-  initialSequence: number
+  initialUpdatedAt: string | null
   currentUser: WhiteboardUser
 }
 
