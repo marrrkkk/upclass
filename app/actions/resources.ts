@@ -7,6 +7,7 @@ import { eq } from "drizzle-orm"
 import { db } from "@/db"
 import { auth } from "@/lib/auth"
 import { resources } from "@/db/schema"
+import { logActivity } from "@/lib/activity"
 
 type ActionResponse =
   | { success: true }
@@ -38,7 +39,7 @@ export async function createResource(formData: FormData): Promise<ActionResponse
   }
 
   // Map file extension to enum type
-  const getFileType = (fileName: string, mimeType?: string): string => {
+  const getFileType = (fileName: string): "pdf" | "ppt" | "pptx" | "doc" | "docx" | "xls" | "xlsx" | "txt" | "other" => {
     const ext = fileName.split(".").pop()?.toLowerCase()
     if (ext === "pdf") return "pdf"
     if (ext === "ppt") return "ppt"
@@ -61,13 +62,23 @@ export async function createResource(formData: FormData): Promise<ActionResponse
       category,
       fileUrl,
       fileName,
-      fileType: getFileType(fileName, fileType) as any,
+      fileType: getFileType(fileName),
       fileSize,
       ownerId: session.user.id,
     })
 
     revalidatePath("/resources")
     revalidatePath("/home")
+    revalidatePath("/activity")
+
+    await logActivity({
+      actorId: session.user.id,
+      eventType: "resource_uploaded",
+      entityType: "resource",
+      entityId: resourceId,
+      title: `Uploaded resource "${title}"`,
+      description: description || fileName,
+    })
 
     return { success: true }
   } catch (error) {

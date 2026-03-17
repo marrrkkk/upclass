@@ -1,6 +1,5 @@
 import type { Metadata } from "next"
 import { headers } from "next/headers"
-import { redirect } from "next/navigation"
 import Link from "next/link"
 import { auth } from "@/lib/auth"
 import { db } from "@/db"
@@ -16,11 +15,14 @@ import {
 import { eq, and, or, sql, desc, isNotNull, gte, count } from "drizzle-orm"
 import { Button } from "@/components/ui/button"
 import { GraduationCap } from "lucide-react"
+import { getActivityGraphData, getActivityLog } from "@/lib/activity"
 
 import { GreetingCard } from "@/components/home/greeting-card"
 import { StatsCards, type StatsData } from "@/components/home/stats-cards"
 import { DeadlineWidget, type DeadlineItem } from "@/components/home/deadline-widget"
 import { RecentClasses, type ClassItem } from "@/components/home/recent-classes"
+import { ActivityGraphCard } from "@/components/home/activity-graph-card"
+import { RecentActivityCard } from "@/components/home/recent-activity-card"
 
 export const metadata: Metadata = {
   title: "Home",
@@ -256,6 +258,11 @@ export default async function HomePage() {
     )
   const unreadNotificationsCount = unreadNotificationsResult[0]?.count || 0
 
+  const [activityGraph, recentActivity] = await Promise.all([
+    getActivityGraphData(userId),
+    getActivityLog(userId, { limit: 6 }),
+  ])
+
   const statsData: StatsData = {
     totalClasses: totalClassesCount,
     pendingTasks: pendingTasksCount,
@@ -282,6 +289,15 @@ export default async function HomePage() {
         {/* Recent Classes - Takes 2 columns on large screens */}
         <div className="lg:col-span-2">
           <RecentClasses classes={classesData} userRole={userRole} />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <ActivityGraphCard days={activityGraph.days} total={activityGraph.total} />
+        </div>
+        <div className="lg:col-span-1">
+          <RecentActivityCard items={recentActivity.items} />
         </div>
       </div>
     </section>

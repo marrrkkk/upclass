@@ -380,6 +380,28 @@ export const submissionRelations = relations(submissions, ({ one }) => ({
 }));
 
 export const notificationType = pgEnum("notification_type", ["announcement", "classwork"]);
+export const activityEventType = pgEnum("activity_event_type", [
+  "class_created",
+  "class_joined",
+  "announcement_created",
+  "assignment_created",
+  "material_created",
+  "quiz_created",
+  "resource_uploaded",
+  "assignment_submitted",
+  "quiz_submitted",
+  "submission_graded",
+  "quiz_graded",
+]);
+export const activityEntityType = pgEnum("activity_entity_type", [
+  "class",
+  "announcement",
+  "classwork",
+  "resource",
+  "quiz",
+  "submission",
+  "quiz_attempt",
+]);
 
 export const notifications = pgTable(
   "notifications",
@@ -423,6 +445,29 @@ export const messages = pgTable(
     index("messages_sender_idx").on(table.senderId),
     index("messages_receiver_idx").on(table.receiverId),
     index("messages_read_idx").on(table.read),
+  ],
+);
+
+export const activityLog = pgTable(
+  "activity_log",
+  {
+    id: text("id").primaryKey(),
+    actorId: text("actor_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    eventType: activityEventType("event_type").notNull(),
+    entityType: activityEntityType("entity_type").notNull(),
+    entityId: text("entity_id").notNull(),
+    classId: text("class_id").references(() => classes.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    description: text("description"),
+    metadata: text("metadata"),
+    occurredAt: timestamp("occurred_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("activity_log_actor_occurred_idx").on(table.actorId, table.occurredAt),
+    index("activity_log_actor_event_idx").on(table.actorId, table.eventType),
+    index("activity_log_class_occurred_idx").on(table.classId, table.occurredAt),
   ],
 );
 

@@ -15,6 +15,13 @@
       "when": 1773326400000,
       "tag": "0001_whiteboard_ops_realtime",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1773806400000,
+      "tag": "0002_personal_activity_log",
+      "breakpoints": true
     }
   ]
 }

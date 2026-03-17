@@ -4,12 +4,12 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 
 import {
+  Activity,
   Home,
   GraduationCap,
   FolderOpen,
   Settings,
   User,
-  BookOpen,
   PanelLeftClose,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -23,6 +23,7 @@ import { Logo } from "@/components/logo"
 
 const navItems = [
   { label: "Home", href: "/home", icon: Home },
+  { label: "Activity", href: "/activity", icon: Activity },
   { label: "Classes", href: "/classes", icon: GraduationCap },
   { label: "Resources", href: "/resources", icon: FolderOpen },
 ]

@@ -7,6 +7,7 @@ import { eq, and } from "drizzle-orm"
 import { db } from "@/db"
 import { auth } from "@/lib/auth"
 import { classes, classMembership, user } from "@/db/schema"
+import { logActivity } from "@/lib/activity"
 
 type ActionResponse =
   | { success: true; classId?: string }
@@ -94,6 +95,17 @@ export async function createClass(formData: FormData): Promise<ActionResponse> {
 
     revalidatePath("/classes")
     revalidatePath("/home")
+    revalidatePath("/activity")
+
+    await logActivity({
+      actorId: session.user.id,
+      eventType: "class_created",
+      entityType: "class",
+      entityId: classId,
+      classId,
+      title: `Created class "${title}"`,
+      description: description || `Started a new ${category} class`,
+    })
 
     return { success: true }
   } catch (error) {
@@ -157,6 +169,17 @@ export async function joinClass(formData: FormData): Promise<ActionResponse> {
 
     revalidatePath("/classes")
     revalidatePath("/home")
+    revalidatePath("/activity")
+
+    await logActivity({
+      actorId: session.user.id,
+      eventType: "class_joined",
+      entityType: "class",
+      entityId: classId,
+      classId,
+      title: `Joined class "${classData[0].title}"`,
+      description: classData[0].description || "Joined a class using an invite code",
+    })
 
     return { success: true, classId }
   } catch (error) {

@@ -8,6 +8,7 @@ import { db } from "@/db"
 import { auth } from "@/lib/auth"
 import { announcements, classwork, submissions, classMembership, announcementReactions } from "@/db/schema"
 import { createNotificationsForClass } from "@/app/actions/notifications"
+import { logActivity } from "@/lib/activity"
 
 type ActionResponse =
   | { success: true }
@@ -67,6 +68,19 @@ export async function createAnnouncement(
     )
 
     revalidatePath(`/classes/${classId}`)
+    revalidatePath("/home")
+    revalidatePath("/activity")
+
+    await logActivity({
+      actorId: session.user.id,
+      eventType: "announcement_created",
+      entityType: "announcement",
+      entityId: announcementId,
+      classId,
+      title: "Posted a class announcement",
+      description: content.length > 120 ? `${content.slice(0, 120)}...` : content,
+    })
+
     return { success: true }
   } catch (error) {
     console.error("createAnnouncement error", error)
@@ -105,7 +119,9 @@ export async function createClasswork(
 
   const title = (formData.get("title") as string | null)?.trim()
   const description = (formData.get("description") as string | null)?.trim()
-  const type = (formData.get("type") as string | null) || "assignment"
+  const rawType = formData.get("type") as string | null
+  const type: "assignment" | "quiz" | "material" =
+    rawType === "material" || rawType === "quiz" ? rawType : "assignment"
   const dueDateStr = formData.get("dueDate") as string | null
   const points = (formData.get("points") as string | null)?.trim()
 
@@ -122,7 +138,7 @@ export async function createClasswork(
       classId,
       title,
       description,
-      type: type as any,
+      type,
       dueDate,
       points,
     })
@@ -139,6 +155,24 @@ export async function createClasswork(
     )
 
     revalidatePath(`/classes/${classId}`)
+    revalidatePath("/home")
+    revalidatePath("/activity")
+
+    await logActivity({
+      actorId: session.user.id,
+      eventType:
+        type === "material"
+          ? "material_created"
+          : type === "quiz"
+            ? "quiz_created"
+            : "assignment_created",
+      entityType: "classwork",
+      entityId: classworkId,
+      classId,
+      title: `Created ${type === "material" ? "material" : type} "${title}"`,
+      description: description || null,
+    })
+
     return { success: true }
   } catch (error) {
     console.error("createClasswork error", error)
@@ -207,8 +241,11 @@ export async function submitClasswork(
       )
       .limit(1)
 
+    let savedSubmissionId = existing[0]?.id ?? null
+
     if (existing.length > 0) {
       // Update existing submission
+      savedSubmissionId = existing[0].id
       await db
         .update(submissions)
         .set({
@@ -221,8 +258,9 @@ export async function submitClasswork(
         .where(eq(submissions.id, existing[0].id))
     } else {
       // Create new submission
+      savedSubmissionId = crypto.randomUUID()
       await db.insert(submissions).values({
-        id: crypto.randomUUID(),
+        id: savedSubmissionId,
         classworkId,
         studentId: session.user.id,
         content,
@@ -234,6 +272,19 @@ export async function submitClasswork(
     }
 
     revalidatePath(`/classes/${classworkData[0].classId}`)
+    revalidatePath("/home")
+    revalidatePath("/activity")
+
+    await logActivity({
+      actorId: session.user.id,
+      eventType: "assignment_submitted",
+      entityType: "submission",
+      entityId: savedSubmissionId || classworkId,
+      classId: classworkData[0].classId,
+      title: `Submitted "${classworkData[0].title}"`,
+      description: content || fileName || "Turned in classwork",
+    })
+
     return { success: true }
   } catch (error) {
     console.error("submitClasswork error", error)
@@ -310,6 +361,19 @@ export async function gradeSubmission(
       .where(eq(submissions.id, submissionId))
 
     revalidatePath(`/classes/${classworkData[0].classId}`)
+    revalidatePath("/home")
+    revalidatePath("/activity")
+
+    await logActivity({
+      actorId: session.user.id,
+      eventType: "submission_graded",
+      entityType: "submission",
+      entityId: submissionId,
+      classId: classworkData[0].classId,
+      title: `Graded "${classworkData[0].title}"`,
+      description: feedback || `Recorded a grade of ${grade}`,
+    })
+
     return { success: true }
   } catch (error) {
     console.error("gradeSubmission error", error)

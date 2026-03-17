@@ -14,6 +14,7 @@ import {
   classMembership,
 } from "@/db/schema"
 import { auth } from "@/lib/auth"
+import { logActivity } from "@/lib/activity"
 
 type ActionResponse =
   | { success: true }
@@ -241,6 +242,19 @@ export async function createQuiz(classId: string, formData: FormData): Promise<A
     }
 
     revalidatePath(`/classes/${classId}`)
+    revalidatePath("/home")
+    revalidatePath("/activity")
+
+    await logActivity({
+      actorId: session.user.id,
+      eventType: "quiz_created",
+      entityType: "quiz",
+      entityId: quizId,
+      classId,
+      title: `Created quiz "${quizPayload.title}"`,
+      description: quizPayload.description,
+    })
+
     return { success: true }
   } catch (err) {
     console.error("createQuiz error", err)
@@ -499,6 +513,19 @@ export async function submitQuiz(quizId: string, formData: FormData): Promise<Ac
 
     revalidatePath(`/classes/${quizRow[0].classId}`)
     revalidatePath(`/classes/${quizRow[0].classId}/quizzes/${quizId}`)
+    revalidatePath("/home")
+    revalidatePath("/activity")
+
+    await logActivity({
+      actorId: session.user.id,
+      eventType: "quiz_submitted",
+      entityType: "quiz_attempt",
+      entityId: attemptId,
+      classId: quizRow[0].classId,
+      title: `Submitted quiz "${quizRow[0].title}"`,
+      description: requiresManualReview ? "Waiting for manual review" : `Scored ${score} points`,
+    })
+
     return { success: true }
   } catch (err) {
     console.error("submitQuiz error", err)
@@ -636,6 +663,19 @@ export async function gradeQuizAttempt(attemptId: string, formData: FormData): P
 
     revalidatePath(`/classes/${quiz.classId}`)
     revalidatePath(`/classes/${quiz.classId}/quizzes/${quiz.id}`)
+    revalidatePath("/home")
+    revalidatePath("/activity")
+
+    await logActivity({
+      actorId: session.user.id,
+      eventType: "quiz_graded",
+      entityType: "quiz_attempt",
+      entityId: attemptId,
+      classId: quiz.classId,
+      title: `Finished grading "${quiz.title}"`,
+      description: `Final score recorded: ${totalScore}`,
+    })
+
     return { success: true }
   } catch (error) {
     console.error("gradeQuizAttempt error", error)
