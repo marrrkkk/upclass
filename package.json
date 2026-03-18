@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate": "drizzle-kit up:pg --config drizzle.config.ts",
     "build": "next build",
     "build:vercel": "npm run db:migrate && next build",
     "start": "next start",

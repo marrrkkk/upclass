@@ -111,6 +111,8 @@ Vercel deploys are configured to run database migrations before the Next.js buil
 npm run db:migrate && next build
 ```
 
+In this repo, `npm run db:migrate` uses `drizzle-kit up:pg --config drizzle.config.ts` because the pinned Drizzle CLI version is `0.18.1`.
+
 Make sure the Vercel project has a valid `DATABASE_URL` set for the target environment. If the database user cannot create enums, tables, or indexes, the deployment will fail before the new version is promoted.
 
 5. **Run the development server**
