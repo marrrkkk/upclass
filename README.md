@@ -103,6 +103,16 @@ A modern, full-featured Learning Management System (LMS) built with Next.js 16, 
    - Run the database migrations using Drizzle
    - Ensure all tables are created (classes, users, resources, messages, etc.)
 
+### Vercel Deploys
+
+Vercel deploys are configured to run database migrations before the Next.js build:
+
+```bash
+npm run db:migrate && next build
+```
+
+Make sure the Vercel project has a valid `DATABASE_URL` set for the target environment. If the database user cannot create enums, tables, or indexes, the deployment will fail before the new version is promoted.
+
 5. **Run the development server**
    ```bash
    npm run dev

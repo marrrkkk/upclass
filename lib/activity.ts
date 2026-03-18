@@ -52,16 +52,40 @@ type ActivityListOptions = {
 }
 
 function isMissingActivitySchemaError(error: unknown) {
-  if (!error || typeof error !== "object") return false
+  const queue: unknown[] = [error]
+  const visited = new Set<unknown>()
 
-  const candidate = error as { code?: string; message?: string }
-  return (
-    candidate.code === "42P01" ||
-    candidate.code === "42704" ||
-    candidate.message?.includes('relation "activity_log" does not exist') === true ||
-    candidate.message?.includes('type "activity_event_type" does not exist') === true ||
-    candidate.message?.includes('type "activity_entity_type" does not exist') === true
-  )
+  while (queue.length > 0) {
+    const current = queue.shift()
+    if (!current || typeof current !== "object" || visited.has(current)) {
+      continue
+    }
+
+    visited.add(current)
+
+    const candidate = current as {
+      code?: string
+      message?: string
+      cause?: unknown
+      digest?: string
+    }
+
+    if (
+      candidate.code === "42P01" ||
+      candidate.code === "42704" ||
+      candidate.message?.includes('relation "activity_log" does not exist') === true ||
+      candidate.message?.includes('type "activity_event_type" does not exist') === true ||
+      candidate.message?.includes('type "activity_entity_type" does not exist') === true
+    ) {
+      return true
+    }
+
+    if (candidate.cause) {
+      queue.push(candidate.cause)
+    }
+  }
+
+  return false
 }
 
 function getActivityHref(item: {

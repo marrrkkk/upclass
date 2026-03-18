@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "db:migrate": "drizzle-kit migrate",
     "build": "next build",
+    "build:vercel": "npm run db:migrate && next build",
     "start": "next start",
     "lint": "eslint"
   },
