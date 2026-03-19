@@ -1,4 +1,5 @@
-import type { TLEditorSnapshot } from "tldraw"
+import type { AppState, BinaryFiles } from "@excalidraw/excalidraw/types"
+import type { OrderedExcalidrawElement } from "@excalidraw/excalidraw/element/types"
 
 export type WhiteboardBoard = {
   id: string
@@ -9,7 +10,14 @@ export type WhiteboardBoard = {
   updatedAt: string
 }
 
-export type WhiteboardSnapshotDocument = TLEditorSnapshot
+export type WhiteboardSnapshotDocument = {
+  type: "excalidraw"
+  version: number
+  source?: string
+  elements: readonly OrderedExcalidrawElement[]
+  appState?: Partial<AppState> | null
+  files?: BinaryFiles
+}
 
 export type WhiteboardSnapshot = {
   id: string
@@ -53,18 +61,12 @@ export type WhiteboardPresence = {
   lastSeenAt: string
 }
 
-export type SerializedRecordsDiff = {
-  added: Record<string, unknown>
-  updated: Record<string, [unknown, unknown]>
-  removed: Record<string, unknown>
-}
-
 export type WhiteboardShapeUpdateEvent = {
   type: "shape_update"
   boardId: string
   actorId: string
   clientId: string
-  diff: SerializedRecordsDiff
+  elements: readonly OrderedExcalidrawElement[]
   sentAt: string
 }
 

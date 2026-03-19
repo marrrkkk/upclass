@@ -28,7 +28,7 @@ type PresencePayload = {
   lastSeenAt: string
 }
 
-const CURSOR_BROADCAST_MS = 24
+const CURSOR_BROADCAST_MS = 16
 const PRESENCE_TRACK_MS = 250
 
 export function useWhiteboardRealtime({
@@ -42,6 +42,7 @@ export function useWhiteboardRealtime({
   const latestPresenceRef = useRef<PresencePayload | null>(null)
   const cursorBroadcastTimeoutRef = useRef<number | null>(null)
   const presenceTrackTimeoutRef = useRef<number | null>(null)
+  const lastCursorBroadcastAtRef = useRef(0)
 
   const syncPresenceState = useCallback(() => {
     const channel = channelRef.current
@@ -162,6 +163,26 @@ export function useWhiteboardRealtime({
     [],
   )
 
+  const flushCursorBroadcast = useCallback(() => {
+    const channel = channelRef.current
+    const currentBroadcastPresence = latestPresenceRef.current
+    if (!channel || !currentBroadcastPresence) return
+
+    lastCursorBroadcastAtRef.current = performance.now()
+    void channel.send({
+      type: "broadcast",
+      event: "cursor_update",
+      payload: {
+        type: "cursor_update",
+        boardId,
+        actorId: currentUser.id,
+        clientId,
+        presence: currentBroadcastPresence,
+        sentAt: new Date().toISOString(),
+      } satisfies WhiteboardRealtimeEvent,
+    })
+  }, [boardId, clientId, currentUser.id])
+
   const updatePresence = useCallback(
     (input: Partial<Pick<WhiteboardPresence, "cursor" | "camera" | "selectedShapeIds">>) => {
       const channel = channelRef.current
@@ -178,25 +199,20 @@ export function useWhiteboardRealtime({
 
       if (cursorBroadcastTimeoutRef.current) {
         window.clearTimeout(cursorBroadcastTimeoutRef.current)
+        cursorBroadcastTimeoutRef.current = null
       }
 
-      cursorBroadcastTimeoutRef.current = window.setTimeout(() => {
-        const currentBroadcastPresence = latestPresenceRef.current
-        if (!currentBroadcastPresence) return
+      const now = performance.now()
+      const elapsed = now - lastCursorBroadcastAtRef.current
 
-        void channel.send({
-          type: "broadcast",
-          event: "cursor_update",
-          payload: {
-            type: "cursor_update",
-            boardId,
-            actorId: currentUser.id,
-            clientId,
-            presence: currentBroadcastPresence,
-            sentAt: new Date().toISOString(),
-          } satisfies WhiteboardRealtimeEvent,
-        })
-      }, CURSOR_BROADCAST_MS)
+      if (elapsed >= CURSOR_BROADCAST_MS) {
+        flushCursorBroadcast()
+      } else {
+        cursorBroadcastTimeoutRef.current = window.setTimeout(() => {
+          cursorBroadcastTimeoutRef.current = null
+          flushCursorBroadcast()
+        }, CURSOR_BROADCAST_MS - elapsed)
+      }
 
       if (presenceTrackTimeoutRef.current) {
         window.clearTimeout(presenceTrackTimeoutRef.current)
@@ -209,7 +225,7 @@ export function useWhiteboardRealtime({
         void channel.track(trackedPresence)
       }, PRESENCE_TRACK_MS)
     },
-    [boardId, clientId, currentUser.id],
+    [flushCursorBroadcast],
   )
 
   return useMemo(
@@ -221,4 +237,3 @@ export function useWhiteboardRealtime({
     [broadcastShapeEvent, presences, updatePresence],
   )
 }
-
