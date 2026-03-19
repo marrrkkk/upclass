@@ -102,7 +102,8 @@ self.addEventListener('fetch', (event) => {
           if (cached) return cached;
           return fetch(request).then((response) => {
             if (response.ok) {
-              caches.open(IMAGE_CACHE).then((cache) => cache.put(request, response.clone()));
+              const responseToCache = response.clone();
+              void caches.open(IMAGE_CACHE).then((cache) => cache.put(request, responseToCache));
             }
             return response;
           });
@@ -146,7 +147,8 @@ self.addEventListener('fetch', (event) => {
         }
         return fetch(request).then((response) => {
           if (response.ok) {
-            caches.open(IMAGE_CACHE).then((cache) => cache.put(request, response.clone()));
+            const responseToCache = response.clone();
+            void caches.open(IMAGE_CACHE).then((cache) => cache.put(request, responseToCache));
           }
           return response;
         });
@@ -160,7 +162,8 @@ self.addEventListener('fetch', (event) => {
       fetch(request)
         .then((response) => {
           if (response.ok) {
-            caches.open(DATA_CACHE).then((cache) => cache.put(request, response.clone()));
+            const responseToCache = response.clone();
+            void caches.open(DATA_CACHE).then((cache) => cache.put(request, responseToCache));
           }
           return response;
         })
@@ -184,7 +187,8 @@ self.addEventListener('fetch', (event) => {
     fetch(request)
       .then((response) => {
         if (response.ok) {
-          caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, response.clone()));
+          const responseToCache = response.clone();
+          void caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, responseToCache));
         }
         return response;
       })
@@ -247,7 +251,7 @@ self.addEventListener('message', (event) => {
 
               const response = await fetch(url, { cache: 'reload' });
               if (response.ok) {
-                await cache.put(url, response);
+                await cache.put(url, response.clone());
               }
             } catch {
               return;
@@ -283,7 +287,7 @@ self.addEventListener('message', (event) => {
       fetch(event.data.url)
         .then((response) => {
           if (response.ok) {
-            return caches.open(IMAGE_CACHE).then((cache) => cache.put(new Request(event.data.url), response));
+            return caches.open(IMAGE_CACHE).then((cache) => cache.put(new Request(event.data.url), response.clone()));
           }
         })
         .catch(() => undefined)
