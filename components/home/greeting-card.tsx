@@ -44,10 +44,13 @@ function getMotivationalMessage(role: "teacher" | "student" | null, userName: st
 
 const defaultGreeting = { text: "Welcome", icon: <Sun className="h-6 w-6 text-orange-400" /> }
 const subscribe = () => () => {}
+const getClientSnapshot = () => true
+const getServerSnapshot = () => false
 
 export function GreetingCard({ userName, role }: GreetingCardProps) {
-    const greetingData = useSyncExternalStore(subscribe, getGreetingData, () => defaultGreeting)
+    const hasHydrated = useSyncExternalStore(subscribe, getClientSnapshot, getServerSnapshot)
     const firstName = userName?.split(" ")[0] || "there"
+    const greetingData = hasHydrated ? getGreetingData() : defaultGreeting
     const { text: greeting, icon } = greetingData
     const motivationalMessage = getMotivationalMessage(role, userName)
 

@@ -1,218 +1,18 @@
-const CACHE_NAME = 'upclass-v2';
-const RUNTIME_CACHE = 'upclass-runtime-v2';
-const DATA_CACHE = 'upclass-data-v2';
-const IMAGE_CACHE = 'upclass-images-v2';
+const CACHE_NAME = 'upclass-v3';
+const RUNTIME_CACHE = 'upclass-runtime-v3';
+const DATA_CACHE = 'upclass-data-v3';
+const IMAGE_CACHE = 'upclass-images-v3';
 
-// Assets to cache on install
 const STATIC_ASSETS = [
   '/',
-  '/home',
-  '/classes',
-  '/resources',
-  '/messages',
-  '/notifications',
   '/icon.svg',
   '/logo.svg',
   '/favicon.ico',
   '/manifest.json',
 ];
 
-// Install event - cache static assets
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(async (cache) => {
-      // Cache each asset individually to avoid failing on unavailable URLs
-      const cachePromises = STATIC_ASSETS.map(url => {
-        return cache.add(new Request(url, { cache: 'reload' }))
-          .catch(err => {
-            // Log but don't fail on individual cache misses
-            console.log(`Failed to cache ${url}:`, err);
-            return null;
-          });
-      });
-      await Promise.allSettled(cachePromises);
-      console.log('Service worker installed and assets cached');
-    }).catch(err => {
-      console.log('Cache install failed:', err);
-    })
-  );
-  self.skipWaiting();
-});
-
-// Activate event - clean up old caches
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames
-          .filter((cacheName) => {
-            return cacheName !== CACHE_NAME && 
-                   cacheName !== RUNTIME_CACHE && 
-                   cacheName !== DATA_CACHE && 
-                   cacheName !== IMAGE_CACHE;
-          })
-          .map((cacheName) => caches.delete(cacheName))
-      );
-    })
-  );
-  return self.clients.claim();
-});
-
-// Fetch event - network first, fallback to cache (optimized)
-self.addEventListener('fetch', (event) => {
-  const { request } = event;
-  const url = new URL(request.url);
-
-  // Skip non-GET requests
-  if (request.method !== 'GET') {
-    return;
-  }
-
-  // Skip cross-origin requests (except for images from trusted sources)
-  if (url.origin !== location.origin) {
-    // Allow caching images from external sources if needed
-    if (request.destination === 'image' && (
-      url.hostname.includes('uploadthing.com') ||
-      url.hostname.includes('supabase.co')
-    )) {
-      // Cache external images
-      event.respondWith(
-        caches.match(request).then((cached) => {
-          if (cached) return cached;
-          return fetch(request).then((response) => {
-            if (response.ok) {
-              const clone = response.clone();
-              caches.open(IMAGE_CACHE).then((cache) => {
-                cache.put(request, clone);
-              });
-            }
-            return response;
-          });
-        })
-      );
-    }
-    return;
-  }
-
-  // Handle Next.js RSC requests (React Server Components)
-  if (url.searchParams.has('_rsc') || request.headers.get('RSC') === '1') {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          // Cache successful RSC responses
-          if (response.ok) {
-            const clone = response.clone();
-            caches.open(RUNTIME_CACHE).then((cache) => {
-              cache.put(request, clone);
-            });
-          }
-          return response;
-        })
-        .catch(() => {
-          // Try cache for RSC requests
-          return caches.match(request).then((cachedResponse) => {
-            if (cachedResponse) {
-              return cachedResponse;
-            }
-            // Return a minimal RSC response if no cache
-            return new Response('', { 
-              status: 503,
-              headers: { 'Content-Type': 'text/plain' }
-            });
-          });
-        })
-    );
-    return;
-  }
-
-  // For images, cache aggressively
-  if (request.destination === 'image' || url.pathname.match(/\.(jpg|jpeg|png|gif|webp|svg|ico)$/i)) {
-    event.respondWith(
-      caches.match(request).then((cachedResponse) => {
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-        return fetch(request).then((response) => {
-          if (response.status === 200) {
-            const responseToCache = response.clone();
-            caches.open(IMAGE_CACHE).then((cache) => {
-              cache.put(request, responseToCache);
-            });
-          }
-          return response;
-        }).catch(() => {
-          return new Response('', { status: 503 });
-        });
-      })
-    );
-    return;
-  }
-
-  // For API routes, try network first, then cache
-  if (url.pathname.startsWith('/api/')) {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          // Clone the response
-          const responseToCache = response.clone();
-          // Cache successful responses
-          if (response.status === 200) {
-            caches.open(DATA_CACHE).then((cache) => {
-              cache.put(request, responseToCache);
-            });
-          }
-          return response;
-        })
-        .catch(() => {
-          // Network failed, try cache
-          return caches.match(request).then((cachedResponse) => {
-            if (cachedResponse) {
-              return cachedResponse;
-            }
-            // Return offline response for API calls
-            return new Response(
-              JSON.stringify({ error: 'Offline', cached: true }),
-              {
-                status: 503,
-                headers: { 'Content-Type': 'application/json' },
-              }
-            );
-          });
-        })
-    );
-    return;
-  }
-
-  // For pages and assets, try network first, fallback to cache
-  event.respondWith(
-    fetch(request)
-      .then((response) => {
-        // Clone the response
-        const responseToCache = response.clone();
-        // Cache successful responses (pages, CSS, JS, etc.)
-        if (response.status === 200) {
-          caches.open(RUNTIME_CACHE).then((cache) => {
-            cache.put(request, responseToCache);
-          });
-        }
-        return response;
-      })
-      .catch(() => {
-        // Network failed, try cache
-        return caches.match(request).then((cachedResponse) => {
-          if (cachedResponse) {
-            return cachedResponse;
-          }
-          // For navigation requests, try to get any cached page but don't redirect
-          if (request.mode === 'navigate') {
-            // Try to get the requested page from cache first
-            return caches.match(request.url).then((cachedPage) => {
-              if (cachedPage) {
-                return cachedPage;
-              }
-              // If not found, return an offline HTML page with error handling
-              const offlineHTML = `
-<!DOCTYPE html>
+function buildOfflinePage() {
+  return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -251,25 +51,149 @@ self.addEventListener('fetch', (event) => {
 </head>
 <body>
   <div class="container">
-    <h1>📡 You're Offline</h1>
-    <p>This page is not available in cache. Please check your internet connection and try again.</p>
+    <h1>You're Offline</h1>
+    <p>This page needs a live connection. Please reconnect and try again.</p>
     <button onclick="window.location.reload()">Retry</button>
   </div>
 </body>
 </html>`;
-              return new Response(offlineHTML, { 
-                status: 503,
-                headers: { 'Content-Type': 'text/html' }
-              });
-            });
+}
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(async (cache) => {
+      const cachePromises = STATIC_ASSETS.map((url) =>
+        cache.add(new Request(url, { cache: 'reload' })).catch(() => null)
+      );
+      await Promise.allSettled(cachePromises);
+    })
+  );
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) =>
+      Promise.all(
+        cacheNames
+          .filter((cacheName) => ![CACHE_NAME, RUNTIME_CACHE, DATA_CACHE, IMAGE_CACHE].includes(cacheName))
+          .map((cacheName) => caches.delete(cacheName))
+      )
+    )
+  );
+  event.waitUntil(self.clients.claim());
+});
+
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
+
+  if (request.method !== 'GET') {
+    return;
+  }
+
+  if (url.origin !== location.origin) {
+    if (
+      request.destination === 'image' &&
+      (url.hostname.includes('uploadthing.com') || url.hostname.includes('supabase.co'))
+    ) {
+      event.respondWith(
+        caches.match(request).then((cached) => {
+          if (cached) return cached;
+          return fetch(request).then((response) => {
+            if (response.ok) {
+              caches.open(IMAGE_CACHE).then((cache) => cache.put(request, response.clone()));
+            }
+            return response;
+          });
+        })
+      );
+    }
+    return;
+  }
+
+  if (url.searchParams.has('_rsc') || request.headers.get('RSC') === '1') {
+    event.respondWith(
+      fetch(request).catch(
+        () =>
+          new Response('', {
+            status: 503,
+            headers: { 'Content-Type': 'text/plain' },
+          })
+      )
+    );
+    return;
+  }
+
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request).catch(
+        () =>
+          new Response(buildOfflinePage(), {
+            status: 503,
+            headers: { 'Content-Type': 'text/html' },
+          })
+      )
+    );
+    return;
+  }
+
+  if (request.destination === 'image' || url.pathname.match(/\.(jpg|jpeg|png|gif|webp|svg|ico)$/i)) {
+    event.respondWith(
+      caches.match(request).then((cachedResponse) => {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        return fetch(request).then((response) => {
+          if (response.ok) {
+            caches.open(IMAGE_CACHE).then((cache) => cache.put(request, response.clone()));
           }
-          return new Response('Offline', { status: 503 });
+          return response;
         });
       })
+    );
+    return;
+  }
+
+  if (url.pathname.startsWith('/api/')) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            caches.open(DATA_CACHE).then((cache) => cache.put(request, response.clone()));
+          }
+          return response;
+        })
+        .catch(() =>
+          caches.match(request).then((cachedResponse) => {
+            if (cachedResponse) {
+              return cachedResponse;
+            }
+
+            return new Response(JSON.stringify({ error: 'Offline', cached: true }), {
+              status: 503,
+              headers: { 'Content-Type': 'application/json' },
+            });
+          })
+        )
+    );
+    return;
+  }
+
+  event.respondWith(
+    fetch(request)
+      .then((response) => {
+        if (response.ok) {
+          caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, response.clone()));
+        }
+        return response;
+      })
+      .catch(() =>
+        caches.match(request).then((cachedResponse) => cachedResponse || new Response('Offline', { status: 503 }))
+      )
   );
 });
 
-// Background sync for when connection is restored
 self.addEventListener('sync', (event) => {
   if (event.tag === 'sync-data') {
     event.waitUntil(syncData());
@@ -277,8 +201,6 @@ self.addEventListener('sync', (event) => {
 });
 
 async function syncData() {
-  // This will be called when connection is restored
-  // You can implement your sync logic here
   try {
     const clients = await self.clients.matchAll();
     clients.forEach((client) => {
@@ -289,70 +211,82 @@ async function syncData() {
   }
 }
 
-// Listen for messages from the client
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
+
   if (event.data && event.data.type === 'CACHE_URLS') {
     event.waitUntil(
       (async () => {
         try {
           const cache = await caches.open(RUNTIME_CACHE);
-          // Cache each URL individually to avoid failing on unavailable URLs
           const cachePromises = event.data.urls.map(async (url) => {
             try {
-              // Check if already cached
+              if (
+                !url ||
+                url === '/' ||
+                url.startsWith('/home') ||
+                url.startsWith('/classes') ||
+                url.startsWith('/resources') ||
+                url.startsWith('/messages') ||
+                url.startsWith('/notifications') ||
+                url.startsWith('/settings') ||
+                url.startsWith('/profile') ||
+                url.startsWith('/sign-in') ||
+                url.startsWith('/sign-up') ||
+                url.startsWith('/onboard')
+              ) {
+                return;
+              }
+
               const cached = await cache.match(url);
               if (cached) {
-                return; // Already cached
+                return;
               }
-              
-              // Fetch and cache
+
               const response = await fetch(url, { cache: 'reload' });
               if (response.ok) {
                 await cache.put(url, response);
               }
-            } catch (err) {
-              // Silently fail for individual URLs - they might not be available
-              // This is expected for pages that require auth or don't exist
+            } catch {
+              return;
             }
           });
           await Promise.allSettled(cachePromises);
         } catch (err) {
-          // Silently handle cache open failures
           console.log('Failed to open cache:', err);
         }
       })()
     );
   }
+
   if (event.data && event.data.type === 'CACHE_DATA') {
-    // Cache data in background
     event.waitUntil(
-      caches.open(DATA_CACHE).then((cache) => {
-        const { url, data } = event.data;
-        return cache.put(new Request(url), new Response(JSON.stringify(data), {
-          headers: { 'Content-Type': 'application/json' }
-        }));
-      }).catch(err => {
-        console.log('Failed to cache data:', err);
-        return null;
-      })
+      caches
+        .open(DATA_CACHE)
+        .then((cache) => {
+          const { url, data } = event.data;
+          return cache.put(
+            new Request(url),
+            new Response(JSON.stringify(data), {
+              headers: { 'Content-Type': 'application/json' },
+            })
+          );
+        })
+        .catch(() => null)
     );
   }
+
   if (event.data && event.data.type === 'CACHE_IMAGE') {
-    // Cache image in background
     event.waitUntil(
-      fetch(event.data.url).then((response) => {
-        if (response.ok) {
-          return caches.open(IMAGE_CACHE).then((cache) => {
-            return cache.put(new Request(event.data.url), response);
-          });
-        }
-      }).catch(() => {
-        // Ignore image cache failures
-      })
+      fetch(event.data.url)
+        .then((response) => {
+          if (response.ok) {
+            return caches.open(IMAGE_CACHE).then((cache) => cache.put(new Request(event.data.url), response));
+          }
+        })
+        .catch(() => undefined)
     );
   }
 });
-

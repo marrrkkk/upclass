@@ -25,50 +25,9 @@ export class BackgroundSync {
     }
 
     try {
-      // Cache pages
-      await this.cachePages()
-      
-      // Cache data will be handled by useCacheData hooks in components
-      // This function can be called periodically to refresh cache
+      // Keep background sync limited to non-document data to avoid stale HTML/RSC snapshots.
     } catch (error) {
       console.error('Background cache failed:', error)
-    }
-  }
-
-  private async cachePages() {
-    // Cache all main pages
-    const pages = [
-      '/',
-      '/home',
-      '/classes',
-      '/resources',
-      '/messages',
-      '/notifications',
-      '/settings',
-      '/profile',
-      '/sign-in',
-      '/sign-up',
-      '/onboard',
-    ]
-    
-    for (const page of pages) {
-      try {
-        const response = await fetch(page)
-        if (response.ok) {
-          const html = await response.text()
-          await this.cache.cachePage(page, html)
-          
-          // Also cache in service worker cache
-          if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-            navigator.serviceWorker.controller.postMessage({
-              type: 'CACHE_URLS',
-              urls: [page]
-            })
-          }
-        }
-      } catch (error) {
-        console.error(`Failed to cache page ${page}:`, error)
-      }
     }
   }
 
