@@ -16,6 +16,11 @@
       "sourceType": "github",
       "computedHash": "515ba75178bd44875812d9a560bdf14651f86709f89cf1d4f209638e879807f3"
     },
+    "react-testing-library": {
+      "source": "itechmeat/llm-code",
+      "sourceType": "github",
+      "computedHash": "f7c4e36e723a8e4de2eca947e94a81b65abda4217da5b92eaefbfd6a54d93a55"
+    },
     "shadcn": {
       "source": "shadcn/ui",
       "sourceType": "github",
@@ -26,10 +31,25 @@
       "sourceType": "github",
       "computedHash": "570e8f3d99c205e307943cce3c45724c9288ad4fbee5ad68c27fe1e736fdca89"
     },
+    "testing-next-stack": {
+      "source": "hopeoverture/worldbuilding-app-skills",
+      "sourceType": "github",
+      "computedHash": "04aea550109e005d02e89bd11e855058f8173be22dd562f0be350534c281a652"
+    },
+    "testing-strategy": {
+      "source": "anthropics/knowledge-work-plugins",
+      "sourceType": "github",
+      "computedHash": "1245d1a92d7be2632848f97d0fe12ac1f0e98f452d88ecc7da0a7cc931dc1b3d"
+    },
     "ui-ux-pro-max": {
       "source": "nextlevelbuilder/ui-ux-pro-max-skill",
       "sourceType": "github",
       "computedHash": "0a413bf988d06481f69bb81df2070741c3ba12dd9f1be2706d57f259c905992d"
+    },
+    "vitest": {
+      "source": "sablier-labs/agent-skills",
+      "sourceType": "github",
+      "computedHash": "0e31dd7e90efc91afe37d3453d1c2c6df2493d843398f0f484135d0fad8aa1ee"
     },
     "write-example": {
       "source": "tldraw/tldraw",
