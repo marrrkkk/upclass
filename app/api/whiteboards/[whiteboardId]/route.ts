@@ -7,9 +7,16 @@ import { auth } from "@/lib/auth"
 import { classMembership, whiteboardSnapshots, whiteboards } from "@/db/schema"
 
 async function requireWhiteboardAccess(boardId: string) {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  })
+  let session: Awaited<ReturnType<typeof auth.api.getSession>> | null = null
+
+  try {
+    session = await auth.api.getSession({
+      headers: await headers(),
+    })
+  } catch (error) {
+    console.error("Failed to get whiteboard API session", error)
+    return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) }
+  }
 
   if (!session?.user?.id) {
     return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) }

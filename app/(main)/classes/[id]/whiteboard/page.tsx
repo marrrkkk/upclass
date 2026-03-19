@@ -9,18 +9,27 @@ import { classes, classMembership, user, whiteboardSnapshots, whiteboards } from
 
 export const revalidate = 0
 
+async function getSafeSession() {
+  try {
+    return await auth.api.getSession({
+      headers: await headers(),
+    })
+  } catch (error) {
+    console.error("Failed to get whiteboard session", error)
+    return null
+  }
+}
+
 export default async function WhiteboardPage({
   params,
 }: {
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  })
+  const session = await getSafeSession()
 
   if (!session?.user?.id) {
-    redirect("/home")
+    redirect("/sign-in")
   }
 
   const userId = session.user.id
