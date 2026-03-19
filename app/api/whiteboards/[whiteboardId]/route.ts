@@ -4,9 +4,9 @@ import { and, eq } from "drizzle-orm"
 
 import { db } from "@/db"
 import { auth } from "@/lib/auth"
-import { classMembership, whiteboards } from "@/db/schema"
+import { classMembership, whiteboardSnapshots, whiteboards } from "@/db/schema"
 
-async function requireWhiteboardAccess(whiteboardId: string) {
+async function requireWhiteboardAccess(boardId: string) {
   const session = await auth.api.getSession({
     headers: await headers(),
   })
@@ -15,18 +15,21 @@ async function requireWhiteboardAccess(whiteboardId: string) {
     return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) }
   }
 
-  const whiteboard = await db
+  const [board] = await db
     .select({
       id: whiteboards.id,
       classId: whiteboards.classId,
+      title: whiteboards.title,
+      ownerId: whiteboards.ownerId,
       data: whiteboards.data,
+      createdAt: whiteboards.createdAt,
       updatedAt: whiteboards.updatedAt,
     })
     .from(whiteboards)
-    .where(eq(whiteboards.id, whiteboardId))
+    .where(eq(whiteboards.id, boardId))
     .limit(1)
 
-  if (whiteboard.length === 0) {
+  if (!board) {
     return { error: NextResponse.json({ error: "Whiteboard not found" }, { status: 404 }) }
   }
 
@@ -35,7 +38,7 @@ async function requireWhiteboardAccess(whiteboardId: string) {
     .from(classMembership)
     .where(
       and(
-        eq(classMembership.classId, whiteboard[0].classId),
+        eq(classMembership.classId, board.classId),
         eq(classMembership.userId, session.user.id),
       ),
     )
@@ -47,7 +50,7 @@ async function requireWhiteboardAccess(whiteboardId: string) {
 
   return {
     session,
-    whiteboard: whiteboard[0],
+    board,
   }
 }
 
@@ -59,10 +62,34 @@ export async function GET(
   const access = await requireWhiteboardAccess(whiteboardId)
   if ("error" in access) return access.error
 
+  const [snapshot] = await db
+    .select({
+      id: whiteboardSnapshots.id,
+      document: whiteboardSnapshots.document,
+      version: whiteboardSnapshots.version,
+      updatedAt: whiteboardSnapshots.updatedAt,
+    })
+    .from(whiteboardSnapshots)
+    .where(eq(whiteboardSnapshots.boardId, whiteboardId))
+    .limit(1)
+
   return NextResponse.json({
-    id: access.whiteboard.id,
-    data: access.whiteboard.data,
-    updatedAt: access.whiteboard.updatedAt.toISOString(),
+    board: {
+      id: access.board.id,
+      classId: access.board.classId,
+      title: access.board.title,
+      ownerId: access.board.ownerId,
+      createdAt: access.board.createdAt.toISOString(),
+      updatedAt: access.board.updatedAt.toISOString(),
+    },
+    snapshot: {
+      id: snapshot?.id ?? `snapshot-${access.board.id}`,
+      boardId: access.board.id,
+      version: snapshot?.version ?? 0,
+      document: snapshot?.document ?? null,
+      legacyData: access.board.data,
+      updatedAt: snapshot?.updatedAt?.toISOString() ?? null,
+    },
   })
 }
 
@@ -75,54 +102,91 @@ export async function PUT(
   if ("error" in access) return access.error
 
   const body = (await request.json()) as {
-    data?: string
-    clientUpdatedAt?: string
+    document?: Record<string, unknown>
+    version?: number
   }
 
-  if (typeof body.data !== "string") {
-    return NextResponse.json({ error: "Missing or invalid data payload" }, { status: 400 })
+  if (!body.document || typeof body.document !== "object") {
+    return NextResponse.json({ error: "Missing or invalid document payload" }, { status: 400 })
   }
 
-  // Basic payload validation: must be valid JSON
-  try {
-    JSON.parse(body.data)
-  } catch {
-    return NextResponse.json({ error: "Whiteboard data must be valid JSON" }, { status: 400 })
-  }
+  const [existingSnapshot] = await db
+    .select({
+      id: whiteboardSnapshots.id,
+      version: whiteboardSnapshots.version,
+    })
+    .from(whiteboardSnapshots)
+    .where(eq(whiteboardSnapshots.boardId, whiteboardId))
+    .limit(1)
 
-  const existing = access.whiteboard
-  const clientUpdatedAt =
-    typeof body.clientUpdatedAt === "string" ? new Date(body.clientUpdatedAt) : null
+  const nextVersion = Math.max(existingSnapshot?.version ?? 0, body.version ?? 0) + 1
 
-  if (clientUpdatedAt && existing.updatedAt > clientUpdatedAt) {
-    // Another client has written a newer version – return the latest snapshot
-    return NextResponse.json(
-      {
-        conflict: true,
-        data: existing.data,
-        updatedAt: existing.updatedAt.toISOString(),
-      },
-      { status: 409 },
-    )
-  }
+  const [snapshot] = existingSnapshot
+    ? await db
+        .update(whiteboardSnapshots)
+        .set({
+          document: body.document,
+          version: nextVersion,
+          createdBy: access.session.user.id,
+          updatedAt: new Date(),
+        })
+        .where(eq(whiteboardSnapshots.id, existingSnapshot.id))
+        .returning({
+          id: whiteboardSnapshots.id,
+          boardId: whiteboardSnapshots.boardId,
+          document: whiteboardSnapshots.document,
+          version: whiteboardSnapshots.version,
+          updatedAt: whiteboardSnapshots.updatedAt,
+        })
+    : await db
+        .insert(whiteboardSnapshots)
+        .values({
+          id: crypto.randomUUID(),
+          boardId: whiteboardId,
+          document: body.document,
+          version: nextVersion,
+          createdBy: access.session.user.id,
+        })
+        .returning({
+          id: whiteboardSnapshots.id,
+          boardId: whiteboardSnapshots.boardId,
+          document: whiteboardSnapshots.document,
+          version: whiteboardSnapshots.version,
+          updatedAt: whiteboardSnapshots.updatedAt,
+        })
 
-  const [updated] = await db
+  const [board] = await db
     .update(whiteboards)
     .set({
-      data: body.data,
       updatedAt: new Date(),
     })
     .where(eq(whiteboards.id, whiteboardId))
     .returning({
       id: whiteboards.id,
+      classId: whiteboards.classId,
+      title: whiteboards.title,
+      ownerId: whiteboards.ownerId,
       data: whiteboards.data,
+      createdAt: whiteboards.createdAt,
       updatedAt: whiteboards.updatedAt,
     })
 
   return NextResponse.json({
-    id: updated.id,
-    data: updated.data,
-    updatedAt: updated.updatedAt.toISOString(),
+    board: {
+      id: board.id,
+      classId: board.classId,
+      title: board.title,
+      ownerId: board.ownerId,
+      createdAt: board.createdAt.toISOString(),
+      updatedAt: board.updatedAt.toISOString(),
+    },
+    snapshot: {
+      id: snapshot.id,
+      boardId: snapshot.boardId,
+      version: snapshot.version,
+      document: snapshot.document,
+      legacyData: board.data,
+      updatedAt: snapshot.updatedAt.toISOString(),
+    },
   })
 }
-

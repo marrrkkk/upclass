@@ -2,12 +2,12 @@ import { headers } from "next/headers"
 import { notFound, redirect } from "next/navigation"
 import { and, eq } from "drizzle-orm"
 
-import { WhiteboardClient } from "@/components/whiteboard/whiteboard-client"
+import { WhiteboardPageClient } from "@/whiteboard/components/whiteboard-page-client"
 import { db } from "@/db"
 import { auth } from "@/lib/auth"
-import { classes, classMembership, user, whiteboards } from "@/db/schema"
+import { classes, classMembership, user, whiteboardSnapshots, whiteboards } from "@/db/schema"
 
-export const revalidate = 0 // Always fresh for whiteboard shell; content is realtime
+export const revalidate = 0
 
 export default async function WhiteboardPage({
   params,
@@ -25,7 +25,6 @@ export default async function WhiteboardPage({
 
   const userId = session.user.id
 
-  // Fetch class info, membership+user, and existing whiteboard in parallel
   const [classData, membershipWithUser, existingWhiteboard] = await Promise.all([
     db
       .select({
@@ -56,7 +55,10 @@ export default async function WhiteboardPage({
       .select({
         id: whiteboards.id,
         classId: whiteboards.classId,
+        title: whiteboards.title,
+        ownerId: whiteboards.ownerId,
         data: whiteboards.data,
+        createdAt: whiteboards.createdAt,
         updatedAt: whiteboards.updatedAt,
       })
       .from(whiteboards)
@@ -78,8 +80,7 @@ export default async function WhiteboardPage({
     image: membershipWithUser[0].image,
   }
 
-  // Create whiteboard only if it doesn't exist yet
-  const [whiteboardRow] =
+  const [board] =
     existingWhiteboard.length > 0
       ? existingWhiteboard
       : await db
@@ -87,25 +88,54 @@ export default async function WhiteboardPage({
           .values({
             id: crypto.randomUUID(),
             classId: id,
-            data: JSON.stringify([]), // Empty whiteboard
+            title: `${classData[0].title} Whiteboard`,
+            ownerId: currentUser.id,
+            data: "[]",
           })
           .returning({
             id: whiteboards.id,
             classId: whiteboards.classId,
+            title: whiteboards.title,
+            ownerId: whiteboards.ownerId,
             data: whiteboards.data,
+            createdAt: whiteboards.createdAt,
             updatedAt: whiteboards.updatedAt,
           })
 
+  const [latestSnapshot] = await db
+    .select({
+      id: whiteboardSnapshots.id,
+      document: whiteboardSnapshots.document,
+      version: whiteboardSnapshots.version,
+      updatedAt: whiteboardSnapshots.updatedAt,
+    })
+    .from(whiteboardSnapshots)
+    .where(eq(whiteboardSnapshots.boardId, board.id))
+    .limit(1)
+
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 md:px-8">
-      <WhiteboardClient
-        whiteboardId={whiteboardRow.id}
-        classId={id}
+      <WhiteboardPageClient
         className={classData[0].title}
-        classColor={classData[0].color || "#3b82f6"}
-        initialData={whiteboardRow.data}
-        initialUpdatedAt={whiteboardRow.updatedAt?.toISOString?.() ?? null}
         currentUser={currentUser}
+        initialData={{
+          board: {
+            id: board.id,
+            classId: board.classId,
+            title: board.title,
+            ownerId: board.ownerId,
+            createdAt: board.createdAt.toISOString(),
+            updatedAt: board.updatedAt.toISOString(),
+          },
+          snapshot: {
+            id: latestSnapshot?.id ?? `snapshot-${board.id}`,
+            boardId: board.id,
+            version: latestSnapshot?.version ?? 0,
+            document: (latestSnapshot?.document as never) ?? null,
+            legacyData: board.data,
+            updatedAt: latestSnapshot?.updatedAt?.toISOString() ?? null,
+          },
+        }}
       />
     </div>
   )

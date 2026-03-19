@@ -8,6 +8,7 @@ import {
   integer,
   index,
   uniqueIndex,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 export const userRole = pgEnum("user_role", ["teacher", "student"]);
@@ -665,14 +666,44 @@ export const whiteboards = pgTable(
     classId: text("class_id")
       .notNull()
       .references(() => classes.id, { onDelete: "cascade" }),
-    data: text("data").notNull(), // JSON string of whiteboard elements
+    title: text("title").notNull().default("Class Whiteboard"),
+    ownerId: text("owner_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    data: text("data").notNull().default("[]"),
     lastSequence: integer("last_sequence").default(0).notNull(),
     snapshotSequence: integer("snapshot_sequence").default(0).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [
+    uniqueIndex("whiteboards_class_unique").on(table.classId),
     index("whiteboards_class_idx").on(table.classId),
+    index("whiteboards_owner_idx").on(table.ownerId),
+  ],
+);
+
+export const whiteboardSnapshots = pgTable(
+  "whiteboard_snapshots",
+  {
+    id: text("id").primaryKey(),
+    boardId: text("board_id")
+      .notNull()
+      .references(() => whiteboards.id, { onDelete: "cascade" }),
+    document: jsonb("document").$type<Record<string, unknown>>().notNull(),
+    version: integer("version").default(1).notNull(),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("whiteboard_snapshots_board_unique").on(table.boardId),
+    index("whiteboard_snapshots_version_idx").on(table.version),
   ],
 );
 
@@ -725,6 +756,18 @@ export const whiteboardRelations = relations(whiteboards, ({ one, many }) => ({
   }),
   cursors: many(whiteboardCursors),
   operations: many(whiteboardOperations),
+  snapshots: many(whiteboardSnapshots),
+}));
+
+export const whiteboardSnapshotRelations = relations(whiteboardSnapshots, ({ one }) => ({
+  whiteboard: one(whiteboards, {
+    fields: [whiteboardSnapshots.boardId],
+    references: [whiteboards.id],
+  }),
+  creator: one(user, {
+    fields: [whiteboardSnapshots.createdBy],
+    references: [user.id],
+  }),
 }));
 
 export const whiteboardCursorRelations = relations(whiteboardCursors, ({ one }) => ({
@@ -748,3 +791,5 @@ export const whiteboardOperationRelations = relations(whiteboardOperations, ({ o
     references: [user.id],
   }),
 }));
+
+
