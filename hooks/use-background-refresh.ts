@@ -11,6 +11,15 @@ export function useBackgroundRefresh(path: string, interval: number = 30000) {
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current)
+      intervalRef.current = null
+    }
+
+    if (!interval || interval <= 0) {
+      return
+    }
+
     // Refresh in background every interval, but only when we believe we're actually online.
     // This respects both the browser's offline flag and the app-level server reachability flag
     // that is maintained by the OfflineIndicator component.
@@ -30,6 +39,7 @@ export function useBackgroundRefresh(path: string, interval: number = 30000) {
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
+        intervalRef.current = null
       }
     }
   }, [path, interval, router])
