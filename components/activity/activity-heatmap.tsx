@@ -1,4 +1,6 @@
-import { format, parseISO } from "date-fns"
+"use client"
+
+import { useSyncExternalStore } from "react"
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
@@ -17,9 +19,40 @@ function getLevelClass(level: ActivityGraphDay["level"]) {
   return "bg-primary"
 }
 
+const subscribe = () => () => {}
+const getClientSnapshot = () => true
+const getServerSnapshot = () => false
+
 export function ActivityHeatmap({ days, className }: ActivityHeatmapProps) {
+  const hasHydrated = useSyncExternalStore(subscribe, getClientSnapshot, getServerSnapshot)
   const weeks = Array.from(new Set(days.map((day) => day.week)))
   const cellGap = 4
+
+  if (!hasHydrated) {
+    return (
+      <div className={cn("w-full", className)}>
+        <div
+          className="mx-auto grid w-full max-w-[500px] grid-flow-col grid-rows-7"
+          style={{
+            gridTemplateColumns: `repeat(${weeks.length}, minmax(0, 1fr))`,
+            gap: `${cellGap}px`,
+          }}
+        >
+          {days.map((day) => (
+            <div
+              key={day.date}
+              className={cn(
+                "aspect-square w-full rounded-[2px] border border-border shadow-[inset_0_0_0_1px_rgba(255,255,255,0.18)]",
+                getLevelClass(day.level),
+                day.isToday && "ring-1 ring-primary/50 ring-offset-1 ring-offset-background",
+              )}
+              aria-hidden="true"
+            />
+          ))}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <TooltipProvider>
@@ -41,11 +74,11 @@ export function ActivityHeatmap({ days, className }: ActivityHeatmapProps) {
                     day.isToday && "ring-1 ring-primary/50 ring-offset-1 ring-offset-background",
                   )}
                   role="img"
-                  aria-label={`${day.count} activities on ${format(parseISO(day.date), "MMMM d, yyyy")}`}
+                  aria-label={day.ariaLabel}
                 />
               </TooltipTrigger>
               <TooltipContent side="top" className="border border-border bg-background text-foreground shadow-lg">
-                {format(parseISO(day.date), "MMMM d, yyyy")}
+                {day.displayDate}
                 <span className="mx-1 text-muted-foreground">•</span>
                 <span className="text-muted-foreground">
                   {day.count} {day.count === 1 ? "activity" : "activities"}

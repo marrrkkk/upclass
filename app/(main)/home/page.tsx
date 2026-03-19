@@ -258,8 +258,10 @@ export default async function HomePage() {
     )
   const unreadNotificationsCount = unreadNotificationsResult[0]?.count || 0
 
+  const activityGraphAnchor = new Date().toISOString()
+
   const [activityGraph, recentActivity] = await Promise.all([
-    getActivityGraphData(userId),
+    getActivityGraphData(userId, 18, activityGraphAnchor),
     getActivityLog(userId, { limit: 6 }),
   ])
 

@@ -10,6 +10,8 @@ export type ActivityCategory = (typeof activityFilters)[number]["value"]
 
 export type ActivityGraphDay = {
   date: string
+  displayDate: string
+  ariaLabel: string
   count: number
   level: 0 | 1 | 2 | 3 | 4
   weekday: number

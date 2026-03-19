@@ -4,7 +4,7 @@ import {
   endOfDay,
   format,
   formatISO,
-  isToday,
+  isSameDay,
   startOfDay,
   startOfWeek,
   subDays,
@@ -217,8 +217,21 @@ export async function logActivity(input: LogActivityInput) {
   }
 }
 
-export async function getActivityGraphData(actorId: string, weeks = 18) {
-  const today = new Date()
+function resolveAnchorDate(anchorDate?: Date | string) {
+  if (!anchorDate) {
+    return new Date()
+  }
+
+  const resolved = anchorDate instanceof Date ? new Date(anchorDate) : new Date(anchorDate)
+  if (Number.isNaN(resolved.getTime())) {
+    return new Date()
+  }
+
+  return resolved
+}
+
+export async function getActivityGraphData(actorId: string, weeks = 18, anchorDate?: Date | string) {
+  const today = resolveAnchorDate(anchorDate)
   const startDate = startOfWeek(subDays(today, weeks * 7 - 1), { weekStartsOn: 1 })
   const endDate = endOfDay(today)
   const allDays = eachDayOfInterval({ start: startDate, end: today })
@@ -253,14 +266,17 @@ export async function getActivityGraphData(actorId: string, weeks = 18) {
   const days: ActivityGraphDay[] = allDays.map((day, index) => {
     const date = formatISO(day, { representation: "date" })
     const count = countsByDate.get(date) ?? 0
+    const displayDate = format(day, "MMMM d, yyyy")
 
     return {
       date,
+      displayDate,
+      ariaLabel: `${count} ${count === 1 ? "activity" : "activities"} on ${displayDate}`,
       count,
       level: getActivityLevel(count),
       weekday: (day.getDay() + 6) % 7,
       week: Math.floor(index / 7),
-      isToday: isToday(day),
+      isToday: isSameDay(day, today),
     }
   })
 
