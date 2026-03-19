@@ -21,10 +21,20 @@
       "sourceType": "github",
       "computedHash": "507f011a70e8b3ae242bdc0bb5b39fd91a1d4049a0f3c281991ccf84973d591c"
     },
+    "supabase-realtime": {
+      "source": "nice-wolf-studio/claude-code-supabase-skills",
+      "sourceType": "github",
+      "computedHash": "570e8f3d99c205e307943cce3c45724c9288ad4fbee5ad68c27fe1e736fdca89"
+    },
     "ui-ux-pro-max": {
       "source": "nextlevelbuilder/ui-ux-pro-max-skill",
       "sourceType": "github",
       "computedHash": "0a413bf988d06481f69bb81df2070741c3ba12dd9f1be2706d57f259c905992d"
+    },
+    "write-example": {
+      "source": "tldraw/tldraw",
+      "sourceType": "github",
+      "computedHash": "7cb2827a4e12a89af1eef8f83de235f69217e51ec3c1395812cbc37fdfafe103"
     }
   }
 }
