@@ -4,6 +4,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { PWAProvider } from "@/components/pwa-provider";
 import { OfflineIndicator } from "@/components/offline-indicator";
 import { OfflineErrorBoundary } from "@/components/offline-error-boundary";
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
   title: {
@@ -57,6 +58,7 @@ export default function RootLayout({
             </OfflineErrorBoundary>
           </PWAProvider>
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );
