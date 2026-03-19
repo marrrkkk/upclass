@@ -1,14 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useSyncExternalStore } from "react"
 import { Card, CardContent } from "@/components/ui/card"
+import { Sun, Moon, Sunrise, Sunset } from "lucide-react"
 
 type GreetingCardProps = {
     userName: string
     role: "teacher" | "student" | null
 }
-
-import { Sun, Moon, Sunrise, Sunset } from "lucide-react"
 
 function getGreetingData(): { text: string, icon: React.ReactNode } {
     const hour = new Date().getHours()
@@ -19,7 +18,7 @@ function getGreetingData(): { text: string, icon: React.ReactNode } {
     return { text: "Good night", icon: <Moon className="h-6 w-6 text-indigo-300" /> }
 }
 
-function getMotivationalMessage(role: "teacher" | "student" | null): string {
+function getMotivationalMessage(role: "teacher" | "student" | null, userName: string): string {
     const messages = {
         teacher: [
             "Ready to inspire your students today?",
@@ -38,19 +37,19 @@ function getMotivationalMessage(role: "teacher" | "student" | null): string {
     }
 
     const roleMessages = role ? messages[role] : messages.student
-    return roleMessages[Math.floor(Math.random() * roleMessages.length)]
+    const seed = `${role ?? "student"}:${userName}`
+    const hash = Array.from(seed).reduce((total, char) => total + char.charCodeAt(0), 0)
+    return roleMessages[hash % roleMessages.length]
 }
 
+const defaultGreeting = { text: "Welcome", icon: <Sun className="h-6 w-6 text-orange-400" /> }
+const subscribe = () => () => {}
+
 export function GreetingCard({ userName, role }: GreetingCardProps) {
-    const [mounted] = useState(typeof window !== "undefined")
-
-    // Default values for server/initial client render
-    const defaultGreeting = { text: "Welcome", icon: <Sun className="h-6 w-6 text-orange-400" /> }
-    const { text: greeting, icon } = mounted ? getGreetingData() : defaultGreeting
-
+    const greetingData = useSyncExternalStore(subscribe, getGreetingData, () => defaultGreeting)
     const firstName = userName?.split(" ")[0] || "there"
-    // Use a fixed value for initial render to avoid hydration mismatch
-    const motivationalMessage = mounted ? getMotivationalMessage(role) : "Ready to make today amazing?"
+    const { text: greeting, icon } = greetingData
+    const motivationalMessage = getMotivationalMessage(role, userName)
 
     return (
         <Card className="border-0 overflow-hidden relative shadow-lg group">
