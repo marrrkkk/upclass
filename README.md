@@ -1,291 +1,177 @@
-# UpClass - Learning Management System
+# ![UpClass](./public/logo.svg)
 
-A modern, full-featured Learning Management System (LMS) built with Next.js 16, featuring real-time collaboration, offline support, and a beautiful user interface.
+# UpClass
 
-## 🚀 Features
+UpClass is a classroom and learning-management web app built for teachers and students. It combines class organization, classwork and quizzes, direct messaging, resource sharing, activity tracking, and collaborative whiteboards in a single Next.js application, with progressive web app and offline support built into the product.
 
-### Core Features
-- **Class Management**: Create and manage classes with custom colors, schedules, and categories
-- **Resource Sharing**: Upload and share learning materials (PDFs, documents, presentations, etc.)
-- **Real-time Collaboration**: Interactive whiteboard with live cursors and real-time updates
-- **Messaging System**: Direct messaging between users with media support
-- **Notifications**: Real-time notifications for announcements, classwork, and messages
-- **Quizzes & Assessments**: Create and take quizzes with multiple question types
-- **Classwork Management**: Assignments, submissions, and grading system
-- **User Profiles**: Comprehensive user profiles with role-based access (Teacher/Student)
+## Highlights
 
-### Progressive Web App (PWA)
-- **Offline Support**: Full offline functionality with intelligent caching
-- **Background Sync**: Automatic synchronization when connection is restored
-- **Installable**: Can be installed as a native app on mobile and desktop
-- **Offline Indicator**: Visual indicator showing connection status and sync state
+- Role-aware experience for teachers and students
+- Class creation and joining with codes, schedules, announcements, and member management
+- Classwork, submissions, grading, and quiz workflows
+- Resource library with uploads, previews, and a resource-focused AI assistant
+- Direct messaging and in-app notifications
+- Collaborative whiteboards powered by Excalidraw
+- Dashboard and activity views for deadlines, summaries, and recent activity
+- PWA support with service worker caching, install prompts, background sync, and offline-aware flows
 
-### Performance & UX
-- **Mobile Responsive**: Fully responsive design optimized for all devices
-- **Touch Support**: Full touchscreen support for whiteboard and interactions
-- **Real-time Updates**: Live updates using Supabase real-time subscriptions
-- **Optimized Caching**: Intelligent caching of pages, data, and images
-- **Error Handling**: Comprehensive error handling with user-friendly messages
+## Tech Stack
 
-## 🛠️ Tech Stack
+- Next.js 16 App Router
+- React 19
+- TypeScript
+- Tailwind CSS 4
+- Drizzle ORM + PostgreSQL
+- Better Auth
+- Supabase Realtime
+- UploadThing
+- Excalidraw
+- Zustand
+- Vitest + Testing Library
 
-### Frontend
-- **Next.js 16** - React framework with App Router
-- **TypeScript** - Type-safe development
-- **Tailwind CSS** - Utility-first CSS framework
-- **shadcn/ui** - High-quality component library
-- **Zustand** - Lightweight state management
-- **React Hook Form** - Form management
+## Project Structure
 
-### Backend & Database
-- **Supabase** - Backend-as-a-Service (PostgreSQL, Auth, Storage, Real-time)
-- **Drizzle ORM** - Type-safe database queries
-- **Next.js Server Actions** - Server-side actions
+```text
+app/          Next.js routes, layouts, server actions, and API handlers
+components/   Feature UI plus shared shadcn-based primitives
+db/           Drizzle schema, DB client, and migrations
+lib/          Auth, caching, offline sync, PWA helpers, Supabase, utilities
+public/       Static assets, manifest, and service worker
+whiteboard/   Excalidraw canvas, realtime, persistence, and whiteboard state
+tests/        Component, hook, and unit tests
+```
 
-### Real-time & Collaboration
-- **Supabase Realtime** - Real-time subscriptions
-- **Broadcast Channel API** - Cross-tab communication
-- **Canvas API** - Interactive whiteboard drawing
+## Main App Areas
 
-### File Upload
-- **UploadThing** - File upload service
+- `app/(auth)` for sign-in and sign-up
+- `app/(main)` for home, activity, classes, messages, notifications, resources, profile, and settings
+- `app/actions/*` for server-side mutations
+- `app/api/*` for auth, uploads, AI chat, whiteboard APIs, and user lookup
 
-### PWA & Offline
-- **Service Worker** - Offline caching and background sync
-- **IndexedDB** - Client-side data storage
-- **Cache API** - HTTP caching
+## Quick Start
 
-## 📦 Installation
-
-### Prerequisites
-- Node.js 18+ and npm/yarn/pnpm
-- PostgreSQL database (via Supabase)
-- Supabase account and project
-
-### Setup Steps
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd upclass
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   # or
-   yarn install
-   # or
-   pnpm install
-   ```
-
-3. **Set up environment variables**
-   Create a `.env` file in the root directory:
-   ```env
-   # Supabase
-   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-   SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-
-   # Database
-   DATABASE_URL=your_database_url
-
-   # Auth
-   AUTH_SECRET=your_auth_secret
-   AUTH_URL=http://localhost:3000
-
-   # UploadThing
-   UPLOADTHING_SECRET=your_uploadthing_secret
-   UPLOADTHING_APP_ID=your_uploadthing_app_id
-   ```
-
-4. **Set up the database**
-   - Run the database migrations using Drizzle
-   - Ensure all tables are created (classes, users, resources, messages, etc.)
-
-### Vercel Deploys
-
-Vercel deploys are configured to run database migrations before the Next.js build:
+### 1. Install dependencies
 
 ```bash
-npm run db:migrate && next build
+npm install
 ```
 
-In this repo, `npm run db:migrate` uses `drizzle-kit migrate --config drizzle.config.ts`.
+### 2. Configure environment variables
 
-Make sure the Vercel project has a valid `DATABASE_URL` set for the target environment. If the database user cannot create enums, tables, or indexes, the deployment will fail before the new version is promoted.
+Create a `.env` file with the required values:
 
-5. **Run the development server**
-   ```bash
-   npm run dev
-   # or
-   yarn dev
-   # or
-   pnpm dev
-   ```
-
-6. **Open your browser**
-   Navigate to [http://localhost:3000](http://localhost:3000)
-
-## 🏗️ Project Structure
-
-```
-upclass/
-├── app/                    # Next.js App Router
-│   ├── (auth)/            # Authentication routes
-│   ├── (main)/            # Main application routes
-│   ├── actions/           # Server actions
-│   ├── api/               # API routes
-│   └── layout.tsx         # Root layout
-├── components/            # React components
-│   ├── classes/           # Class-related components
-│   ├── messages/          # Messaging components
-│   ├── resources/         # Resource components
-│   ├── whiteboard/        # Whiteboard components
-│   └── ui/                # UI components (shadcn)
-├── lib/                   # Utility libraries
-│   ├── background-cache.ts    # IndexedDB caching
-│   ├── background-sync.ts     # Background synchronization
-│   ├── offline-action-handler.ts  # Offline action handling
-│   ├── sync-manager.ts         # Sync queue management
-│   └── supabase-client.ts      # Supabase client
-├── db/                    # Database schema and migrations
-├── public/                # Static assets
-│   ├── sw.js             # Service worker
-│   └── manifest.json     # PWA manifest
-└── README.md             # This file
-```
-
-## 🔧 Key Features Implementation
-
-### Offline Support
-- **Service Worker**: Caches all pages, API responses, and static assets
-- **IndexedDB**: Stores structured data (classes, resources, messages, notifications)
-- **Background Sync**: Queues actions when offline and syncs when online
-- **Offline Indicator**: Shows connection status at the top of the page
-
-### Real-time Collaboration
-- **Whiteboard**: Real-time drawing with cursor tracking
-- **Broadcast Channel**: Cross-tab synchronization
-- **Supabase Realtime**: Database change subscriptions
-- **Optimized Updates**: Debounced saves and throttled broadcasts
-
-### Caching Strategy
-- **Pages**: All pages cached for offline access (home, classes, resources, messages, notifications, settings, profile, etc.)
-- **Data**: Classes, resources, messages, notifications, class details cached automatically
-- **Images**: All images cached in background (avatars, resource images, etc.)
-- **API Responses**: Network-first with cache fallback
-- **Background Caching**: Automatic background caching every 30 minutes
-- **Smart Cache Management**: Automatic cleanup of cache older than 7 days
-
-### Offline Error Handling
-- **Network Detection**: Automatic detection of offline state
-- **Action Queueing**: Actions that require network are queued when offline
-- **User Feedback**: Clear error messages when actions can't be performed offline
-- **Auto-sync**: Queued actions automatically sync when connection is restored
-- **Supported Offline Actions**:
-  - Create class (queued)
-  - Create resource (queued)
-  - Join class (queued)
-  - Create classwork (queued)
-  - Submit classwork (queued)
-  - Create announcement (queued)
-  - Create quiz (queued)
-  - Whiteboard updates (queued)
-
-## 🎨 UI/UX Features
-
-- **Dark Mode**: System-aware theme switching
-- **Responsive Design**: Mobile-first approach
-- **Touch Support**: Full touchscreen compatibility
-- **Accessibility**: WCAG compliant components
-- **Smooth Animations**: Optimized transitions and animations
-
-## 📱 PWA Features
-
-- **Installable**: Add to home screen on mobile and desktop
-- **Offline Mode**: Full functionality without internet
-- **Background Sync**: Automatic data synchronization when connection is restored
-- **Offline Action Queue**: Actions performed offline are queued and synced automatically
-- **Comprehensive Caching**: All pages, data, and images cached for offline access
-- **Offline Indicator**: Visual indicator showing connection status and sync state
-- **App-like Experience**: Native app feel with smooth transitions
-
-## 🔐 Authentication
-
-- **Supabase Auth**: Email/password authentication
-- **Session Management**: Secure session handling
-- **Role-based Access**: Teacher and Student roles
-- **Protected Routes**: Authentication required for main features
-
-## 🚀 Deployment
-
-### Build for Production
 ```bash
-npm run build
+DATABASE_URL=
+BETTER_AUTH_URL=http://localhost:3000
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+UPLOADTHING_TOKEN=
+GEMINI_API_KEY=
 ```
 
-### Deploy to Vercel
-1. Push your code to GitHub
-2. Import project in Vercel
-3. Add environment variables
-4. Deploy
+> [!NOTE]
+> `BETTER_AUTH_URL` can be omitted in some hosted environments because the app falls back to `VERCEL_URL`, but setting it explicitly is safer.
 
-### Environment Variables for Production
-Ensure all environment variables are set in your deployment platform.
+### 3. Run database migrations
 
-## 📝 Development
-
-### Running Tests
 ```bash
-npm run test
+npm run db:migrate
 ```
 
-### Linting
+### 4. Start the app
+
 ```bash
-npm run lint
+npm run dev
 ```
 
-### Type Checking
+Open `http://localhost:3000`.
+
+## Available Scripts
+
 ```bash
-npm run type-check
+npm run dev           # start the local dev server
+npm run db:migrate    # apply Drizzle migrations
+npm run build         # create a production build
+npm run build:vercel  # run migrations, then build
+npm run start         # serve the production build
+npm run lint          # run ESLint
+npm run test          # run Vitest once
+npm run test:watch    # run Vitest in watch mode
+npm run test:coverage # run Vitest with coverage
 ```
 
-## 🤝 Contributing
+> [!TIP]
+> There is no dedicated `type-check` script yet. Use `npx tsc --noEmit` when you want an explicit TypeScript pass.
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+## Environment & Integrations
 
-## 📄 License
+### Required services
 
-This project is licensed under the MIT License.
+- PostgreSQL for application data
+- Better Auth for authentication
+- Google OAuth for social sign-in
+- Supabase Realtime for live messaging and collaboration updates
+- UploadThing for media and resource uploads
+- Gemini API for the resource AI assistant
 
-## 🙏 Acknowledgments
+### Important runtime notes
 
-- [Next.js](https://nextjs.org/) - The React Framework
-- [Supabase](https://supabase.com/) - Backend infrastructure
-- [shadcn/ui](https://ui.shadcn.com/) - Component library
-- [Tailwind CSS](https://tailwindcss.com/) - CSS framework
-- [UploadThing](https://uploadthing.com/) - File upload service
+- Deploy builds on Vercel use `npm run build:vercel`, which runs migrations before building.
+- The target database must already exist and be reachable before deployment builds run.
+- Upload routes enforce authenticated uploads.
+- Missing Supabase client env vars will degrade realtime behavior.
 
-## 📧 Support
+## Offline, PWA, and Realtime
 
-For support, email support@upclass.com or open an issue in the repository.
+UpClass treats offline and mobile installation as core product behavior, not an add-on:
 
-## 🎯 Roadmap
+- `/sw.js` and `public/manifest.json` provide the PWA runtime
+- background cache and sync helpers in `lib/` warm key routes and replay pending actions
+- cached data is used for classes, resources, conversations, notifications, and related assets when available
+- some flows remain intentionally online-only, including collaborative whiteboards, quiz-taking sync, authenticated uploads, and other live server-dependent operations
 
-- [ ] Push notifications
-- [ ] Video conferencing integration
-- [ ] Advanced analytics
-- [ ] Mobile apps (iOS/Android)
-- [ ] Multi-language support
-- [ ] Advanced quiz features
-- [ ] Gradebook improvements
-- [ ] Calendar integration
+> [!IMPORTANT]
+> Service worker registration is production-only. In development, the app unregisters service workers and clears `upclass-*` caches to avoid stale local behavior.
 
----
+## Architecture Notes
 
-Built with ❤️ using Next.js and Supabase
+- Route pages are mostly server-rendered and fetch initial data with Drizzle and `auth.api.getSession(...)`
+- Interactive feature surfaces are split into client components where browser APIs, realtime updates, dialogs, or local state are required
+- `components/ui/` provides the reusable design-system layer
+- `whiteboard/` isolates canvas, persistence, realtime, and state logic for Excalidraw-based collaboration
+
+## Data Model Overview
+
+The schema in [`db/schema.ts`](./db/schema.ts) covers:
+
+- users, sessions, accounts, and verification records
+- classes and class memberships with teacher/student roles
+- announcements and reactions
+- classwork and submissions
+- resources and file metadata
+- messages and notifications
+- quizzes, questions, options, attempts, and answers
+- whiteboards and persisted whiteboard snapshots
+
+## Testing
+
+The repo already includes Vitest-based coverage for selected hooks, components, and utility modules under `tests/`.
+
+Examples:
+
+- class detail tabs
+- offline indicator and install prompt behavior
+- presence and legacy whiteboard utilities
+- background refresh and prefetch hooks
+
+## Product Direction
+
+The current product shape is optimized for classroom coordination and low-connectivity environments:
+
+- one shared hub for classes, resources, and communication
+- live teaching support through collaborative whiteboards
+- structured teacher workflows for grading and review
+- mobile-friendly progressive web app behavior for weaker network conditions
