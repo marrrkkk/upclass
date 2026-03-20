@@ -12,8 +12,6 @@ export const metadata: Metadata = {
   title: "Notifications",
 }
 
-export const revalidate = 10 // Revalidate every 10 seconds for notifications
-
 export default async function NotificationsPage() {
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -51,4 +49,3 @@ export default async function NotificationsPage() {
 
   return <NotificationsClient notifications={mappedNotifications} userId={userId} />
 }
-

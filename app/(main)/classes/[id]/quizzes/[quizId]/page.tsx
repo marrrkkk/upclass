@@ -7,8 +7,6 @@ import { db } from "@/db"
 import { classMembership, classes, quizAttempts, quizOptions, quizQuestions, quizzes } from "@/db/schema"
 import { auth } from "@/lib/auth"
 
-export const revalidate = 30
-
 export default async function StudentQuizPage({
   params,
 }: {

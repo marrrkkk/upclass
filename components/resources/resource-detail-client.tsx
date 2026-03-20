@@ -1,5 +1,6 @@
 "use client"
 
+import dynamic from "next/dynamic"
 import { useState, useTransition, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -38,9 +39,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
 import { updateResource, deleteResource } from "@/app/actions/resources"
-import { AIChatDialog } from "@/components/resources/ai-chat-dialog"
 import { BackgroundCache } from "@/lib/background-cache"
 import { usePathname } from "next/navigation"
+
+const AIChatDialog = dynamic(
+  () => import("@/components/resources/ai-chat-dialog").then((mod) => mod.AIChatDialog),
+  {
+    ssr: false,
+  },
+)
 
 type ResourceData = {
   id: string
@@ -473,17 +480,19 @@ export function ResourceDetailClient({ resource, isOwner, currentUserId, isAuthe
       </Dialog>
 
       {/* AI Chat Dialog */}
-      <AIChatDialog
-        open={aiChatOpen}
-        onOpenChange={setAiChatOpen}
-        resourceContext={{
-          title: resource.title,
-          description: resource.description,
-          category: resource.category,
-          fileType: resource.fileType,
-          fileName: resource.fileName,
-        }}
-      />
+      {aiChatOpen ? (
+        <AIChatDialog
+          open={aiChatOpen}
+          onOpenChange={setAiChatOpen}
+          resourceContext={{
+            title: resource.title,
+            description: resource.description,
+            category: resource.category,
+            fileType: resource.fileType,
+            fileName: resource.fileName,
+          }}
+        />
+      ) : null}
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
@@ -544,5 +553,4 @@ export function ResourceDetailClient({ resource, isOwner, currentUserId, isAuthe
     </div>
   )
 }
-
 

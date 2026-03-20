@@ -1,5 +1,6 @@
 "use client"
 
+import dynamic from "next/dynamic"
 import { useState, useTransition, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Upload, Palette, Image as ImageIcon, X, Crop, Pencil, Check } from "lucide-react"
@@ -20,8 +21,20 @@ import {
 } from "@/components/ui/dialog"
 import { useUploadThing } from "@/lib/uploadthing"
 import { cn } from "@/lib/utils"
-import { CoverCropper } from "./cover-cropper"
-import { ImageCropper } from "@/components/settings/profile-image-cropper"
+
+const CoverCropper = dynamic(
+  () => import("./cover-cropper").then((mod) => mod.CoverCropper),
+  {
+    ssr: false,
+  },
+)
+
+const ImageCropper = dynamic(
+  () => import("@/components/settings/profile-image-cropper").then((mod) => mod.ImageCropper),
+  {
+    ssr: false,
+  },
+)
 
 type EditProfileDialogProps = {
   user: {
@@ -418,21 +431,24 @@ export function EditProfileDialog({ user }: EditProfileDialogProps) {
         </DialogContent>
       </Dialog>
 
-      <CoverCropper
-        open={coverCropOpen}
-        onOpenChange={setCoverCropOpen}
-        imageSrc={coverCropSrc}
-        onComplete={handleCoverCropComplete}
-      />
+      {coverCropOpen ? (
+        <CoverCropper
+          open={coverCropOpen}
+          onOpenChange={setCoverCropOpen}
+          imageSrc={coverCropSrc}
+          onComplete={handleCoverCropComplete}
+        />
+      ) : null}
 
-      <ImageCropper
-        open={avatarCropOpen}
-        onOpenChange={setAvatarCropOpen}
-        imageSrc={avatarCropSrc}
-        onComplete={handleAvatarCropComplete}
-      />
+      {avatarCropOpen ? (
+        <ImageCropper
+          open={avatarCropOpen}
+          onOpenChange={setAvatarCropOpen}
+          imageSrc={avatarCropSrc}
+          onComplete={handleAvatarCropComplete}
+        />
+      ) : null}
     </>
   )
 }
-
 

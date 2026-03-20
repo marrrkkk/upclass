@@ -12,8 +12,6 @@ export const metadata: Metadata = {
   title: "Resources",
 }
 
-export const revalidate = 30 // Revalidate every 30 seconds
-
 export default async function ResourcesPage() {
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -53,4 +51,3 @@ export default async function ResourcesPage() {
     </ResourcesPageWrapper>
   )
 }
-

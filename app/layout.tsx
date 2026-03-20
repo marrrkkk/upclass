@@ -1,9 +1,14 @@
-import type { Metadata, Viewport } from "next";
-import "./globals.css";
-import { ThemeProvider } from "@/components/theme-provider";
-import { PWAProvider } from "@/components/pwa-provider";
-import { OfflineIndicator } from "@/components/offline-indicator";
-import { OfflineErrorBoundary } from "@/components/offline-error-boundary";
+import type { Metadata, Viewport } from "next"
+import { Inter } from "next/font/google"
+
+import "./globals.css"
+import { ThemeProvider } from "@/components/theme-provider"
+
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter",
+})
 
 export const metadata: Metadata = {
   title: {
@@ -24,7 +29,7 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: "UpClass",
   },
-};
+}
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -35,29 +40,20 @@ export const viewport: Viewport = {
     { media: "(prefers-color-scheme: light)", color: "hsl(var(--primary))" },
     { media: "(prefers-color-scheme: dark)", color: "hsl(var(--primary))" },
   ],
-};
+}
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: React.ReactNode
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className={inter.variable} suppressHydrationWarning>
       <body className="font-sans antialiased" suppressHydrationWarning>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-        >
-          <PWAProvider>
-            <OfflineErrorBoundary>
-              <OfflineIndicator />
-              {children}
-            </OfflineErrorBoundary>
-          </PWAProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          {children}
         </ThemeProvider>
       </body>
     </html>
-  );
+  )
 }

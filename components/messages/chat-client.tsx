@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
  
+import dynamic from "next/dynamic"
 import { useState, useEffect, useRef, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { Send, ArrowLeft, MoreVertical, Phone, Video } from "lucide-react"
@@ -15,11 +16,18 @@ import { cn } from "@/lib/utils"
 import Link from "next/link"
 import { Paperclip, X, Music, Image as ImageIcon } from "lucide-react"
 import { UrlLinkify } from "@/components/messages/url-linkify"
-import { ImageViewerDialog } from "@/components/messages/image-viewer-dialog"
 import { formatDistanceToNow, isSameDay, format } from "date-fns"
 import { useMessagesStore } from "@/stores/messages-store"
 import { usePageHeaderStore } from "@/stores/page-header-store"
-import { useCacheData } from "@/lib/cache-hooks"
+import { useCacheData, useOfflineCollectionCache } from "@/lib/cache-hooks"
+import { BackgroundCache } from "@/lib/background-cache"
+
+const ImageViewerDialog = dynamic(
+  () => import("@/components/messages/image-viewer-dialog").then((mod) => mod.ImageViewerDialog),
+  {
+    ssr: false,
+  },
+)
 
 type MediaFile = {
   url: string
@@ -63,6 +71,14 @@ export function ChatClient({ messages: initialMessages, currentUserId, otherUser
 
   // Cache messages in background
   useCacheData(messages, 'messages', true)
+
+  useOfflineCollectionCache<MessageData>({
+    onlineData: initialMessages,
+    getCachedData: () =>
+      BackgroundCache.getInstance().getCachedMessagesForThread(currentUserId, otherUser.id),
+    onHydrate: setCurrentMessages,
+  })
+
   const [newMessage, setNewMessage] = useState("")
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [pending, startTransition] = useTransition()
@@ -727,12 +743,14 @@ export function ChatClient({ messages: initialMessages, currentUserId, otherUser
       </div>
 
       {/* Image Viewer Dialog */}
-      <ImageViewerDialog
-        images={viewingImages}
-        currentIndex={viewingImageIndex}
-        open={imageViewerOpen}
-        onOpenChange={setImageViewerOpen}
-      />
+      {imageViewerOpen ? (
+        <ImageViewerDialog
+          images={viewingImages}
+          currentIndex={viewingImageIndex}
+          open={imageViewerOpen}
+          onOpenChange={setImageViewerOpen}
+        />
+      ) : null}
     </div>
   )
 }

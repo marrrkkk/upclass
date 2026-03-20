@@ -28,8 +28,6 @@ export const metadata: Metadata = {
   title: "Home",
 }
 
-export const revalidate = 30 // Revalidate every 30 seconds
-
 export default async function HomePage() {
   const session = await auth.api.getSession({
     headers: await headers(),

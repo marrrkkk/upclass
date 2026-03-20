@@ -1,5 +1,6 @@
 import { headers } from "next/headers"
 import Link from "next/link"
+import { cache, Suspense } from "react"
 import {
   ArrowRight,
   BookOpen,
@@ -77,11 +78,199 @@ const trustItems = [
   "Realtime collaboration backed by Supabase channels",
 ]
 
-export default async function LandingPage() {
+const getIsAuthenticated = cache(async () => {
   const session = await auth.api.getSession({
     headers: await headers(),
   })
-  const isAuthenticated = Boolean(session?.user)
+
+  return Boolean(session?.user)
+})
+
+async function HeaderActions() {
+  const isAuthenticated = await getIsAuthenticated()
+
+  if (isAuthenticated) {
+    return (
+      <Button className="h-11 rounded-full px-5 shadow-lg shadow-primary/20" asChild>
+        <Link href="/home">
+          Go to dashboard
+          <LayoutDashboard className="size-4" />
+        </Link>
+      </Button>
+    )
+  }
+
+  return (
+    <>
+      <Button variant="ghost" className="rounded-full px-4 text-sm" asChild>
+        <Link href="/sign-in">Log in</Link>
+      </Button>
+      <Button className="h-11 rounded-full px-5 shadow-lg shadow-primary/20" asChild>
+        <Link href="/sign-up">
+          Start free
+          <ArrowRight className="size-4" />
+        </Link>
+      </Button>
+    </>
+  )
+}
+
+function HeaderActionsFallback() {
+  return (
+    <>
+      <Button variant="ghost" className="rounded-full px-4 text-sm" asChild>
+        <Link href="/sign-in">Log in</Link>
+      </Button>
+      <Button className="h-11 rounded-full px-5 shadow-lg shadow-primary/20" asChild>
+        <Link href="/sign-up">
+          Start free
+          <ArrowRight className="size-4" />
+        </Link>
+      </Button>
+    </>
+  )
+}
+
+async function HeroActions() {
+  const isAuthenticated = await getIsAuthenticated()
+
+  if (isAuthenticated) {
+    return (
+      <>
+        <Button size="lg" className="h-14 rounded-full px-7 text-base shadow-xl shadow-primary/20" asChild>
+          <Link href="/home">
+            Open dashboard
+            <LayoutDashboard className="size-4" />
+          </Link>
+        </Button>
+        <Button
+          size="lg"
+          variant="outline"
+          className="h-14 rounded-full border-white/60 bg-white/70 px-7 text-base backdrop-blur hover:bg-white dark:border-white/15 dark:bg-white/5 dark:hover:bg-white/10"
+          asChild
+        >
+          <Link href="/classes">
+            Browse your classes
+            <ArrowRight className="size-4" />
+          </Link>
+        </Button>
+      </>
+    )
+  }
+
+  return (
+    <>
+      <Button size="lg" className="h-14 rounded-full px-7 text-base shadow-xl shadow-primary/20" asChild>
+        <Link href="/sign-up">
+          Create your classroom
+          <ArrowRight className="size-4" />
+        </Link>
+      </Button>
+      <Button
+        size="lg"
+        variant="outline"
+        className="h-14 rounded-full border-white/60 bg-white/70 px-7 text-base backdrop-blur hover:bg-white dark:border-white/15 dark:bg-white/5 dark:hover:bg-white/10"
+        asChild
+      >
+        <Link href="/sign-in">
+          Explore your dashboard
+          <LayoutDashboard className="size-4" />
+        </Link>
+      </Button>
+    </>
+  )
+}
+
+function HeroActionsFallback() {
+  return (
+    <>
+      <Button size="lg" className="h-14 rounded-full px-7 text-base shadow-xl shadow-primary/20" asChild>
+        <Link href="/sign-up">
+          Create your classroom
+          <ArrowRight className="size-4" />
+        </Link>
+      </Button>
+      <Button
+        size="lg"
+        variant="outline"
+        className="h-14 rounded-full border-white/60 bg-white/70 px-7 text-base backdrop-blur hover:bg-white dark:border-white/15 dark:bg-white/5 dark:hover:bg-white/10"
+        asChild
+      >
+        <Link href="/sign-in">
+          Explore your dashboard
+          <LayoutDashboard className="size-4" />
+        </Link>
+      </Button>
+    </>
+  )
+}
+
+async function FooterActions() {
+  const isAuthenticated = await getIsAuthenticated()
+
+  if (isAuthenticated) {
+    return (
+      <>
+        <Button size="lg" className="h-14 rounded-full px-7 shadow-lg shadow-primary/20" asChild>
+          <Link href="/home">
+            Return to dashboard
+            <LayoutDashboard className="size-4" />
+          </Link>
+        </Button>
+        <Button
+          size="lg"
+          variant="outline"
+          className="h-14 rounded-full border-primary/15 bg-white/70 px-7 text-slate-950 hover:bg-white dark:border-white/20 dark:bg-white/5 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
+          asChild
+        >
+          <Link href="/classes">Open classes</Link>
+        </Button>
+      </>
+    )
+  }
+
+  return (
+    <>
+      <Button size="lg" className="h-14 rounded-full px-7 shadow-lg shadow-primary/20" asChild>
+        <Link href="/sign-up">
+          Create an account
+          <ArrowRight className="size-4" />
+        </Link>
+      </Button>
+      <Button
+        size="lg"
+        variant="outline"
+        className="h-14 rounded-full border-primary/15 bg-white/70 px-7 text-slate-950 hover:bg-white dark:border-white/20 dark:bg-white/5 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
+        asChild
+      >
+        <Link href="/sign-in">Sign in</Link>
+      </Button>
+    </>
+  )
+}
+
+function FooterActionsFallback() {
+  return (
+    <>
+      <Button size="lg" className="h-14 rounded-full px-7 shadow-lg shadow-primary/20" asChild>
+        <Link href="/sign-up">
+          Create an account
+          <ArrowRight className="size-4" />
+        </Link>
+      </Button>
+      <Button
+        size="lg"
+        variant="outline"
+        className="h-14 rounded-full border-primary/15 bg-white/70 px-7 text-slate-950 hover:bg-white dark:border-white/20 dark:bg-white/5 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
+        asChild
+      >
+        <Link href="/sign-in">Sign in</Link>
+      </Button>
+    </>
+  )
+}
+
+export default function LandingPage() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(77,111,255,0.16),_transparent_28%),radial-gradient(circle_at_80%_20%,_rgba(17,196,181,0.18),_transparent_24%),linear-gradient(180deg,_hsl(var(--background)),_color-mix(in_oklab,_hsl(var(--background))_92%,_hsl(var(--primary))_8%))] text-foreground">
@@ -97,26 +286,9 @@ export default async function LandingPage() {
             iconClassName="rounded-2xl border border-primary/15 bg-white/70 shadow-sm backdrop-blur dark:bg-white/10"
           />
           <div className="flex items-center gap-3">
-            {isAuthenticated ? (
-              <Button className="h-11 rounded-full px-5 shadow-lg shadow-primary/20" asChild>
-                <Link href="/home">
-                  Go to dashboard
-                  <LayoutDashboard className="size-4" />
-                </Link>
-              </Button>
-            ) : (
-              <>
-                <Button variant="ghost" className="rounded-full px-4 text-sm" asChild>
-                  <Link href="/sign-in">Log in</Link>
-                </Button>
-                <Button className="h-11 rounded-full px-5 shadow-lg shadow-primary/20" asChild>
-                  <Link href="/sign-up">
-                    Start free
-                    <ArrowRight className="size-4" />
-                  </Link>
-                </Button>
-              </>
-            )}
+            <Suspense fallback={<HeaderActionsFallback />}>
+              <HeaderActions />
+            </Suspense>
           </div>
         </div>
       </header>
@@ -142,47 +314,9 @@ export default async function LandingPage() {
             </p>
 
             <div className="mt-8 flex flex-col gap-4 sm:flex-row">
-              {isAuthenticated ? (
-                <>
-                  <Button size="lg" className="h-14 rounded-full px-7 text-base shadow-xl shadow-primary/20" asChild>
-                    <Link href="/home">
-                      Open dashboard
-                      <LayoutDashboard className="size-4" />
-                    </Link>
-                  </Button>
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="h-14 rounded-full border-white/60 bg-white/70 px-7 text-base backdrop-blur hover:bg-white dark:border-white/15 dark:bg-white/5 dark:hover:bg-white/10"
-                    asChild
-                  >
-                    <Link href="/classes">
-                      Browse your classes
-                      <ArrowRight className="size-4" />
-                    </Link>
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button size="lg" className="h-14 rounded-full px-7 text-base shadow-xl shadow-primary/20" asChild>
-                    <Link href="/sign-up">
-                      Create your classroom
-                      <ArrowRight className="size-4" />
-                    </Link>
-                  </Button>
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="h-14 rounded-full border-white/60 bg-white/70 px-7 text-base backdrop-blur hover:bg-white dark:border-white/15 dark:bg-white/5 dark:hover:bg-white/10"
-                    asChild
-                  >
-                    <Link href="/sign-in">
-                      Explore your dashboard
-                      <LayoutDashboard className="size-4" />
-                    </Link>
-                  </Button>
-                </>
-              )}
+              <Suspense fallback={<HeroActionsFallback />}>
+                <HeroActions />
+              </Suspense>
             </div>
 
             <div className="mt-10 grid gap-3 sm:grid-cols-3">
@@ -385,41 +519,9 @@ export default async function LandingPage() {
                 </p>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
-                {isAuthenticated ? (
-                  <>
-                    <Button size="lg" className="h-14 rounded-full px-7 shadow-lg shadow-primary/20" asChild>
-                      <Link href="/home">
-                        Return to dashboard
-                        <LayoutDashboard className="size-4" />
-                      </Link>
-                    </Button>
-                    <Button
-                      size="lg"
-                      variant="outline"
-                      className="h-14 rounded-full border-primary/15 bg-white/70 px-7 text-slate-950 hover:bg-white dark:border-white/20 dark:bg-white/5 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
-                      asChild
-                    >
-                      <Link href="/classes">Open classes</Link>
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button size="lg" className="h-14 rounded-full px-7 shadow-lg shadow-primary/20" asChild>
-                      <Link href="/sign-up">
-                        Create an account
-                        <ArrowRight className="size-4" />
-                      </Link>
-                    </Button>
-                    <Button
-                      size="lg"
-                      variant="outline"
-                      className="h-14 rounded-full border-primary/15 bg-white/70 px-7 text-slate-950 hover:bg-white dark:border-white/20 dark:bg-white/5 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
-                      asChild
-                    >
-                      <Link href="/sign-in">Sign in</Link>
-                    </Button>
-                  </>
-                )}
+                <Suspense fallback={<FooterActionsFallback />}>
+                  <FooterActions />
+                </Suspense>
               </div>
             </div>
           </div>
@@ -432,7 +534,7 @@ export default async function LandingPage() {
             <Logo href="/" size="sm" />
             <span>Focused tools for classes, collaboration, and momentum.</span>
           </div>
-          <div>© {new Date().getFullYear()} UpClass</div>
+          <div>© UpClass</div>
         </div>
       </footer>
     </div>

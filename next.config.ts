@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
+  cacheComponents: true,
   images: {
     formats: ['image/avif', 'image/webp'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
@@ -12,12 +13,12 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
   experimental: {
-    optimizePackageImports: ['lucide-react', '@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu'],
-    // Enable router cache for better performance
+    cachedNavigations: true,
     staleTimes: {
-      dynamic: 30, // Cache dynamic routes for 30 seconds
-      static: 180, // Cache static routes for 3 minutes
+      dynamic: 30,
+      static: 300,
     },
+    optimizePackageImports: ['lucide-react', '@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu'],
   },
   // Ensure service worker is served correctly
   async headers() {

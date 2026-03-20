@@ -1,16 +1,25 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import dynamic from "next/dynamic"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Menu } from "lucide-react"
 
-import { Sidebar } from "@/components/sidebar"
-import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
 import { useBackgroundRefresh } from "@/hooks/use-background-refresh"
 import { useUserStore } from "@/stores/user-store"
+
+const NavigationProgress = dynamic(
+  () => import("@/components/navigation-progress").then((mod) => mod.NavigationProgress),
+  { ssr: false },
+)
+const Sidebar = dynamic(() => import("@/components/sidebar").then((mod) => mod.Sidebar), {
+  ssr: false,
+})
+const PageHeader = dynamic(() => import("@/components/page-header").then((mod) => mod.PageHeader), {
+  ssr: false,
+})
 
 type HomeShellProps = {
   children: React.ReactNode
@@ -68,6 +77,7 @@ export function HomeShell({ children, isAuthenticated, userInfo, userId }: HomeS
 
   return (
     <div className="min-h-screen bg-background">
+      <NavigationProgress />
       <div className="flex">
         {/* Sidebar */}
         <Sidebar
@@ -141,4 +151,3 @@ export function HomeShell({ children, isAuthenticated, userInfo, userId }: HomeS
     </div>
   )
 }
-

@@ -163,3 +163,20 @@
     transform: translateX(0);
   }
 }
+@keyframes navigation-progress {
+  0% {
+    transform: scaleX(0.08);
+    transform-origin: left;
+    opacity: 0.85;
+  }
+  45% {
+    transform: scaleX(0.55);
+    transform-origin: left;
+    opacity: 1;
+  }
+  100% {
+    transform: scaleX(1);
+    transform-origin: left;
+    opacity: 0.92;
+  }
+}

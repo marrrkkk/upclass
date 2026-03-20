@@ -1,20 +1,25 @@
 import { headers } from "next/headers"
-import { OnboardRedirect } from "@/components/onboard-redirect"
+import { cache, Suspense } from "react"
+import { MainLayoutClient } from "@/components/main-layout-client"
 import { HomeShell } from "@/components/layouts/home-shell"
+import { RootClientShell } from "@/components/root-client-shell"
 import { auth } from "@/lib/auth"
 import { db } from "@/db"
 import { user } from "@/db/schema"
 import { eq } from "drizzle-orm"
 
-export default async function MainLayout({
+const getSession = cache(async () => {
+  return auth.api.getSession({
+    headers: await headers(),
+  })
+})
+
+async function ResolvedMainLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  })
-
+  const session = await getSession()
   const isAuthenticated = !!session?.user?.id
   let userInfo = null
   let hasRole = false
@@ -41,8 +46,7 @@ export default async function MainLayout({
   }
 
   return (
-    <>
-      {isAuthenticated && <OnboardRedirect hasRole={hasRole} />}
+    <MainLayoutClient hasRole={hasRole} isAuthenticated={isAuthenticated}>
       <HomeShell
         isAuthenticated={isAuthenticated}
         userInfo={userInfo}
@@ -50,6 +54,28 @@ export default async function MainLayout({
       >
         {children}
       </HomeShell>
-    </>
+    </MainLayoutClient>
+  )
+}
+
+function MainLayoutFallback({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return <HomeShell isAuthenticated={false}>{children}</HomeShell>
+}
+
+export default function MainLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <RootClientShell>
+      <Suspense fallback={<MainLayoutFallback>{children}</MainLayoutFallback>}>
+        <ResolvedMainLayout>{children}</ResolvedMainLayout>
+      </Suspense>
+    </RootClientShell>
   )
 }
