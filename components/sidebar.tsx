@@ -17,8 +17,6 @@ import { NotificationsSection } from "@/components/sidebar/notifications-section
 import { MessagesSection } from "@/components/sidebar/messages-section"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { usePrefetch } from "@/hooks/use-prefetch"
-import { useUserStore } from "@/stores/user-store"
 import { Logo } from "@/components/logo"
 
 const navItems = [
@@ -44,15 +42,8 @@ type SidebarProps = {
 export function Sidebar({ userId, userInfo, className, "data-state": dataState, onNavigate, onClose }: SidebarProps = {}) {
   const pathname = usePathname()
   const currentPath = pathname || "/home"
-  const { user: storeUser } = useUserStore()
-  const { prefetchOnHover, cancelPrefetch } = usePrefetch()
-  
-  const currentUserInfo = storeUser ? {
-    name: storeUser.name,
-    email: storeUser.email,
-    image: storeUser.image,
-  } : userInfo
-  const currentUserId = storeUser?.id || userId
+  const currentUserInfo = userInfo
+  const currentUserId = userId
 
   return (
     <aside
@@ -93,9 +84,6 @@ export function Sidebar({ userId, userInfo, className, "data-state": dataState, 
                 <Link
                   key={item.label}
                   href={item.href}
-                  prefetch={true}
-                  onMouseEnter={() => prefetchOnHover(item.href)}
-                  onMouseLeave={() => cancelPrefetch(item.href)}
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 group/item",
                     isActive
@@ -144,9 +132,6 @@ export function Sidebar({ userId, userInfo, className, "data-state": dataState, 
           <nav className="space-y-0.5">
             <Link
               href="/settings"
-              prefetch={true}
-              onMouseEnter={() => prefetchOnHover("/settings")}
-              onMouseLeave={() => cancelPrefetch("/settings")}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 group/item",
                 currentPath === "/settings"
@@ -169,9 +154,6 @@ export function Sidebar({ userId, userInfo, className, "data-state": dataState, 
       <div className="p-3 border-t border-border/40">
         <Link
           href={currentUserId ? `/user/${currentUserId}` : "/profile"}
-          prefetch={true}
-          onMouseEnter={() => prefetchOnHover(currentUserId ? `/user/${currentUserId}` : "/profile")}
-          onMouseLeave={() => cancelPrefetch(currentUserId ? `/user/${currentUserId}` : "/profile")}
           className={cn(
             "flex items-center gap-3 rounded-xl p-3 text-sm font-medium transition-all duration-200 border border-transparent",
             currentPath?.startsWith("/user/")

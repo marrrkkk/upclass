@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
+import React from "react"
+
 import { UserAvatarMenu } from "@/components/user-avatar-menu"
 import { usePageHeaderStore } from "@/stores/page-header-store"
 import {
@@ -13,9 +14,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import { Home, ChevronRight, Slash } from "lucide-react"
-import React from "react"
-import { cn } from "@/lib/utils"
+import { Home, Slash } from "lucide-react"
 
 // Map route segments to display names
 const segmentNames: Record<string, string> = {
@@ -39,22 +38,10 @@ type PageHeaderProps = {
 }
 
 export function PageHeader({ user, userId }: PageHeaderProps) {
-  const [isMobile, setIsMobile] = useState(false)
   const pathname = usePathname()
   const rightSideContent = usePageHeaderStore((state) => state.rightSideContent)
   const mobileRightSideContent = usePageHeaderStore((state) => state.mobileRightSideContent)
   const pageTitle = usePageHeaderStore((state) => state.pageTitle)
-
-  useEffect(() => {
-    if (typeof window === "undefined") return
-    const mq = window.matchMedia("(max-width: 767px)")
-    const handle = (event: MediaQueryListEvent | MediaQueryList) => setIsMobile(event.matches)
-    handle(mq)
-    mq.addEventListener ? mq.addEventListener("change", handle) : mq.addListener(handle)
-    return () => {
-      mq.removeEventListener ? mq.removeEventListener("change", handle) : mq.removeListener(handle)
-    }
-  }, [])
 
   // Generate breadcrumb items from the pathname
   const generateBreadcrumbs = () => {
@@ -108,8 +95,7 @@ export function PageHeader({ user, userId }: PageHeaderProps) {
 
   return (
     <div className="flex w-full flex-col gap-2">
-      {isMobile ? (
-        <div className="flex items-center justify-between min-h-[3rem]">
+      <div className="flex min-h-[3rem] items-center justify-between md:hidden">
           <div className="flex items-center gap-2">
             <span className="rounded-lg bg-primary/10 px-2 py-1 text-primary text-xs font-semibold uppercase tracking-tight">
               UpClass
@@ -130,63 +116,61 @@ export function PageHeader({ user, userId }: PageHeaderProps) {
               />
             )}
           </div>
-        </div>
-      ) : (
-        <div className="flex w-full items-center min-h-[3.5rem] gap-4">
-          <div className="flex items-center flex-1 min-w-0">
-            <Breadcrumb>
-              <BreadcrumbList>
-                {breadcrumbs.map((crumb, index) => (
-                  <React.Fragment key={crumb.href}>
-                    {index > 0 && (
-                      <BreadcrumbSeparator className="mx-2 text-muted-foreground/40">
-                        <Slash className="h-3 w-3 -rotate-12" />
-                      </BreadcrumbSeparator>
+      </div>
+
+      <div className="hidden min-h-[3.5rem] w-full items-center gap-4 md:flex">
+        <div className="flex min-w-0 flex-1 items-center">
+          <Breadcrumb>
+            <BreadcrumbList>
+              {breadcrumbs.map((crumb, index) => (
+                <React.Fragment key={crumb.href}>
+                  {index > 0 ? (
+                    <BreadcrumbSeparator className="mx-2 text-muted-foreground/40">
+                      <Slash className="h-3 w-3 -rotate-12" />
+                    </BreadcrumbSeparator>
+                  ) : null}
+                  <BreadcrumbItem>
+                    {crumb.isLast ? (
+                      <BreadcrumbPage className="flex items-center gap-2 font-semibold tracking-tight text-foreground">
+                        {index === 0 ? <Home className="h-4 w-4 text-muted-foreground" /> : null}
+                        {crumb.label}
+                      </BreadcrumbPage>
+                    ) : (
+                      <BreadcrumbLink asChild>
+                        <Link
+                          href={crumb.href}
+                          className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
+                        >
+                          {index === 0 ? <Home className="h-4 w-4" /> : null}
+                          {index === 0 ? "Home" : crumb.label}
+                        </Link>
+                      </BreadcrumbLink>
                     )}
-                    <BreadcrumbItem>
-                      {crumb.isLast ? (
-                        <BreadcrumbPage className="font-semibold text-foreground tracking-tight flex items-center gap-2">
-                          {index === 0 && <Home className="h-4 w-4 text-muted-foreground" />}
-                          {crumb.label}
-                        </BreadcrumbPage>
-                      ) : (
-                        <BreadcrumbLink asChild>
-                          <Link
-                            href={crumb.href}
-                            className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2"
-                          >
-                            {index === 0 && <Home className="h-4 w-4" />}
-                            {!index && index === 0 ? null : crumb.label}
-                            {index === 0 ? "Home" : null}
-                          </Link>
-                        </BreadcrumbLink>
-                      )}
-                    </BreadcrumbItem>
-                  </React.Fragment>
-                ))}
-              </BreadcrumbList>
-            </Breadcrumb>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 justify-end min-h-[3.5rem] flex-none ml-auto">
-            {rightSideContent && (
-              <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-4 duration-500">
-                {rightSideContent}
-                <div className="h-6 w-px bg-border/60 mx-2" />
-              </div>
-            )}
-
-            {user && (
-              <UserAvatarMenu
-                name={user.name}
-                email={user.email}
-                image={user.image}
-                userId={userId}
-              />
-            )}
-          </div>
+                  </BreadcrumbItem>
+                </React.Fragment>
+              ))}
+            </BreadcrumbList>
+          </Breadcrumb>
         </div>
-      )}
+
+        <div className="ml-auto flex min-h-[3.5rem] flex-none flex-wrap items-center justify-end gap-3">
+          {rightSideContent ? (
+            <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-4 duration-500">
+              {rightSideContent}
+              <div className="mx-2 h-6 w-px bg-border/60" />
+            </div>
+          ) : null}
+
+          {user ? (
+            <UserAvatarMenu
+              name={user.name}
+              email={user.email}
+              image={user.image}
+              userId={userId}
+            />
+          ) : null}
+        </div>
+      </div>
     </div>
   )
 }

@@ -1,27 +1,21 @@
 import { render, screen } from "@testing-library/react"
-import userEvent from "@testing-library/user-event"
 
 import { ClassDetailTabs } from "@/components/classes/class-detail-tabs"
 
 describe("ClassDetailTabs", () => {
-  it("renders the class tabs and notifies when the user changes tabs", async () => {
-    const user = userEvent.setup()
-    const onTabChange = vi.fn()
-
+  it("renders the class tabs and links to the selected class routes", () => {
     const { rerender } = render(
-      <ClassDetailTabs activeTab="stream" classColor="#0ea5e9" onTabChange={onTabChange} />,
+      <ClassDetailTabs activeTab="stream" classColor="#0ea5e9" classId="class-123" />,
     )
 
-    expect(screen.getByRole("button", { name: "Stream" })).toHaveClass("text-primary")
-    expect(screen.getByRole("button", { name: "Classwork" })).toHaveClass("text-muted-foreground")
+    expect(screen.getByRole("link", { name: "Stream" })).toHaveClass("text-primary")
+    expect(screen.getByRole("link", { name: "Classwork" })).toHaveClass("text-muted-foreground")
+    expect(screen.getByRole("link", { name: "Stream" })).toHaveAttribute("href", "/classes/class-123")
+    expect(screen.getByRole("link", { name: "Quizzes" })).toHaveAttribute("href", "/classes/class-123?tab=quizzes")
 
-    await user.click(screen.getByRole("button", { name: "Quizzes" }))
+    rerender(<ClassDetailTabs activeTab="quizzes" classColor="#0ea5e9" classId="class-123" />)
 
-    expect(onTabChange).toHaveBeenCalledWith("quizzes")
-
-    rerender(<ClassDetailTabs activeTab="quizzes" classColor="#0ea5e9" onTabChange={onTabChange} />)
-
-    expect(screen.getByRole("button", { name: "Quizzes" })).toHaveClass("text-primary")
-    expect(screen.getByRole("button", { name: "Quizzes" })).toHaveTextContent("Quizzes")
+    expect(screen.getByRole("link", { name: "Quizzes" })).toHaveClass("text-primary")
+    expect(screen.getByRole("link", { name: "Quizzes" })).toHaveTextContent("Quizzes")
   })
 })

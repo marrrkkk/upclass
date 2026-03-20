@@ -1,25 +1,11 @@
-"use client"
-
-import dynamic from "next/dynamic"
-import { useEffect, useState } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { Menu } from "lucide-react"
 
+import { BackgroundRefreshClient } from "@/components/layouts/background-refresh-client"
+import { HomeShellSidebarDrawer } from "@/components/layouts/home-shell-sidebar-drawer"
+import { HomeShellSidebarToggle } from "@/components/layouts/home-shell-sidebar-toggle"
+import { NavigationProgress } from "@/components/navigation-progress"
+import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
-import { useBackgroundRefresh } from "@/hooks/use-background-refresh"
-import { useUserStore } from "@/stores/user-store"
-
-const NavigationProgress = dynamic(
-  () => import("@/components/navigation-progress").then((mod) => mod.NavigationProgress),
-  { ssr: false },
-)
-const Sidebar = dynamic(() => import("@/components/sidebar").then((mod) => mod.Sidebar), {
-  ssr: false,
-})
-const PageHeader = dynamic(() => import("@/components/page-header").then((mod) => mod.PageHeader), {
-  ssr: false,
-})
 
 type HomeShellProps = {
   children: React.ReactNode
@@ -33,96 +19,25 @@ type HomeShellProps = {
 }
 
 export function HomeShell({ children, isAuthenticated, userInfo, userId }: HomeShellProps) {
-  const pathname = usePathname()
-  const { setUser, setIsAuthenticated: setUserIsAuthenticated, user: storeUser, isAuthenticated: storeIsAuthenticated } = useUserStore()
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  
-  // Background refresh for current page (only on main pages, not whiteboard)
-  useBackgroundRefresh(
-    pathname || "/",
-    pathname?.includes("/whiteboard") ? 0 : 30000 // Don't refresh whiteboard automatically
-  )
-
-  useEffect(() => {
-    if (isAuthenticated && userInfo && userId) {
-      setUser({
-        id: userId,
-        name: userInfo.name || "",
-        email: userInfo.email || "",
-        image: userInfo.image,
-        role: null,
-        bio: null,
-        emailNotifications: false,
-        pushNotifications: false,
-        classNotifications: false,
-        messageNotifications: false,
-        profileVisibility: "public",
-        showEmail: false,
-        showClasses: false,
-        showResources: false,
-      })
-      setUserIsAuthenticated(true)
-    } else {
-      setUser(null)
-      setUserIsAuthenticated(false)
-    }
-  }, [isAuthenticated, userInfo, userId, setUser, setUserIsAuthenticated])
-
-  const currentUserInfo = storeUser ? {
-    name: storeUser.name,
-    email: storeUser.email,
-    image: storeUser.image,
-  } : userInfo
-  const currentIsAuthenticated = storeIsAuthenticated || isAuthenticated
-
   return (
     <div className="min-h-screen bg-background">
       <NavigationProgress />
+      <BackgroundRefreshClient />
+
       <div className="flex">
-        {/* Sidebar */}
-        <Sidebar
-          userId={userId}
-          userInfo={userInfo}
-          onNavigate={() => setIsSidebarOpen(false)}
-          onClose={() => setIsSidebarOpen(false)}
-          className="fixed inset-y-0 left-0 z-40 w-72 border-r bg-card/95 shadow-xl transition-transform duration-300 ease-in-out md:sticky md:top-0 md:w-64 md:shadow-none md:h-screen sidebar-mobile"
-          data-state={isSidebarOpen ? "open" : "closed"}
-        />
+        <HomeShellSidebarDrawer userId={userId} userInfo={userInfo} />
 
-        {/* Overlay for mobile */}
-        {isSidebarOpen && (
-          <button
-            className="fixed inset-0 z-[35] bg-black/40 backdrop-blur-sm md:hidden"
-            aria-label="Close navigation overlay"
-            onClick={() => setIsSidebarOpen(false)}
-            type="button"
-          />
-        )}
-
-        {/* Main content */}
-        <div className="flex min-h-screen flex-1 flex-col min-w-0">
-          {/* Top bar */}
+        <div className="flex min-h-screen min-w-0 flex-1 flex-col">
           <div className="sticky top-0 z-30 border-b bg-background">
             <div className="flex h-14 items-center gap-3 px-4 sm:h-16 sm:px-6 md:px-8">
-              <div className="flex items-center gap-3 min-w-0">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="md:hidden"
-                  aria-label={isSidebarOpen ? "Close navigation" : "Open navigation"}
-                  aria-expanded={isSidebarOpen}
-                  aria-controls="app-sidebar"
-                  type="button"
-                  onClick={() => setIsSidebarOpen((open) => !open)}
-                >
-                  <Menu className="h-5 w-5" />
-                </Button>
+              <div className="flex min-w-0 items-center gap-3">
+                <HomeShellSidebarToggle />
               </div>
 
-              <div className="flex flex-1 items-center justify-end min-w-0">
-                {currentIsAuthenticated && currentUserInfo ? (
+              <div className="flex min-w-0 flex-1 items-center justify-end">
+                {isAuthenticated && userInfo ? (
                   <div className="w-full">
-                    <PageHeader user={currentUserInfo} userId={userId} />
+                    <PageHeader user={userInfo} userId={userId} />
                   </div>
                 ) : (
                   <div className="flex w-full items-center justify-between gap-3">
@@ -143,9 +58,7 @@ export function HomeShell({ children, isAuthenticated, userInfo, userId }: HomeS
             </div>
           </div>
 
-          <div className="flex-1 px-4 py-6 sm:px-6 md:px-8">
-            {children}
-          </div>
+          <div className="flex-1 px-4 py-6 sm:px-6 md:px-8">{children}</div>
         </div>
       </div>
     </div>

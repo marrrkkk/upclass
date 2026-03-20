@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import dynamic from "next/dynamic"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Search, Users } from "lucide-react"
@@ -9,12 +10,13 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
-import { NewConversationDialog } from "@/components/messages/new-conversation-dialog"
 import { formatDistanceToNow } from "date-fns"
-import { usePrefetch } from "@/hooks/use-prefetch"
-import { useMessagesStore } from "@/stores/messages-store"
 import { useOfflineCollectionCache } from "@/lib/cache-hooks"
 import { BackgroundCache } from "@/lib/background-cache"
+
+const NewConversationDialog = dynamic(
+  () => import("@/components/messages/new-conversation-dialog").then((mod) => mod.NewConversationDialog),
+)
 
 type Conversation = {
   userId: string
@@ -32,28 +34,14 @@ type MessagesClientProps = {
 
 export function MessagesClient({ conversations: initialConversations, userId }: MessagesClientProps) {
   const router = useRouter()
-  const { prefetchOnHover, cancelPrefetch } = usePrefetch()
-  const { setConversations, setCurrentUserId, conversations: storeConversations } = useMessagesStore()
-  
-  useEffect(() => {
-    const hasServerConversations = initialConversations.length > 0
-    const isOffline = typeof window !== "undefined" && !navigator.onLine
-
-    if (isOffline && !hasServerConversations) {
-      setCurrentUserId(userId)
-      return
-    }
-
-    setConversations(initialConversations)
-    setCurrentUserId(userId)
-  }, [initialConversations, userId, setConversations, setCurrentUserId])
+  const [offlineConversations, setOfflineConversations] = useState<Conversation[] | null>(null)
 
   // Don't cache conversations as messages - they have different structure
   // Conversations will be cached separately if needed
   useOfflineCollectionCache<Conversation>({
     onlineData: initialConversations,
     getCachedData: () => BackgroundCache.getInstance().getCachedConversations(),
-    onHydrate: setConversations,
+    onHydrate: setOfflineConversations,
   })
 
   useEffect(() => {
@@ -65,8 +53,7 @@ export function MessagesClient({ conversations: initialConversations, userId }: 
       const cachedConversations = await BackgroundCache.getInstance().getCachedConversations()
       if (cancelled || cachedConversations.length === 0) return
 
-      setConversations(cachedConversations)
-      setCurrentUserId(userId)
+      setOfflineConversations(cachedConversations)
     }
 
     void hydrateOfflineConversations()
@@ -74,7 +61,12 @@ export function MessagesClient({ conversations: initialConversations, userId }: 
     return () => {
       cancelled = true
     }
-  }, [setConversations, setCurrentUserId, userId])
+  }, [userId])
+
+  const conversations = useMemo(
+    () => offlineConversations ?? initialConversations,
+    [initialConversations, offlineConversations],
+  )
 
   const [searchQuery, setSearchQuery] = useState("")
 
@@ -104,7 +96,7 @@ export function MessagesClient({ conversations: initialConversations, userId }: 
     }
   }, [userId, router])
 
-  const filteredConversations = storeConversations.filter((conv) =>
+  const filteredConversations = conversations.filter((conv) =>
     conv.userName.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
@@ -174,9 +166,6 @@ export function MessagesClient({ conversations: initialConversations, userId }: 
                   <Link 
                     key={conv.userId} 
                     href={messageHref} 
-                    prefetch={true}
-                    onMouseEnter={() => prefetchOnHover(messageHref)}
-                    onMouseLeave={() => cancelPrefetch(messageHref)}
                   >
                     <div className="group flex items-center gap-4 p-4 rounded-xl border border-transparent hover:bg-card hover:border-border hover:shadow-sm transition-all duration-200 cursor-pointer bg-card/40">
                       <Avatar className="h-12 w-12 border border-border/50">

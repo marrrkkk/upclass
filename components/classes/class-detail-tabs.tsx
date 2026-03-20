@@ -1,4 +1,4 @@
-"use client"
+import Link from "next/link"
 
 import { cn } from "@/lib/utils"
 
@@ -7,7 +7,7 @@ type ClassDetailTab = "stream" | "classwork" | "quizzes" | "people"
 type ClassDetailTabsProps = {
   activeTab: ClassDetailTab
   classColor: string
-  onTabChange: (tab: ClassDetailTab) => void
+  classId: string
 }
 
 const TABS: Array<{ id: ClassDetailTab; label: string }> = [
@@ -31,19 +31,19 @@ export function getVisibleClassTab(
 export function ClassDetailTabs({
   activeTab,
   classColor,
-  onTabChange,
+  classId,
 }: ClassDetailTabsProps) {
   return (
     <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b w-full">
       <div className="max-w-4xl mx-auto flex items-center gap-6 px-4 overflow-x-auto whitespace-nowrap scrollbar-none">
         {TABS.map((tab) => (
-          <button
+          <Link
             key={tab.id}
+            href={tab.id === "stream" ? `/classes/${classId}` : `/classes/${classId}?tab=${tab.id}`}
             className={cn(
               "relative py-3 text-sm font-medium transition-colors hover:text-foreground flex-shrink-0",
               activeTab === tab.id ? "text-primary" : "text-muted-foreground",
             )}
-            onClick={() => onTabChange(tab.id)}
           >
             {tab.label}
             {activeTab === tab.id && (
@@ -52,7 +52,7 @@ export function ClassDetailTabs({
                 style={{ backgroundColor: classColor }}
               />
             )}
-          </button>
+          </Link>
         ))}
       </div>
     </div>
