@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { ArrowLeft, ArrowRight, CheckCircle2, Clock, FileQuestion, Timer, XCircle } from "lucide-react"
 
 import { submitQuiz } from "@/app/actions/quizzes"
+import { OfflineRouteGuard } from "@/components/offline-route-guard"
 import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -216,8 +217,14 @@ export function QuizTakingPage({ classId, classTitle, classColor, quiz }: QuizTa
   const selected = answers[currentQuestion.id]?.selected || []
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6 py-8">
-      <div className="flex items-center justify-between gap-4">
+    <OfflineRouteGuard
+      title="You're offline"
+      description="Quiz answering needs an internet connection so your attempt and timer stay in sync."
+      backHref={`/classes/${classId}?tab=quizzes`}
+      backLabel="Back to Quizzes"
+    >
+      <div className="mx-auto flex max-w-4xl flex-col gap-6 py-8">
+        <div className="flex items-center justify-between gap-4">
         <div className="space-y-2">
           <button
             type="button"
@@ -374,7 +381,8 @@ export function QuizTakingPage({ classId, classTitle, classColor, quiz }: QuizTa
             <ArrowRight className="h-4 w-4" />
           </button>
         )}
+        </div>
       </div>
-    </div>
+    </OfflineRouteGuard>
   )
 }

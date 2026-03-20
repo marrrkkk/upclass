@@ -1,17 +1,17 @@
 "use client"
 
-import { useState, useEffect, useTransition } from "react"
+import { useEffect, useTransition } from "react"
 import Link from "next/link"
-import { Bell, Check, CheckCheck, BellOff, MessageSquare, BookOpen, AlertCircle, Sparkles } from "lucide-react"
-import { Card, CardContent } from "@/components/ui/card"
-import { Button, buttonVariants } from "@/components/ui/button"
+import { Check, CheckCheck, BellOff, MessageSquare, BookOpen } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { markNotificationAsRead, markAllNotificationsAsRead } from "@/app/actions/notifications"
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
 import { formatDistanceToNow } from "date-fns"
 import { useNotificationsStore } from "@/stores/notifications-store"
-import { useCacheData } from "@/lib/cache-hooks"
+import { useCacheData, useOfflineCollectionCache } from "@/lib/cache-hooks"
+import { BackgroundCache } from "@/lib/background-cache"
 
 type NotificationData = {
   id: string
@@ -35,12 +35,46 @@ export function NotificationsClient({ notifications: initialNotifications, userI
   const [pending, startTransition] = useTransition()
   
   useEffect(() => {
+    const hasServerNotifications = initialNotifications.length > 0
+    const isOffline = typeof window !== "undefined" && !navigator.onLine
+
+    if (isOffline && !hasServerNotifications) {
+      setUserId(userId)
+      return
+    }
+
     setNotifications(initialNotifications)
     setUserId(userId)
   }, [initialNotifications, userId, setNotifications, setUserId])
 
   // Cache notifications in background
   useCacheData(storeNotifications, 'notifications', true)
+
+  useOfflineCollectionCache<NotificationData>({
+    onlineData: initialNotifications,
+    getCachedData: () => BackgroundCache.getInstance().getCachedNotifications(),
+    onHydrate: setNotifications,
+  })
+
+  useEffect(() => {
+    if (typeof window === "undefined" || navigator.onLine) return
+
+    let cancelled = false
+
+    const hydrateOfflineNotifications = async () => {
+      const cachedNotifications = await BackgroundCache.getInstance().getCachedNotifications()
+      if (cancelled || cachedNotifications.length === 0) return
+
+      setNotifications(cachedNotifications)
+      setUserId(userId)
+    }
+
+    void hydrateOfflineNotifications()
+
+    return () => {
+      cancelled = true
+    }
+  }, [setNotifications, setUserId, userId])
 
   useEffect(() => {
     if (!supabase || !userId) return

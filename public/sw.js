@@ -1,293 +1,430 @@
-const CACHE_NAME = 'upclass-v3';
-const RUNTIME_CACHE = 'upclass-runtime-v3';
-const DATA_CACHE = 'upclass-data-v3';
-const IMAGE_CACHE = 'upclass-images-v3';
+const SW_VERSION = "v6";
+const STATIC_CACHE = `upclass-static-${SW_VERSION}`;
+const APP_SHELL_CACHE = `upclass-app-shell-${SW_VERSION}`;
+const ROUTE_CACHE = `upclass-routes-${SW_VERSION}`;
+const DATA_CACHE = `upclass-data-${SW_VERSION}`;
+const IMAGE_CACHE = `upclass-images-${SW_VERSION}`;
 
-const STATIC_ASSETS = [
-  '/',
-  '/icon.svg',
-  '/logo.svg',
-  '/favicon.ico',
-  '/manifest.json',
+const CORE_ROUTES = [
+  "/",
+  "/home",
+  "/activity",
+  "/classes",
+  "/resources",
+  "/messages",
+  "/notifications",
+  "/profile",
+  "/settings",
 ];
 
-function buildOfflinePage() {
+const STATIC_ASSETS = [
+  "/",
+  "/manifest.json",
+  "/favicon.ico",
+  "/icon.svg",
+  "/logo.svg",
+];
+
+const MAX_ENTRIES = {
+  [ROUTE_CACHE]: 40,
+  [DATA_CACHE]: 80,
+  [IMAGE_CACHE]: 120,
+};
+
+const MAX_AGE = {
+  [ROUTE_CACHE]: 24 * 60 * 60 * 1000,
+  [DATA_CACHE]: 15 * 60 * 1000,
+  [IMAGE_CACHE]: 7 * 24 * 60 * 60 * 1000,
+};
+
+function isNavigationRequest(request) {
+  return request.mode === "navigate";
+}
+
+function isCoreRoute(pathname) {
+  return CORE_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`));
+}
+
+function isRscRequest(request, url) {
+  return url.searchParams.has("_rsc") || request.headers.get("RSC") === "1";
+}
+
+function isStaticAsset(request, url) {
+  return (
+    request.destination === "script" ||
+    request.destination === "style" ||
+    request.destination === "font" ||
+    url.pathname.startsWith("/_next/static/")
+  );
+}
+
+function isImageRequest(request, url) {
+  return (
+    request.destination === "image" ||
+    /\.(?:png|jpg|jpeg|gif|webp|svg|ico|avif)$/i.test(url.pathname)
+  );
+}
+
+function shouldHandleCrossOriginImage(url) {
+  return url.hostname.includes("uploadthing.com") || url.hostname.includes("supabase.co");
+}
+
+function buildOfflinePage(pathname = "/") {
+  const pageLabel = pathname === "/" ? "this page" : pathname;
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Offline - UpClass</title>
   <style>
+    :root {
+      color-scheme: light;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
     body {
-      font-family: system-ui, -apple-system, sans-serif;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
       margin: 0;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      text-align: center;
-      padding: 20px;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background:
+        radial-gradient(circle at top, rgba(59,130,246,0.18), transparent 35%),
+        linear-gradient(180deg, #f8fbff, #eef4ff 60%, #e9f5f3);
+      color: #0f172a;
     }
-    .container {
-      max-width: 500px;
+    .card {
+      max-width: 480px;
+      padding: 28px;
+      border-radius: 24px;
+      background: rgba(255,255,255,0.9);
+      border: 1px solid rgba(148,163,184,0.24);
+      box-shadow: 0 20px 60px rgba(15, 23, 42, 0.12);
+      backdrop-filter: blur(14px);
     }
-    h1 { font-size: 2rem; margin-bottom: 1rem; }
-    p { font-size: 1.1rem; opacity: 0.9; margin-bottom: 2rem; }
-    button {
-      background: white;
-      color: #667eea;
-      border: none;
-      padding: 12px 24px;
-      border-radius: 8px;
-      font-size: 1rem;
-      cursor: pointer;
+    h1 {
+      margin: 0 0 12px;
+      font-size: 1.8rem;
+      line-height: 1.1;
+    }
+    p {
+      margin: 0 0 18px;
+      color: #475569;
+      line-height: 1.6;
+    }
+    .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    a, button {
+      appearance: none;
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 18px;
+      font: inherit;
       font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
     }
-    button:hover { opacity: 0.9; }
+    button {
+      color: white;
+      background: #2563eb;
+    }
+    a {
+      color: #0f172a;
+      background: #e2e8f0;
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>You're Offline</h1>
-    <p>This page needs a live connection. Please reconnect and try again.</p>
-    <button onclick="window.location.reload()">Retry</button>
-  </div>
+  <main class="card">
+    <h1>You're offline</h1>
+    <p>${pageLabel} needs a connection right now or needs to be opened once while online so it can be cached on this device.</p>
+    <div class="actions">
+      <button onclick="location.reload()">Try again</button>
+      <a href="javascript:history.length > 1 ? history.back() : location.assign('/home')">Go back</a>
+    </div>
+  </main>
 </body>
 </html>`;
 }
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(async (cache) => {
-      const cachePromises = STATIC_ASSETS.map((url) =>
-        cache.add(new Request(url, { cache: 'reload' })).catch(() => null)
-      );
-      await Promise.allSettled(cachePromises);
+async function limitCacheEntries(cacheName) {
+  const maxEntries = MAX_ENTRIES[cacheName];
+  if (!maxEntries) return;
+
+  const cache = await caches.open(cacheName);
+  const requests = await cache.keys();
+  if (requests.length <= maxEntries) return;
+
+  const overflow = requests.length - maxEntries;
+  await Promise.all(requests.slice(0, overflow).map((request) => cache.delete(request)));
+}
+
+async function evictExpiredEntries(cacheName) {
+  const maxAge = MAX_AGE[cacheName];
+  if (!maxAge) return;
+
+  const cache = await caches.open(cacheName);
+  const requests = await cache.keys();
+  const now = Date.now();
+
+  await Promise.all(
+    requests.map(async (request) => {
+      const response = await cache.match(request);
+      const cachedAt = response?.headers.get("sw-cached-at");
+      if (!cachedAt) return;
+
+      const age = now - Number(cachedAt);
+      if (Number.isFinite(age) && age > maxAge) {
+        await cache.delete(request);
+      }
     })
   );
+}
+
+async function putWithTimestamp(cacheName, request, response) {
+  const cache = await caches.open(cacheName);
+  const headers = new Headers(response.headers);
+  headers.set("sw-cached-at", Date.now().toString());
+
+  const body = await response.clone().blob();
+  const stampedResponse = new Response(body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+
+  await cache.put(request, stampedResponse);
+  await evictExpiredEntries(cacheName);
+  await limitCacheEntries(cacheName);
+}
+
+async function networkFirst(request, cacheName, fallbackFactory) {
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      await putWithTimestamp(cacheName, request, response);
+    }
+    return response;
+  } catch (error) {
+    const cached = await caches.match(request);
+    if (cached) return cached;
+    if (fallbackFactory) return fallbackFactory();
+    throw error;
+  }
+}
+
+async function warmCoreRoutes() {
+  const cache = await caches.open(APP_SHELL_CACHE);
+
+  await Promise.allSettled(
+    CORE_ROUTES.map(async (url) => {
+      const request = new Request(url, { cache: "reload" });
+      const response = await fetch(request);
+      if (response.ok) {
+        await putWithTimestamp(APP_SHELL_CACHE, request, response);
+        await cache.put(new Request(url), response.clone());
+      }
+    })
+  );
+
+  const clients = await self.clients.matchAll({ includeUncontrolled: true });
+  clients.forEach((client) => client.postMessage({ type: "OFFLINE_READY" }));
+}
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    (async () => {
+      const staticCache = await caches.open(STATIC_CACHE);
+      await Promise.allSettled(
+        STATIC_ASSETS.map(async (url) => {
+          const response = await fetch(new Request(url, { cache: "reload" }));
+          if (response.ok) {
+            await putWithTimestamp(STATIC_CACHE, url, response);
+            await staticCache.put(url, response.clone());
+          }
+        })
+      );
+
+      await warmCoreRoutes();
+    })()
+  );
+
   self.skipWaiting();
 });
 
-self.addEventListener('activate', (event) => {
+self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) =>
-      Promise.all(
-        cacheNames
-          .filter((cacheName) => ![CACHE_NAME, RUNTIME_CACHE, DATA_CACHE, IMAGE_CACHE].includes(cacheName))
-          .map((cacheName) => caches.delete(cacheName))
-      )
-    )
+    (async () => {
+      const expectedCaches = [STATIC_CACHE, APP_SHELL_CACHE, ROUTE_CACHE, DATA_CACHE, IMAGE_CACHE];
+      const keys = await caches.keys();
+
+      await Promise.all(
+        keys.filter((key) => !expectedCaches.includes(key)).map((key) => caches.delete(key))
+      );
+
+      await Promise.all(Object.keys(MAX_AGE).map((cacheName) => evictExpiredEntries(cacheName)));
+      await self.clients.claim();
+    })()
   );
-  event.waitUntil(self.clients.claim());
 });
 
-self.addEventListener('fetch', (event) => {
+self.addEventListener("fetch", (event) => {
   const { request } = event;
+  if (request.method !== "GET") return;
+
   const url = new URL(request.url);
 
-  if (request.method !== 'GET') {
-    return;
-  }
-
-  if (url.origin !== location.origin) {
-    if (
-      request.destination === 'image' &&
-      (url.hostname.includes('uploadthing.com') || url.hostname.includes('supabase.co'))
-    ) {
+  if (url.origin !== self.location.origin) {
+    if (isImageRequest(request, url) && shouldHandleCrossOriginImage(url)) {
       event.respondWith(
-        caches.match(request).then((cached) => {
-          if (cached) return cached;
-          return fetch(request).then((response) => {
-            if (response.ok) {
-              const responseToCache = response.clone();
-              void caches.open(IMAGE_CACHE).then((cache) => cache.put(request, responseToCache));
-            }
-            return response;
-          });
-        })
+        networkFirst(request, IMAGE_CACHE, () => caches.match(request))
       );
     }
     return;
   }
 
-  if (url.searchParams.has('_rsc') || request.headers.get('RSC') === '1') {
+  if (isStaticAsset(request, url)) {
     event.respondWith(
-      fetch(request).catch(
-        () =>
-          new Response('', {
-            status: 503,
-            headers: { 'Content-Type': 'text/plain' },
-          })
-      )
+      networkFirst(request, STATIC_CACHE, () => caches.match(request))
     );
     return;
   }
 
-  if (request.mode === 'navigate') {
+  if (isImageRequest(request, url)) {
     event.respondWith(
-      fetch(request).catch(
-        () =>
-          new Response(buildOfflinePage(), {
-            status: 503,
-            headers: { 'Content-Type': 'text/html' },
-          })
-      )
+      networkFirst(request, IMAGE_CACHE, () => caches.match(request))
     );
     return;
   }
 
-  if (request.destination === 'image' || url.pathname.match(/\.(jpg|jpeg|png|gif|webp|svg|ico)$/i)) {
+  if (url.pathname.startsWith("/api/")) {
     event.respondWith(
-      caches.match(request).then((cachedResponse) => {
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-        return fetch(request).then((response) => {
-          if (response.ok) {
-            const responseToCache = response.clone();
-            void caches.open(IMAGE_CACHE).then((cache) => cache.put(request, responseToCache));
+      networkFirst(request, DATA_CACHE, async () => {
+        const cached = await caches.match(request);
+        if (cached) return cached;
+
+        return new Response(
+          JSON.stringify({
+            error: "Offline",
+            cached: false,
+          }),
+          {
+            status: 503,
+            headers: { "Content-Type": "application/json" },
           }
-          return response;
+        );
+      })
+    );
+    return;
+  }
+
+  if (isRscRequest(request, url)) {
+    const cacheName = isCoreRoute(url.pathname) ? ROUTE_CACHE : DATA_CACHE;
+    event.respondWith(
+      networkFirst(request, cacheName, async () => {
+        const cached = await caches.match(request);
+        if (cached) return cached;
+
+        return new Response("", {
+          status: 503,
+          headers: { "Content-Type": "text/plain" },
         });
       })
     );
     return;
   }
 
-  if (url.pathname.startsWith('/api/')) {
+  if (isNavigationRequest(request)) {
+    const cacheName = isCoreRoute(url.pathname) ? APP_SHELL_CACHE : ROUTE_CACHE;
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          if (response.ok) {
-            const responseToCache = response.clone();
-            void caches.open(DATA_CACHE).then((cache) => cache.put(request, responseToCache));
-          }
-          return response;
-        })
-        .catch(() =>
-          caches.match(request).then((cachedResponse) => {
-            if (cachedResponse) {
-              return cachedResponse;
-            }
+      networkFirst(request, cacheName, async () => {
+        const exactMatch = await caches.match(request);
+        if (exactMatch) return exactMatch;
 
-            return new Response(JSON.stringify({ error: 'Offline', cached: true }), {
-              status: 503,
-              headers: { 'Content-Type': 'application/json' },
-            });
-          })
-        )
+        const pathnameMatch = await caches.match(url.pathname);
+        if (pathnameMatch) return pathnameMatch;
+
+        return new Response(buildOfflinePage(url.pathname), {
+          status: 503,
+          headers: { "Content-Type": "text/html" },
+        });
+      })
     );
     return;
   }
 
   event.respondWith(
-    fetch(request)
-      .then((response) => {
-        if (response.ok) {
-          const responseToCache = response.clone();
-          void caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, responseToCache));
-        }
-        return response;
-      })
-      .catch(() =>
-        caches.match(request).then((cachedResponse) => cachedResponse || new Response('Offline', { status: 503 }))
-      )
+    networkFirst(request, ROUTE_CACHE, async () => {
+      const cached = await caches.match(request);
+      return cached || new Response("Offline", { status: 503 });
+    })
   );
 });
 
-self.addEventListener('sync', (event) => {
-  if (event.tag === 'sync-data') {
-    event.waitUntil(syncData());
+self.addEventListener("sync", (event) => {
+  if (event.tag === "sync-data") {
+    event.waitUntil(
+      self.clients.matchAll({ includeUncontrolled: true }).then((clients) => {
+        clients.forEach((client) => client.postMessage({ type: "SYNC_STARTED" }));
+      })
+    );
   }
 });
 
-async function syncData() {
-  try {
-    const clients = await self.clients.matchAll();
-    clients.forEach((client) => {
-      client.postMessage({ type: 'SYNC_STARTED' });
-    });
-  } catch (error) {
-    console.error('Sync failed:', error);
-  }
-}
+self.addEventListener("message", (event) => {
+  if (!event.data || typeof event.data !== "object") return;
 
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
+  if (event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
+    return;
   }
 
-  if (event.data && event.data.type === 'CACHE_URLS') {
+  if (event.data.type === "WARM_CORE_ROUTES") {
+    event.waitUntil(warmCoreRoutes());
+    return;
+  }
+
+  if (event.data.type === "CACHE_URLS" && Array.isArray(event.data.urls)) {
+    event.waitUntil(
+      Promise.allSettled(
+        event.data.urls
+          .filter((url) => typeof url === "string" && url.trim())
+          .map(async (url) => {
+            const request = new Request(url, { cache: "reload" });
+            const response = await fetch(request);
+            if (!response.ok) return;
+
+            const targetCache = isCoreRoute(new URL(request.url, self.location.origin).pathname)
+              ? APP_SHELL_CACHE
+              : ROUTE_CACHE;
+            await putWithTimestamp(targetCache, request, response);
+          })
+      )
+    );
+    return;
+  }
+
+  if (event.data.type === "CACHE_API_PAYLOAD" && typeof event.data.url === "string") {
     event.waitUntil(
       (async () => {
-        try {
-          const cache = await caches.open(RUNTIME_CACHE);
-          const cachePromises = event.data.urls.map(async (url) => {
-            try {
-              if (
-                !url ||
-                url === '/' ||
-                url.startsWith('/home') ||
-                url.startsWith('/classes') ||
-                url.startsWith('/resources') ||
-                url.startsWith('/messages') ||
-                url.startsWith('/notifications') ||
-                url.startsWith('/settings') ||
-                url.startsWith('/profile') ||
-                url.startsWith('/sign-in') ||
-                url.startsWith('/sign-up') ||
-                url.startsWith('/onboard')
-              ) {
-                return;
-              }
-
-              const cached = await cache.match(url);
-              if (cached) {
-                return;
-              }
-
-              const response = await fetch(url, { cache: 'reload' });
-              if (response.ok) {
-                await cache.put(url, response.clone());
-              }
-            } catch {
-              return;
-            }
-          });
-          await Promise.allSettled(cachePromises);
-        } catch (err) {
-          console.log('Failed to open cache:', err);
-        }
+        const headers = new Headers({ "Content-Type": "application/json" });
+        const response = new Response(JSON.stringify(event.data.data ?? null), { headers });
+        await putWithTimestamp(DATA_CACHE, new Request(event.data.url), response);
       })()
     );
+    return;
   }
 
-  if (event.data && event.data.type === 'CACHE_DATA') {
-    event.waitUntil(
-      caches
-        .open(DATA_CACHE)
-        .then((cache) => {
-          const { url, data } = event.data;
-          return cache.put(
-            new Request(url),
-            new Response(JSON.stringify(data), {
-              headers: { 'Content-Type': 'application/json' },
-            })
-          );
-        })
-        .catch(() => null)
-    );
-  }
-
-  if (event.data && event.data.type === 'CACHE_IMAGE') {
+  if (event.data.type === "CACHE_IMAGE" && typeof event.data.url === "string") {
     event.waitUntil(
       fetch(event.data.url)
-        .then((response) => {
+        .then(async (response) => {
           if (response.ok) {
-            return caches.open(IMAGE_CACHE).then((cache) => cache.put(new Request(event.data.url), response.clone()));
+            await putWithTimestamp(IMAGE_CACHE, new Request(event.data.url), response);
           }
         })
         .catch(() => undefined)

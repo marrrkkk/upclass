@@ -77,6 +77,27 @@ export class BackgroundCache {
     return this.db
   }
 
+  private async getAll<T>(storeName: string): Promise<T[]> {
+    try {
+      const db = await this.ensureDB()
+      if (!db.objectStoreNames.contains(storeName)) {
+        return []
+      }
+
+      const tx = db.transaction(storeName, 'readonly')
+      const store = tx.objectStore(storeName)
+      const request = store.getAll()
+
+      return await new Promise<T[]>((resolve, reject) => {
+        request.onsuccess = () => resolve((request.result || []) as T[])
+        request.onerror = () => reject(request.error)
+      })
+    } catch (error) {
+      console.error(`Failed to read cache store '${storeName}':`, error)
+      return []
+    }
+  }
+
   // Cache classes - optimized with batching
   async cacheClasses(classes: any[]): Promise<void> {
     if (!classes || classes.length === 0) return
@@ -107,20 +128,7 @@ export class BackgroundCache {
   }
 
   async getCachedClasses(): Promise<any[]> {
-    try {
-      const db = await this.ensureDB()
-      const tx = db.transaction('classes', 'readonly')
-      const store = tx.objectStore('classes')
-      const request = store.getAll()
-      
-      return new Promise((resolve, reject) => {
-        request.onsuccess = () => resolve(request.result || [])
-        request.onerror = () => reject(request.error)
-      })
-    } catch (error) {
-      console.error('Failed to get cached classes:', error)
-      return []
-    }
+    return this.getAll<any>('classes')
   }
 
   // Cache resources - optimized with batching
@@ -153,20 +161,7 @@ export class BackgroundCache {
   }
 
   async getCachedResources(): Promise<any[]> {
-    try {
-      const db = await this.ensureDB()
-      const tx = db.transaction('resources', 'readonly')
-      const store = tx.objectStore('resources')
-      const request = store.getAll()
-      
-      return new Promise((resolve, reject) => {
-        request.onsuccess = () => resolve(request.result || [])
-        request.onerror = () => reject(request.error)
-      })
-    } catch (error) {
-      console.error('Failed to get cached resources:', error)
-      return []
-    }
+    return this.getAll<any>('resources')
   }
 
   // Cache messages - optimized with batching and validation
@@ -217,20 +212,21 @@ export class BackgroundCache {
   }
 
   async getCachedMessages(): Promise<any[]> {
-    try {
-      const db = await this.ensureDB()
-      const tx = db.transaction('messages', 'readonly')
-      const store = tx.objectStore('messages')
-      const request = store.getAll()
-      
-      return new Promise((resolve, reject) => {
-        request.onsuccess = () => resolve(request.result || [])
-        request.onerror = () => reject(request.error)
-      })
-    } catch (error) {
-      console.error('Failed to get cached messages:', error)
-      return []
-    }
+    return this.getAll<any>('messages')
+  }
+
+  async getCachedMessagesForThread(currentUserId: string, otherUserId: string): Promise<any[]> {
+    const messages = await this.getCachedMessages()
+
+    return messages.filter((message) => {
+      const senderId = message.senderId || message.sender_id
+      const receiverId = message.receiverId || message.receiver_id
+
+      return (
+        (senderId === currentUserId && receiverId === otherUserId) ||
+        (senderId === otherUserId && receiverId === currentUserId)
+      )
+    })
   }
 
   // Cache conversations (different from messages)
@@ -255,20 +251,7 @@ export class BackgroundCache {
   }
 
   async getCachedConversations(): Promise<any[]> {
-    try {
-      const db = await this.ensureDB()
-      const tx = db.transaction('conversations', 'readonly')
-      const store = tx.objectStore('conversations')
-      const request = store.getAll()
-      
-      return new Promise((resolve, reject) => {
-        request.onsuccess = () => resolve(request.result || [])
-        request.onerror = () => reject(request.error)
-      })
-    } catch (error) {
-      console.error('Failed to get cached conversations:', error)
-      return []
-    }
+    return this.getAll<any>('conversations')
   }
 
   // Cache notifications - optimized with batching
@@ -301,20 +284,7 @@ export class BackgroundCache {
   }
 
   async getCachedNotifications(): Promise<any[]> {
-    try {
-      const db = await this.ensureDB()
-      const tx = db.transaction('notifications', 'readonly')
-      const store = tx.objectStore('notifications')
-      const request = store.getAll()
-      
-      return new Promise((resolve, reject) => {
-        request.onsuccess = () => resolve(request.result || [])
-        request.onerror = () => reject(request.error)
-      })
-    } catch (error) {
-      console.error('Failed to get cached notifications:', error)
-      return []
-    }
+    return this.getAll<any>('notifications')
   }
 
   // Cache images
@@ -442,6 +412,10 @@ export class BackgroundCache {
     }
   }
 
+  async getCachedClassDetails(): Promise<any[]> {
+    return this.getAll<any>('classDetails')
+  }
+
   // Clear old cache (older than 7 days)
   async clearOldCache(): Promise<void> {
     try {
@@ -485,5 +459,27 @@ export class BackgroundCache {
       console.error('Failed to clear old cache:', error)
     }
   }
-}
 
+  async clearAllCache(): Promise<void> {
+    try {
+      const db = await this.ensureDB()
+      const storeNames = Array.from(db.objectStoreNames)
+
+      await Promise.all(
+        storeNames.map(async (storeName) => {
+          const tx = db.transaction(storeName, "readwrite")
+          const store = tx.objectStore(storeName)
+          const request = store.clear()
+
+          await new Promise<void>((resolve, reject) => {
+            request.onsuccess = () => resolve()
+            request.onerror = () => reject(request.error)
+          })
+        }),
+      )
+    } catch (error) {
+      console.error("Failed to clear all cache:", error)
+      throw error
+    }
+  }
+}

@@ -7,8 +7,6 @@ import { db } from "@/db"
 import { auth } from "@/lib/auth"
 import { classes, classMembership, user, whiteboardSnapshots, whiteboards } from "@/db/schema"
 
-export const revalidate = 0
-
 async function getSafeSession() {
   try {
     return await auth.api.getSession({
@@ -123,7 +121,7 @@ export default async function WhiteboardPage({
     .limit(1)
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 md:px-8">
+    <div className="-mx-4 -my-6 w-auto sm:mx-0 sm:my-0 sm:w-full">
       <WhiteboardPageClient
         className={classData[0].title}
         currentUser={currentUser}

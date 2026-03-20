@@ -1,164 +1,116 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
- 
-import { useState, useEffect } from "react"
-import { Wifi, WifiOff, Cloud, X } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { SyncManager } from "@/lib/sync-manager"
 
-// Helper to share server connectivity status with other parts of the app
-const setGlobalServerOnline = (online: boolean) => {
-  if (typeof window === "undefined") return
-  ;(window as any).__UPCLASS_SERVER_ONLINE__ = online
-}
+import { useState } from "react"
+import { Cloud, RefreshCw, Wifi, WifiOff, X } from "lucide-react"
+
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { applyPendingAppUpdate } from "@/lib/pwa-register"
+import {
+  getPWAIndicatorState,
+  setPWAOfflineBannerDismissed,
+  usePWAState,
+} from "@/lib/pwa-state"
+import { cn } from "@/lib/utils"
+
+const toneStyles = {
+  offline:
+    "bg-[linear-gradient(135deg,rgba(15,23,42,0.98),rgba(29,78,216,0.9))] text-white border-sky-400/40",
+  syncing:
+    "bg-[linear-gradient(135deg,rgba(7,89,133,0.98),rgba(14,116,144,0.92))] text-white border-cyan-300/40",
+  update:
+    "bg-[linear-gradient(135deg,rgba(88,28,135,0.96),rgba(79,70,229,0.92))] text-white border-violet-300/40",
+  online:
+    "bg-[linear-gradient(135deg,rgba(8,47,73,0.96),rgba(15,118,110,0.88))] text-white border-emerald-300/40",
+} as const
 
 export function OfflineIndicator() {
-  // Always start with same values on server and client to avoid hydration mismatch
-  const [isOnline, setIsOnline] = useState(true)
-  const [isSyncing, setIsSyncing] = useState(false)
-  const [showIndicator, setShowIndicator] = useState(false)
-  const [dismissedOffline, setDismissedOffline] = useState(false)
+  const state = usePWAState((current) => current)
+  const indicator = getPWAIndicatorState(state)
+  const [refreshing, setRefreshing] = useState(false)
 
-  // Check if server is reachable (used only for sync after coming back online).
-  // We do NOT use this to show "offline" - only navigator.onLine is used for that,
-  // to avoid false "offline" when the server is slow or a request times out.
-  const checkServerStatus = async (): Promise<boolean> => {
-    if (!navigator.onLine) return false
-    try {
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 3000)
-      try {
-        const response = await fetch(window.location.origin, {
-          method: "HEAD",
-          cache: "no-cache",
-          signal: controller.signal,
-        })
-        clearTimeout(timeoutId)
-        return response.ok || response.status < 500
-      } catch {
-        clearTimeout(timeoutId)
-        return false
-      }
-    } catch {
-      return navigator.onLine
-    }
+  if (!indicator.visible) {
+    return null
   }
 
-  useEffect(() => {
-    if (typeof window === "undefined") return
+  const Icon = indicator.tone === "offline"
+    ? WifiOff
+    : indicator.tone === "update"
+      ? RefreshCw
+      : indicator.tone === "syncing"
+        ? Cloud
+        : Wifi
 
-    // Derive offline state only from navigator.onLine so we never show
-    // "You're offline" when the user actually has connectivity.
-    const updateFromNavigator = () => {
-      const online = navigator.onLine
-      setIsOnline(online)
-      setGlobalServerOnline(online)
-      if (!online) {
-        setShowIndicator(true)
-        setIsSyncing(false)
-      }
-    }
-
-    // Initial state from browser
-    updateFromNavigator()
-
-    const handleOffline = () => {
-      setIsOnline(false)
-      setIsSyncing(false)
-      setShowIndicator(true)
-      setGlobalServerOnline(false)
-    }
-
-    const handleOnline = async () => {
-      setIsOnline(true)
-      setGlobalServerOnline(true)
-      setIsSyncing(true)
-      setShowIndicator(true)
-
-      if ("serviceWorker" in navigator && "sync" in window.ServiceWorkerRegistration.prototype) {
-        navigator.serviceWorker.ready.then((registration) => {
-          ;(registration as any).sync.register("sync-data").catch(() => {})
-        })
-      }
-
-      try {
-        const serverReachable = await checkServerStatus()
-        if (serverReachable) {
-          const syncManager = SyncManager.getInstance()
-          await syncManager.syncPendingActions()
-        }
-      } catch (error) {
-        console.error("Sync failed:", error)
-      }
-
-      setTimeout(() => {
-        setIsSyncing(false)
-        setTimeout(() => setShowIndicator(false), 2000)
-      }, 1500)
-    }
-
-    window.addEventListener("online", handleOnline)
-    window.addEventListener("offline", handleOffline)
-
-    return () => {
-      window.removeEventListener("online", handleOnline)
-      window.removeEventListener("offline", handleOffline)
-    }
-  }, [])
+  const isOffline = indicator.tone === "offline"
+  const isUpdate = indicator.tone === "update"
+  const isSyncing = indicator.tone === "syncing"
 
   return (
-    <div
-      className={cn(
-        "fixed top-0 left-0 right-0 z-[9999] transition-all duration-300",
-        showIndicator && (!dismissedOffline || isOnline)
-          ? "opacity-100 translate-y-0"
-          : "opacity-0 -translate-y-full pointer-events-none"
-      )}
-    >
+    <div className="fixed inset-x-0 top-0 z-[9999] px-3 pt-[env(safe-area-inset-top)]">
       <div
         className={cn(
-          "flex items-center justify-center gap-2 px-4 py-2.5 shadow-lg backdrop-blur-sm border-b",
-          isOnline
-            ? isSyncing
-              ? "bg-blue-500/95 text-white border-blue-400"
-              : "bg-green-500/95 text-white border-green-400"
-            : "bg-orange-500/95 text-white border-orange-400"
+          "mx-auto flex w-full max-w-6xl items-center gap-3 rounded-b-3xl border-b px-4 py-3 shadow-2xl backdrop-blur-xl",
+          toneStyles[indicator.tone],
         )}
       >
-        {isOnline ? (
-          isSyncing ? (
-            <>
-              <Cloud className="h-4 w-4 animate-pulse" />
-              <span className="text-sm font-medium">Syncing data...</span>
-            </>
-          ) : (
-            <>
-              <Wifi className="h-4 w-4" />
-              <span className="text-sm font-medium">Back online</span>
-            </>
-          )
-        ) : (
-          <>
-            <WifiOff className="h-4 w-4" />
-            <span className="text-sm font-medium">
-              You are offline. Using cached data. Changes will sync when connection is restored.
-            </span>
-          </>
-        )}
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/10">
+          <Icon className="h-5 w-5" />
+        </div>
 
-        {/* Close button (only meaningful for offline state; returns after full page refresh) */}
-        {!isOnline && (
-          <button
-            type="button"
-            onClick={() => setDismissedOffline(true)}
-            className="ml-3 inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/40 text-white/90 hover:bg-white/15 hover:text-white transition-colors"
-            aria-label="Dismiss offline status message"
-          >
-            <X className="h-3 w-3" />
-          </button>
-        )}
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-semibold leading-none">{indicator.title}</p>
+            <Badge variant="secondary" className="border-white/15 bg-white/10 text-white">
+              {indicator.routeLabel}
+            </Badge>
+            {indicator.routeWarm && (
+              <Badge variant="outline" className="border-white/20 bg-white/5 text-white">
+                Cached
+              </Badge>
+            )}
+            {isSyncing && state.pendingActions > 0 && (
+              <Badge variant="outline" className="border-white/20 bg-white/5 text-white">
+                {state.pendingActions} queued
+              </Badge>
+            )}
+          </div>
+          <p className="mt-1 text-sm text-white/80">{indicator.description}</p>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2">
+          {isUpdate && (
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              onClick={async () => {
+                setRefreshing(true)
+                try {
+                  await applyPendingAppUpdate()
+                } finally {
+                  setRefreshing(false)
+                }
+              }}
+              className="rounded-full bg-white text-slate-950 hover:bg-white/90"
+              disabled={refreshing}
+            >
+              <RefreshCw className={cn("mr-2 h-4 w-4", refreshing && "animate-spin")} />
+              Refresh
+            </Button>
+          )}
+
+          {isOffline && !state.offlineBannerDismissed && (
+            <button
+              type="button"
+              onClick={() => setPWAOfflineBannerDismissed(true)}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/20 text-white/85 transition-colors hover:bg-white/10 hover:text-white"
+              aria-label="Dismiss offline status"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )
 }
-

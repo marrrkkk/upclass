@@ -5,7 +5,6 @@ import {
   FileText,
   Search,
   Download,
-  FileCode,
   FileSpreadsheet,
   Presentation,
   FileIcon as FileIconLucide,
@@ -24,7 +23,8 @@ import {
 } from "@/components/ui/empty"
 import { usePrefetch } from "@/hooks/use-prefetch"
 import { useResourcesStore } from "@/stores/resources-store"
-import { useCacheData } from "@/lib/cache-hooks"
+import { useCacheData, useOfflineCollectionCache } from "@/lib/cache-hooks"
+import { BackgroundCache } from "@/lib/background-cache"
 import { BackgroundSync } from "@/lib/background-sync"
 
 type ResourceCardData = {
@@ -78,12 +78,45 @@ export function ResourcesClient({ resources, isAuthenticated = false }: Resource
   const { setResources, setIsAuthenticated, resources: storeResources } = useResourcesStore()
   
   useEffect(() => {
+    const hasServerResources = resources.length > 0
+    const isOffline = typeof window !== "undefined" && !navigator.onLine
+
+    if (isOffline && !hasServerResources) {
+      return
+    }
+
     setResources(resources)
     setIsAuthenticated(isAuthenticated)
   }, [resources, isAuthenticated, setResources, setIsAuthenticated])
 
   // Cache resources in background
   useCacheData(storeResources, 'resources', true)
+
+  useOfflineCollectionCache<ResourceCardData>({
+    onlineData: resources,
+    getCachedData: () => BackgroundCache.getInstance().getCachedResources(),
+    onHydrate: setResources,
+  })
+
+  useEffect(() => {
+    if (typeof window === "undefined" || navigator.onLine) return
+
+    let cancelled = false
+
+    const hydrateOfflineResources = async () => {
+      const cachedResources = await BackgroundCache.getInstance().getCachedResources()
+      if (cancelled || cachedResources.length === 0) return
+
+      setResources(cachedResources)
+      setIsAuthenticated(true)
+    }
+
+    void hydrateOfflineResources()
+
+    return () => {
+      cancelled = true
+    }
+  }, [setIsAuthenticated, setResources])
 
   // Cache all resource images in background
   useEffect(() => {

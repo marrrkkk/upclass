@@ -3,6 +3,7 @@
 import { useEffect } from "react"
 
 import { BackgroundCache } from "@/lib/background-cache"
+import { BackgroundSync } from "@/lib/background-sync"
 
 import type {
   AnnouncementData,
@@ -42,6 +43,7 @@ export function useClassDetailCache({
     const cacheClassDetail = async () => {
       try {
         const cache = BackgroundCache.getInstance()
+        const sync = BackgroundSync.getInstance()
 
         await cache.cacheClassDetail(classData.id, {
           classData,
@@ -54,17 +56,19 @@ export function useClassDetailCache({
           userRole,
         })
 
-        if (!pathname) return
-
-        try {
-          const response = await fetch(pathname)
-          if (!response.ok) return
-
-          const html = await response.text()
-          await cache.cachePage(pathname, html)
-        } catch (error) {
-          console.debug("Failed to cache class detail page HTML:", error)
+        if (pathname) {
+          try {
+            const response = await fetch(pathname)
+            if (response.ok) {
+              const html = await response.text()
+              await cache.cachePage(pathname, html)
+            }
+          } catch (error) {
+            console.debug("Failed to cache class detail page HTML:", error)
+          }
         }
+
+        await sync.cacheAllData()
       } catch (error) {
         console.error("Failed to cache class detail:", error)
       }

@@ -162,13 +162,12 @@ export class OfflineErrorBoundary extends Component<Props, State> {
   }
 
   render() {
-    // Don't show error if we're checking cache or if we have cache available
     if (this.state.checkingCache) {
       return this.props.children
     }
-    
-    // Only show error if we're offline AND have no cache
-    if ((this.state.hasError || this.state.isOffline) && !this.state.hasCache) {
+
+    // Only block rendering for an actual error on an uncached cold start.
+    if (this.state.hasError && !this.state.hasCache) {
       if (this.props.fallback) {
         return this.props.fallback
       }
@@ -185,7 +184,7 @@ export class OfflineErrorBoundary extends Component<Props, State> {
               </CardTitle>
               <CardDescription className="text-center">
                 {this.state.isOffline
-                  ? "This page is not available in cache. Please check your internet connection."
+                  ? "This route is not cached on this device yet. Reconnect once to make it available offline."
                   : this.state.error?.message || "An unexpected error occurred."}
               </CardDescription>
             </CardHeader>
@@ -209,4 +208,3 @@ export class OfflineErrorBoundary extends Component<Props, State> {
     return this.props.children
   }
 }
-

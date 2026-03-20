@@ -19,11 +19,11 @@ export function WhiteboardPresenceList({ currentUser, presences }: WhiteboardPre
   ]
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1">
       {collaborators.map((user) => (
         <div
           key={user.id}
-          className={cn("rounded-full border bg-background p-1 shadow-sm")}
+          className={cn("shrink-0 rounded-full border bg-background p-1 shadow-sm")}
           title={user.name}
         >
           <Avatar className="size-8">

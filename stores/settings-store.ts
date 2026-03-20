@@ -15,6 +15,7 @@ type UserData = {
   showEmail: boolean
   showClasses: boolean
   showResources: boolean
+  createdAt: string
 }
 
 type SettingsState = {

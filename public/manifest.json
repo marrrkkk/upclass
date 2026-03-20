@@ -3,9 +3,10 @@
   "short_name": "UpClass",
   "description": "Manage courses, engage students, and track progress with UpClass.",
   "start_url": "/home",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "hsl(var(--primary))",
+  "theme_color": "#2563eb",
   "orientation": "portrait-primary",
   "icons": [
     {
@@ -39,4 +40,3 @@
     }
   ]
 }
-

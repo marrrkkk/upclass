@@ -1,6 +1,10 @@
 "use client"
 
 import { BackgroundCache } from "./background-cache"
+import { useClassesStore } from "@/stores/classes-store"
+import { useResourcesStore } from "@/stores/resources-store"
+import { useMessagesStore } from "@/stores/messages-store"
+import { useNotificationsStore } from "@/stores/notifications-store"
 
 // Background sync manager that caches all data types
 export class BackgroundSync {
@@ -25,7 +29,46 @@ export class BackgroundSync {
     }
 
     try {
-      // Keep background sync limited to non-document data to avoid stale HTML/RSC snapshots.
+      const classesState = useClassesStore.getState()
+      const resourcesState = useResourcesStore.getState()
+      const messagesState = useMessagesStore.getState()
+      const notificationsState = useNotificationsStore.getState()
+
+      const allClasses = [...classesState.teachingClasses, ...classesState.enrolledClasses]
+      const cachedImages = new Set<string>()
+
+      allClasses.forEach((classItem) => {
+        if (classItem.teacherImage) {
+          cachedImages.add(classItem.teacherImage)
+        }
+      })
+
+      resourcesState.resources.forEach((resource) => {
+        if (resource.authorImage) {
+          cachedImages.add(resource.authorImage)
+        }
+      })
+
+      messagesState.conversations.forEach((conversation) => {
+        if (conversation.userImage) {
+          cachedImages.add(conversation.userImage)
+        }
+      })
+
+      if (messagesState.currentOtherUser?.image) {
+        cachedImages.add(messagesState.currentOtherUser.image)
+      }
+
+      await Promise.all([
+        this.cache.cacheClasses(allClasses),
+        this.cache.cacheResources(resourcesState.resources),
+        this.cache.cacheMessages(messagesState.currentMessages),
+        this.cache.cacheConversations(messagesState.conversations),
+        this.cache.cacheNotifications(notificationsState.notifications),
+        cachedImages.size > 0 ? this.cacheImages([...cachedImages]) : Promise.resolve(),
+      ])
+
+      await this.cache.clearOldCache()
     } catch (error) {
       console.error('Background cache failed:', error)
     }
@@ -117,4 +160,3 @@ export class BackgroundSync {
     }
   }
 }
-

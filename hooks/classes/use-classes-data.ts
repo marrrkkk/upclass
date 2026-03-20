@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo } from "react"
 
-import { useCacheData } from "@/lib/cache-hooks"
+import { useCacheData, useOfflineCollectionCache } from "@/lib/cache-hooks"
+import { BackgroundCache } from "@/lib/background-cache"
 import { usePrefetch } from "@/hooks/use-prefetch"
 import { useClassesStore } from "@/stores/classes-store"
 import { BackgroundSync } from "@/lib/background-sync"
@@ -34,6 +35,13 @@ export function useClassesData({
   const { prefetchOnHover, cancelPrefetch } = usePrefetch()
 
   useEffect(() => {
+    const hasServerClasses = teachingClasses.length > 0 || enrolledClasses.length > 0
+    const isOffline = typeof window !== "undefined" && !navigator.onLine
+
+    if (isOffline && !hasServerClasses) {
+      return
+    }
+
     setTeachingClasses(teachingClasses)
     setEnrolledClasses(enrolledClasses)
     setIsAuthenticated(isAuthenticated)
@@ -52,6 +60,19 @@ export function useClassesData({
   )
 
   useCacheData(allClasses, "classes", true)
+
+  useOfflineCollectionCache<ClassCardData>({
+    onlineData: [...teachingClasses, ...enrolledClasses],
+    getCachedData: () => BackgroundCache.getInstance().getCachedClasses(),
+    onHydrate: (cachedClasses) => {
+      const teaching = cachedClasses.filter((classItem) => classItem.role === "teaching")
+      const enrolled = cachedClasses.filter((classItem) => classItem.role !== "teaching")
+
+      setTeachingClasses(teaching)
+      setEnrolledClasses(enrolled)
+      setIsAuthenticated(Boolean(cachedClasses.length))
+    },
+  })
 
   useEffect(() => {
     if (allClasses.length === 0 || !navigator.onLine) return

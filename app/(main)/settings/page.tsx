@@ -23,22 +23,7 @@ export default async function SettingsPage() {
 
   // Get user data with all settings
   const userData = await db
-    .select({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      image: user.image,
-      bio: user.bio,
-      role: user.role,
-      emailNotifications: user.emailNotifications,
-      pushNotifications: user.pushNotifications,
-      classNotifications: user.classNotifications,
-      messageNotifications: user.messageNotifications,
-      profileVisibility: user.profileVisibility,
-      showEmail: user.showEmail,
-      showClasses: user.showClasses,
-      showResources: user.showResources,
-    })
+    .select()
     .from(user)
     .where(eq(user.id, session.user.id))
     .limit(1)
@@ -47,5 +32,25 @@ export default async function SettingsPage() {
     redirect("/home")
   }
 
-  return <SettingsClient userData={userData[0]} />
+  return (
+    <SettingsClient
+      userData={{
+        id: userData[0].id,
+        name: userData[0].name,
+        email: userData[0].email,
+        image: userData[0].image,
+        bio: userData[0].bio,
+        role: userData[0].role,
+        emailNotifications: userData[0].emailNotifications,
+        pushNotifications: userData[0].pushNotifications,
+        classNotifications: userData[0].classNotifications,
+        messageNotifications: userData[0].messageNotifications,
+        profileVisibility: userData[0].profileVisibility,
+        showEmail: userData[0].showEmail,
+        showClasses: userData[0].showClasses,
+        showResources: userData[0].showResources,
+        createdAt: String(userData[0].createdAt),
+      }}
+    />
+  )
 }

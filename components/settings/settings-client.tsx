@@ -1,9 +1,10 @@
 "use client"
 
+import dynamic from "next/dynamic"
 import { useState, useTransition, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
-import { Save, User, Bell, Lock, Globe, Trash2, Camera, Mail, Shield, AlertTriangle, Palette, Sun, Moon, Monitor } from "lucide-react"
+import { User, Bell, Lock, Globe, Camera, Mail, Shield, AlertTriangle, Palette, Sun, Moon, Monitor, Smartphone, Database, RefreshCw, Wifi, WifiOff, BellRing } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -21,8 +22,16 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useUploadThing } from "@/lib/uploadthing"
 import { updateSettings, deleteAccount } from "@/app/actions/settings"
 import { cn } from "@/lib/utils"
-import { ImageCropper } from "./profile-image-cropper"
 import { useSettingsStore } from "@/stores/settings-store"
+import { BackgroundCache } from "@/lib/background-cache"
+import { usePWAState } from "@/lib/pwa-state"
+
+const ImageCropper = dynamic(
+  () => import("./profile-image-cropper").then((mod) => mod.ImageCropper),
+  {
+    ssr: false,
+  },
+)
 
 type UserData = {
   id: string
@@ -39,6 +48,7 @@ type UserData = {
   showEmail: boolean
   showClasses: boolean
   showResources: boolean
+  createdAt: string
 }
 
 type SettingsClientProps = {
@@ -178,6 +188,32 @@ export function SettingsClient({ userData }: SettingsClientProps) {
 
   // Account deletion state
   const [deleteConfirm, setDeleteConfirm] = useState("")
+  const pwaState = usePWAState((state) => state)
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | "unsupported">("default")
+  const [appActionPending, setAppActionPending] = useState<"cache" | "clear" | "permission" | null>(null)
+
+  useEffect(() => {
+    setName(currentUserData.name)
+    setBio(currentUserData.bio || "")
+    setImageUrl(currentUserData.image || "")
+    setEmailNotifications(currentUserData.emailNotifications)
+    setPushNotifications(currentUserData.pushNotifications)
+    setClassNotifications(currentUserData.classNotifications)
+    setMessageNotifications(currentUserData.messageNotifications)
+    setProfileVisibility(currentUserData.profileVisibility)
+    setShowEmail(currentUserData.showEmail)
+    setShowClasses(currentUserData.showClasses)
+    setShowResources(currentUserData.showResources)
+  }, [currentUserData])
+
+  useEffect(() => {
+    if (typeof Notification === "undefined") {
+      setNotificationPermission("unsupported")
+      return
+    }
+
+    setNotificationPermission(Notification.permission)
+  }, [])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -219,7 +255,7 @@ export function SettingsClient({ userData }: SettingsClientProps) {
           if (uploadResult && uploadResult[0]) {
             formData.append("image", uploadResult[0].ufsUrl || uploadResult[0].url || "")
           }
-        } catch (err) {
+        } catch {
           setError("Failed to upload image")
           return
         }
@@ -247,6 +283,22 @@ export function SettingsClient({ userData }: SettingsClientProps) {
   const handleSaveNotifications = async () => {
     setError(null)
     setSuccess(null)
+
+    if (pushNotifications && typeof Notification !== "undefined" && Notification.permission === "default") {
+      const permission = await Notification.requestPermission()
+      setNotificationPermission(permission)
+
+      if (permission !== "granted") {
+        setError("Browser notification permission is blocked. Allow notifications first, then save again.")
+        return
+      }
+    }
+
+    if (pushNotifications && typeof Notification !== "undefined" && Notification.permission === "denied") {
+      setNotificationPermission("denied")
+      setError("Browser notifications are blocked in your browser settings.")
+      return
+    }
 
     startTransition(async () => {
       const formData = new FormData()
@@ -323,6 +375,75 @@ export function SettingsClient({ userData }: SettingsClientProps) {
     })
   }
 
+  const handleWarmOfflineCache = async () => {
+    setAppActionPending("cache")
+    setError(null)
+    setSuccess(null)
+
+    try {
+      navigator.serviceWorker.controller?.postMessage({ type: "WARM_CORE_ROUTES" })
+      setSuccess("Offline cache warm-up started for core routes.")
+    } catch {
+      setError("Failed to warm offline cache.")
+    } finally {
+      setAppActionPending(null)
+    }
+  }
+
+  const handleClearLocalCache = async () => {
+    setAppActionPending("clear")
+    setError(null)
+    setSuccess(null)
+
+    try {
+      await BackgroundCache.getInstance().clearAllCache()
+
+      if ("caches" in window) {
+        const cacheNames = await caches.keys()
+        await Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)))
+      }
+
+      window.localStorage.removeItem("upclass-pwa-warmed-routes")
+      setSuccess("Local app cache cleared on this device.")
+    } catch {
+      setError("Failed to clear local cache.")
+    } finally {
+      setAppActionPending(null)
+    }
+  }
+
+  const handleEnableBrowserNotifications = async () => {
+    setAppActionPending("permission")
+    setError(null)
+    setSuccess(null)
+
+    try {
+      if (typeof Notification === "undefined") {
+        setNotificationPermission("unsupported")
+        setError("This browser does not support notifications.")
+        return
+      }
+
+      const permission = await Notification.requestPermission()
+      setNotificationPermission(permission)
+
+      if (permission === "granted") {
+        setSuccess("Browser notifications enabled.")
+      } else {
+        setError("Notification permission was not granted.")
+      }
+    } finally {
+      setAppActionPending(null)
+    }
+  }
+
+  const memberSince = new Intl.DateTimeFormat("en-US", {
+    timeZone: "UTC",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(new Date(userData.createdAt))
+
   const getInitials = (name: string) => {
     return name
       .split(" ")
@@ -391,6 +512,18 @@ export function SettingsClient({ userData }: SettingsClientProps) {
             >
               <Palette className="h-4 w-4" />
               Appearance
+            </button>
+            <button
+              onClick={() => setActiveTab("app")}
+              className={cn(
+                "flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
+                activeTab === "app"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Smartphone className="h-4 w-4" />
+              App
             </button>
             <button
               onClick={() => setActiveTab("account")}
@@ -725,6 +858,111 @@ export function SettingsClient({ userData }: SettingsClientProps) {
               <AppearanceSection />
             )}
 
+            {activeTab === "app" && (
+              <div className="space-y-6">
+                <Card className="border-border/50 shadow-sm">
+                  <CardHeader>
+                    <CardTitle>Offline & Sync</CardTitle>
+                    <CardDescription>
+                      Manage device cache, reconnect behavior, and offline readiness.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                      <div className="rounded-xl border bg-card/50 p-4">
+                        <div className="flex items-center gap-2 text-sm font-medium">
+                          {pwaState.online ? <Wifi className="h-4 w-4 text-emerald-600" /> : <WifiOff className="h-4 w-4 text-amber-600" />}
+                          Connection
+                        </div>
+                        <p className="mt-2 text-2xl font-semibold">{pwaState.online ? "Online" : "Offline"}</p>
+                      </div>
+                      <div className="rounded-xl border bg-card/50 p-4">
+                        <div className="flex items-center gap-2 text-sm font-medium">
+                          <Database className="h-4 w-4 text-primary" />
+                          Cache status
+                        </div>
+                        <p className="mt-2 text-2xl font-semibold">{pwaState.cacheReady ? "Ready" : "Cold"}</p>
+                      </div>
+                      <div className="rounded-xl border bg-card/50 p-4">
+                        <div className="flex items-center gap-2 text-sm font-medium">
+                          <RefreshCw className="h-4 w-4 text-primary" />
+                          Pending sync
+                        </div>
+                        <p className="mt-2 text-2xl font-semibold">{pwaState.pendingActions}</p>
+                      </div>
+                      <div className="rounded-xl border bg-card/50 p-4">
+                        <div className="flex items-center gap-2 text-sm font-medium">
+                          <Shield className="h-4 w-4 text-primary" />
+                          Warmed routes
+                        </div>
+                        <p className="mt-2 text-2xl font-semibold">{pwaState.warmedRoutes.length}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-3">
+                      <Button
+                        onClick={handleWarmOfflineCache}
+                        disabled={appActionPending !== null}
+                        variant="outline"
+                      >
+                        {appActionPending === "cache" ? "Warming Cache..." : "Warm Core Routes"}
+                      </Button>
+                      <Button
+                        onClick={handleClearLocalCache}
+                        disabled={appActionPending !== null}
+                        variant="outline"
+                        className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        {appActionPending === "clear" ? "Clearing..." : "Clear Device Cache"}
+                      </Button>
+                    </div>
+
+                    <div className="text-sm text-muted-foreground space-y-1">
+                      <p>Last sync: {pwaState.lastSyncAt ? new Date(pwaState.lastSyncAt).toLocaleString() : "No sync recorded yet"}</p>
+                      <p>App install mode: {pwaState.standalone ? "Installed" : "Browser tab"}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-border/50 shadow-sm">
+                  <CardHeader>
+                    <CardTitle>Browser Notifications</CardTitle>
+                    <CardDescription>
+                      Check whether your browser will actually allow notification delivery.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-5">
+                    <div className="flex items-center justify-between rounded-xl border bg-card/50 p-4">
+                      <div>
+                        <p className="font-medium">Permission status</p>
+                        <p className="text-sm text-muted-foreground">
+                          {notificationPermission === "unsupported"
+                            ? "Notifications are not supported in this browser."
+                            : notificationPermission === "granted"
+                              ? "Browser notifications are allowed."
+                              : notificationPermission === "denied"
+                                ? "Browser notifications are blocked."
+                                : "Permission has not been requested yet."}
+                        </p>
+                      </div>
+                      <BellRing className="h-5 w-5 text-primary" />
+                    </div>
+
+                    <Button
+                      onClick={handleEnableBrowserNotifications}
+                      disabled={appActionPending !== null || notificationPermission === "granted" || notificationPermission === "unsupported"}
+                    >
+                      {appActionPending === "permission"
+                        ? "Checking..."
+                        : notificationPermission === "granted"
+                          ? "Notifications Enabled"
+                          : "Enable Browser Notifications"}
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
             {/* Account Section */}
             {activeTab === "account" && (
               <div className="space-y-6">
@@ -749,7 +987,7 @@ export function SettingsClient({ userData }: SettingsClientProps) {
                       <div className="flex items-center gap-2">
                         <User className="h-4 w-4 text-muted-foreground" />
                         <Input
-                          value={new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+                          value={memberSince}
                           disabled
                           className="bg-muted/50"
                         />
@@ -808,12 +1046,14 @@ export function SettingsClient({ userData }: SettingsClientProps) {
         </div>
       </div>
 
-      <ImageCropper
-        open={cropModalOpen}
-        onOpenChange={setCropModalOpen}
-        imageSrc={cropImageSrc}
-        onComplete={handleCropComplete}
-      />
+      {cropModalOpen ? (
+        <ImageCropper
+          open={cropModalOpen}
+          onOpenChange={setCropModalOpen}
+          imageSrc={cropImageSrc}
+          onComplete={handleCropComplete}
+        />
+      ) : null}
     </div>
   )
 }

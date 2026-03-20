@@ -3,18 +3,18 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { MessageSquare, Send, Search, PlusCircle, Users } from "lucide-react"
-import { Card, CardContent } from "@/components/ui/card"
+import { Search, Users } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
 import { NewConversationDialog } from "@/components/messages/new-conversation-dialog"
-import { formatDistanceToNow, parseISO } from "date-fns"
+import { formatDistanceToNow } from "date-fns"
 import { usePrefetch } from "@/hooks/use-prefetch"
 import { useMessagesStore } from "@/stores/messages-store"
-import { useCacheData } from "@/lib/cache-hooks"
+import { useOfflineCollectionCache } from "@/lib/cache-hooks"
+import { BackgroundCache } from "@/lib/background-cache"
 
 type Conversation = {
   userId: string
@@ -33,15 +33,48 @@ type MessagesClientProps = {
 export function MessagesClient({ conversations: initialConversations, userId }: MessagesClientProps) {
   const router = useRouter()
   const { prefetchOnHover, cancelPrefetch } = usePrefetch()
-  const { setConversations, setCurrentUserId, conversations: storeConversations, updateConversation } = useMessagesStore()
+  const { setConversations, setCurrentUserId, conversations: storeConversations } = useMessagesStore()
   
   useEffect(() => {
+    const hasServerConversations = initialConversations.length > 0
+    const isOffline = typeof window !== "undefined" && !navigator.onLine
+
+    if (isOffline && !hasServerConversations) {
+      setCurrentUserId(userId)
+      return
+    }
+
     setConversations(initialConversations)
     setCurrentUserId(userId)
   }, [initialConversations, userId, setConversations, setCurrentUserId])
 
   // Don't cache conversations as messages - they have different structure
   // Conversations will be cached separately if needed
+  useOfflineCollectionCache<Conversation>({
+    onlineData: initialConversations,
+    getCachedData: () => BackgroundCache.getInstance().getCachedConversations(),
+    onHydrate: setConversations,
+  })
+
+  useEffect(() => {
+    if (typeof window === "undefined" || navigator.onLine) return
+
+    let cancelled = false
+
+    const hydrateOfflineConversations = async () => {
+      const cachedConversations = await BackgroundCache.getInstance().getCachedConversations()
+      if (cancelled || cachedConversations.length === 0) return
+
+      setConversations(cachedConversations)
+      setCurrentUserId(userId)
+    }
+
+    void hydrateOfflineConversations()
+
+    return () => {
+      cancelled = true
+    }
+  }, [setConversations, setCurrentUserId, userId])
 
   const [searchQuery, setSearchQuery] = useState("")
 
@@ -78,7 +111,7 @@ export function MessagesClient({ conversations: initialConversations, userId }: 
   const formatLastMessageTime = (dateString: string) => {
     try {
       return formatDistanceToNow(new Date(dateString), { addSuffix: true })
-    } catch (e) {
+    } catch {
       return "Just now"
     }
   }

@@ -4,7 +4,8 @@ import dynamic from "next/dynamic"
 import { useCallback, useMemo, useRef, useState } from "react"
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { OfflineRouteGuard } from "@/components/offline-route-guard"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { WhiteboardPresenceList } from "@/whiteboard/components/whiteboard-presence"
 import { WhiteboardQueryClientProvider } from "@/whiteboard/persistence/query-client-provider"
@@ -84,12 +85,19 @@ function WhiteboardPageClientInner({
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
-      <Card className="border-border/80 shadow-sm">
-        <CardHeader className="gap-3">
-          <CardTitle>{className} Whiteboard</CardTitle>
+      <Card className="overflow-hidden border-border/80 shadow-sm sm:rounded-2xl">
+        <CardHeader className="gap-3 border-b border-border/60 px-4 py-4 sm:px-6">
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div className="min-w-0">
+              <CardTitle className="text-lg sm:text-2xl">{className} Whiteboard</CardTitle>
+              <CardDescription className="mt-1 text-xs leading-5 sm:text-sm">
+                Pinch to zoom, draw with touch, and rotate your device for a wider canvas when needed.
+              </CardDescription>
+            </div>
+          </div>
           <WhiteboardPresenceList currentUser={presenceUser} presences={presences} />
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           <ExcalidrawBoard
             boardId={boardData.board.id}
             currentUser={presenceUser}
@@ -109,8 +117,15 @@ function WhiteboardPageClientInner({
 
 export function WhiteboardPageClient(props: WhiteboardPageClientProps) {
   return (
-    <WhiteboardQueryClientProvider>
-      <WhiteboardPageClientInner {...props} />
-    </WhiteboardQueryClientProvider>
+    <OfflineRouteGuard
+      title="You're offline"
+      description="The whiteboard needs an internet connection for live collaboration and saving board updates."
+      backHref={`/classes/${props.initialData.board.classId}`}
+      backLabel="Back to Class"
+    >
+      <WhiteboardQueryClientProvider>
+        <WhiteboardPageClientInner {...props} />
+      </WhiteboardQueryClientProvider>
+    </OfflineRouteGuard>
   )
 }

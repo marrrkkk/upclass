@@ -612,10 +612,14 @@ export function ExcalidrawBoard({
 
   return (
     <div
-      className={cn("relative h-[calc(100vh-18rem)] min-h-[70vh] overflow-hidden rounded-2xl border bg-white")}
+      className={cn(
+        "relative h-[calc(100dvh-11.5rem)] min-h-[26rem] overflow-hidden bg-white",
+        "sm:h-[calc(100dvh-18rem)] sm:min-h-[70vh] sm:rounded-b-2xl sm:border-t",
+      )}
       onPointerLeave={handlePointerLeave}
     >
-      <div className="pointer-events-none absolute inset-6 rounded-[32px] border border-slate-200 bg-white shadow-[0_28px_80px_rgba(15,23,42,0.12)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0),rgba(255,255,255,0.1))] sm:hidden" />
+      <div className="pointer-events-none absolute inset-3 rounded-[24px] border border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.08)] sm:inset-6 sm:rounded-[32px] sm:shadow-[0_28px_80px_rgba(15,23,42,0.12)]" />
       <Excalidraw
         excalidrawAPI={setApi}
         initialData={
