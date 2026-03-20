@@ -1,12 +1,13 @@
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import { eq } from "drizzle-orm"
+import { Suspense } from "react"
 import { auth } from "@/lib/auth"
 import { db } from "@/db"
 import { user } from "@/db/schema"
 import { OnboardClient } from "@/components/onboard/onboard-client"
 
-export default async function OnboardPage() {
+async function ResolvedOnboardPage() {
   const session = await auth.api.getSession({
     headers: await headers(),
   })
@@ -33,3 +34,10 @@ export default async function OnboardPage() {
   return <OnboardClient initialData={initialData} />
 }
 
+export default function OnboardPage() {
+  return (
+    <Suspense fallback={<div className="w-full max-w-2xl" />}>
+      <ResolvedOnboardPage />
+    </Suspense>
+  )
+}

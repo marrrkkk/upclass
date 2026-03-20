@@ -2,23 +2,15 @@ import type { Metadata } from "next"
 import { headers } from "next/headers"
 import { notFound } from "next/navigation"
 import { eq } from "drizzle-orm"
-import Link from "next/link"
 
 import { auth } from "@/lib/auth"
 import { db } from "@/db"
 import { resources, user } from "@/db/schema"
 import { ResourceDetailClient } from "@/components/resources/resource-detail-client"
 
-export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
-  const { id } = await params
-  const resourceData = await db
-    .select({ title: resources.title })
-    .from(resources)
-    .where(eq(resources.id, id))
-    .limit(1)
-
+export function generateMetadata(): Metadata {
   return {
-    title: resourceData[0]?.title ?? "Resource",
+    title: "Resource",
   }
 }
 
@@ -80,4 +72,3 @@ export default async function ResourceDetailPage({
     />
   )
 }
-

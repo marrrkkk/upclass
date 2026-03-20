@@ -21,25 +21,21 @@ import {
 } from "@/db/schema"
 import { ClassDetailClient } from "@/components/classes/class-detail-client"
 
-export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
-  const { id } = await params
-  const classData = await db
-    .select({ title: classes.title })
-    .from(classes)
-    .where(eq(classes.id, id))
-    .limit(1)
-
+export function generateMetadata(): Metadata {
   return {
-    title: classData[0]?.title ?? "Class",
+    title: "Class",
   }
 }
 
 export default async function ClassDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>
+  searchParams?: Promise<{ tab?: string }>
 }) {
   const { id } = await params
+  const resolvedSearchParams = searchParams ? await searchParams : undefined
   const session = await auth.api.getSession({
     headers: await headers(),
   })
@@ -245,6 +241,11 @@ export default async function ClassDetailPage({
   const quizAnswersData = attemptIds.length
     ? await db.select().from(quizAnswers).where(inArray(quizAnswers.attemptId, attemptIds))
     : []
+  const requestedTab = resolvedSearchParams?.tab
+  const activeTab =
+    requestedTab === "classwork" || requestedTab === "quizzes" || requestedTab === "people" || requestedTab === "stream"
+      ? requestedTab
+      : "stream"
 
   return (
     <ClassDetailClient
@@ -257,6 +258,7 @@ export default async function ClassDetailPage({
         color: classData[0].color || "#3b82f6",
         schedule: classData[0].schedule,
       }}
+      activeTab={activeTab}
       userId={userId}
       userRole={userRole}
       announcements={announcementsData.map((a) => ({

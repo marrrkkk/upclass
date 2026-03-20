@@ -1,11 +1,9 @@
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
+import { Suspense } from "react"
 import { auth } from "@/lib/auth"
-import { db } from "@/db"
-import { user } from "@/db/schema"
-import { eq } from "drizzle-orm"
 
-export default async function OnboardLayout({
+async function ResolvedOnboardLayout({
   children,
 }: {
   children: React.ReactNode
@@ -18,11 +16,19 @@ export default async function OnboardLayout({
     redirect("/sign-in")
   }
 
-  // Layout without sidebar - standalone onboarding page
+  return <>{children}</>
+}
+
+export default function OnboardLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
-      {children}
+      <Suspense fallback={<div className="w-full max-w-4xl" />}>
+        <ResolvedOnboardLayout>{children}</ResolvedOnboardLayout>
+      </Suspense>
     </div>
   )
 }
-
