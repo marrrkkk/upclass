@@ -1,6 +1,11 @@
 {
   "version": 1,
   "skills": {
+    "create-readme": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "computedHash": "d0ece1b2164ce1376e4ab6e98d6ac079df3a2a94f5f02224362b6a1ce2516ae9"
+    },
     "frontend-design": {
       "source": "anthropics/skills",
       "sourceType": "github",
@@ -15,6 +20,16 @@
       "source": "vercel-labs/next-skills",
       "sourceType": "github",
       "computedHash": "515ba75178bd44875812d9a560bdf14651f86709f89cf1d4f209638e879807f3"
+    },
+    "nextjs-performance": {
+      "source": "giuseppe-trisciuoglio/developer-kit",
+      "sourceType": "github",
+      "computedHash": "ea2ac97c0f3a5afe4d0196969840d383a30882b8e00a4da895e4ea6eaa32af09"
+    },
+    "pwa-development": {
+      "source": "alinaqi/claude-bootstrap",
+      "sourceType": "github",
+      "computedHash": "0b8f1e6f78708bc73de3c1fa04c0ad0c3a698fa308fe0311f5078703ca4b6359"
     },
     "react-testing-library": {
       "source": "itechmeat/llm-code",
