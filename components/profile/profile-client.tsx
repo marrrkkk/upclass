@@ -97,6 +97,10 @@ export function ProfileClient({
     return () => setPageTitle(null)
   }, [user.name, setPageTitle])
 
+  useEffect(() => {
+    document.title = `${user.name} | UpClass`
+  }, [user.name])
+
   // Cache profile page in background
   useEffect(() => {
     if (!navigator.onLine) return
@@ -600,4 +604,3 @@ const formatFileSize = (size: string | null) => {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
-

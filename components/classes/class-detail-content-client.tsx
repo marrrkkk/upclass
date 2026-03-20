@@ -99,6 +99,10 @@ export function ClassDetailContentClient({
     return () => setPageTitle(null)
   }, [effectiveClassData.title, setPageTitle])
 
+  useEffect(() => {
+    document.title = `${effectiveClassData.title} | UpClass`
+  }, [effectiveClassData.title])
+
   useClassDetailCache({
     classData: effectiveClassData,
     announcements: effectiveAnnouncements,
@@ -152,4 +156,3 @@ export function ClassDetailContentClient({
     </div>
   )
 }
-

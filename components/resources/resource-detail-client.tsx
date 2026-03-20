@@ -133,6 +133,10 @@ export function ResourceDetailClient({ resource, isOwner, currentUserId, isAuthe
     return () => setPageTitle(null)
   }, [resource.title, setPageTitle])
 
+  useEffect(() => {
+    document.title = `${resource.title} | UpClass`
+  }, [resource.title])
+
   // Cache resource detail page in background
   useEffect(() => {
     if (!navigator.onLine) return
@@ -553,4 +557,3 @@ export function ResourceDetailClient({ resource, isOwner, currentUserId, isAuthe
     </div>
   )
 }
-
