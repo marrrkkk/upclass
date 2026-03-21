@@ -1,31 +1,38 @@
 import type { Metadata } from "next"
-import { headers } from "next/headers"
+import { Suspense } from "react"
 import { redirect } from "next/navigation"
 import { eq } from "drizzle-orm"
 
-import { auth } from "@/lib/auth"
+import { SettingsSkeleton } from "@/components/skeletons"
 import { db } from "@/db"
 import { user } from "@/db/schema"
 import { SettingsClient } from "@/components/settings/settings-client"
+import { getOptionalSession } from "@/lib/server/auth"
 
 export const metadata: Metadata = {
   title: "Settings",
 }
 
 export default async function SettingsPage() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  })
+  const session = await getOptionalSession()
 
   if (!session?.user?.id) {
     redirect("/sign-in")
   }
 
+  return (
+    <Suspense fallback={<SettingsSkeleton />}>
+      <SettingsPageContent userId={session.user.id} />
+    </Suspense>
+  )
+}
+
+async function SettingsPageContent({ userId }: { userId: string }) {
   // Get user data with all settings
   const userData = await db
     .select()
     .from(user)
-    .where(eq(user.id, session.user.id))
+    .where(eq(user.id, userId))
     .limit(1)
 
   if (userData.length === 0) {

@@ -28,9 +28,14 @@ type NotificationData = {
 type NotificationsClientProps = {
   notifications: NotificationData[]
   userId: string
+  showHeader?: boolean
 }
 
-export function NotificationsClient({ notifications: initialNotifications, userId }: NotificationsClientProps) {
+export function NotificationsClient({
+  notifications: initialNotifications,
+  userId,
+  showHeader = true,
+}: NotificationsClientProps) {
   const { setNotifications, setUserId, notifications: storeNotifications, addNotification, updateNotification, markAsRead, markAllAsRead, unreadCount } = useNotificationsStore()
   const [pending, startTransition] = useTransition()
   
@@ -160,26 +165,41 @@ export function NotificationsClient({ notifications: initialNotifications, userI
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-row items-center justify-between gap-4 border-b pb-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Notifications</h1>
-          <p className="text-muted-foreground mt-1">
-            Stay updated with your latest class activities.
-          </p>
+      {showHeader ? (
+        <div className="flex flex-row items-center justify-between gap-4 border-b pb-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Notifications</h1>
+            <p className="text-muted-foreground mt-1">
+              Stay updated with your latest class activities.
+            </p>
+          </div>
+          {unreadCount > 0 && (
+            <Button
+              onClick={handleMarkAllAsRead}
+              disabled={pending}
+              variant="outline"
+              size="sm"
+              className="gap-2 transition-all hover:bg-primary/5 active:scale-95 self-start sm:self-center"
+            >
+              <CheckCheck className="h-4 w-4" />
+              Mark all read
+            </Button>
+          )}
         </div>
-        {unreadCount > 0 && (
+      ) : unreadCount > 0 ? (
+        <div className="flex justify-end">
           <Button
             onClick={handleMarkAllAsRead}
             disabled={pending}
             variant="outline"
             size="sm"
-            className="gap-2 transition-all hover:bg-primary/5 active:scale-95 self-start sm:self-center"
+            className="gap-2 transition-all hover:bg-primary/5 active:scale-95"
           >
             <CheckCheck className="h-4 w-4" />
             Mark all read
           </Button>
-        )}
-      </div>
+        </div>
+      ) : null}
 
       {storeNotifications.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center animate-in fade-in zoom-in-50 duration-500">

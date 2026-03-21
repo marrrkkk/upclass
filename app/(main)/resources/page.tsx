@@ -1,25 +1,33 @@
 import type { Metadata } from "next"
-import { headers } from "next/headers"
+import { Suspense } from "react"
 import { eq } from "drizzle-orm"
 
 import { ResourcesClient } from "@/components/resources/resources-client"
 import { ResourcesPageWrapper } from "@/components/resources/resources-page-wrapper"
-import { auth } from "@/lib/auth"
+import { ResourcesPageSkeleton } from "@/components/skeletons"
 import { db } from "@/db"
 import { resources, user } from "@/db/schema"
+import { getOptionalSession } from "@/lib/server/auth"
 
 export const metadata: Metadata = {
   title: "Resources",
 }
 
 export default async function ResourcesPage() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  })
+  const session = await getOptionalSession()
 
   const isAuthenticated = !!session?.user?.id
 
-  // Allow public viewing of resources
+  return (
+    <ResourcesPageWrapper isAuthenticated={isAuthenticated}>
+      <Suspense fallback={<ResourcesPageSkeleton />}>
+        <ResourcesPageContent isAuthenticated={isAuthenticated} />
+      </Suspense>
+    </ResourcesPageWrapper>
+  )
+}
+
+async function ResourcesPageContent({ isAuthenticated }: { isAuthenticated: boolean }) {
   const resourcesList = await db
     .select({
       id: resources.id,
@@ -32,7 +40,7 @@ export default async function ResourcesPage() {
       fileSize: resources.fileSize,
       createdAt: resources.createdAt,
       authorName: user.name,
-      authorImage: user.image
+      authorImage: user.image,
     })
     .from(resources)
     .innerJoin(user, eq(resources.ownerId, user.id))
@@ -45,9 +53,5 @@ export default async function ResourcesPage() {
     authorImage: resource.authorImage,
   }))
 
-  return (
-    <ResourcesPageWrapper isAuthenticated={isAuthenticated}>
-      <ResourcesClient resources={mappedResources} isAuthenticated={isAuthenticated} />
-    </ResourcesPageWrapper>
-  )
+  return <ResourcesClient resources={mappedResources} isAuthenticated={isAuthenticated} />
 }

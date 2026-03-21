@@ -1,12 +1,13 @@
 import type { Metadata } from "next"
-import { headers } from "next/headers"
+import { Suspense } from "react"
 import { and, eq, sql } from "drizzle-orm"
 
 import { ClassesClient } from "@/components/classes/classes-client"
 import { ClassesPageWrapper } from "@/components/classes/classes-page-wrapper"
-import { auth } from "@/lib/auth"
+import { ClassesPageSkeleton } from "@/components/skeletons"
 import { db } from "@/db"
 import { classes, classMembership, user } from "@/db/schema"
+import { getOptionalSession } from "@/lib/server/auth"
 
 type ClassRow = {
   id: string
@@ -25,19 +26,14 @@ export const metadata: Metadata = {
 }
 
 export default async function ClassesPage() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  })
+  const session = await getOptionalSession()
 
   const isAuthenticated = !!session?.user?.id
   const userId = session?.user?.id
 
   let userRole: "teacher" | "student" | null = null
-  let teachingRows: ClassRow[] = []
-  let enrolledRows: ClassRow[] = []
 
   if (isAuthenticated && userId) {
-    // Get user role
     const userData = await db
       .select({ role: user.role })
       .from(user)
@@ -45,69 +41,31 @@ export default async function ClassesPage() {
       .limit(1)
 
     userRole = userData.length > 0 ? userData[0].role : null
-
-    // Get enrollment counts excluding teachers
-    const enrollmentCounts = await db
-      .select({
-        classId: classMembership.classId,
-        count: sql<number>`count(${classMembership.id})`,
-      })
-      .from(classMembership)
-      .where(eq(classMembership.role, "student"))
-      .groupBy(classMembership.classId)
-
-    const countMap = new Map<string, number>()
-    enrollmentCounts.forEach((row) => countMap.set(row.classId, Number(row.count)))
-
-    teachingRows = await db
-      .select({
-        id: classes.id,
-        title: classes.title,
-        description: classes.description,
-        category: classes.category,
-        color: classes.color,
-        schedule: classes.schedule,
-        createdAt: classes.createdAt,
-        teacherName: user.name,
-        teacherImage: user.image,
-      })
-      .from(classes)
-      .innerJoin(
-        classMembership,
-        and(
-          eq(classMembership.classId, classes.id),
-          eq(classMembership.userId, userId),
-          eq(classMembership.role, "teacher"),
-        ),
-      )
-      .innerJoin(user, eq(classes.ownerId, user.id))
-
-    enrolledRows = await db
-      .select({
-        id: classes.id,
-        title: classes.title,
-        description: classes.description,
-        category: classes.category,
-        color: classes.color,
-        schedule: classes.schedule,
-        createdAt: classes.createdAt,
-        teacherName: user.name,
-        teacherImage: user.image,
-      })
-      .from(classes)
-      .innerJoin(
-        classMembership,
-        and(
-          eq(classMembership.classId, classes.id),
-          eq(classMembership.userId, userId),
-          eq(classMembership.role, "student"),
-        ),
-      )
-      .innerJoin(user, eq(classes.ownerId, user.id))
   }
 
-  // Get enrollment counts for public display
-  const enrollmentCounts = await db
+  return (
+    <ClassesPageWrapper userRole={userRole} isAuthenticated={isAuthenticated}>
+      <Suspense fallback={<ClassesPageSkeleton />}>
+        <ClassesPageContent
+          isAuthenticated={isAuthenticated}
+          userId={userId}
+        />
+      </Suspense>
+    </ClassesPageWrapper>
+  )
+}
+
+async function ClassesPageContent({
+  isAuthenticated,
+  userId,
+}: {
+  isAuthenticated: boolean
+  userId?: string
+}) {
+  let teachingRows: ClassRow[] = []
+  let enrolledRows: ClassRow[] = []
+
+  const enrollmentCountsPromise = db
     .select({
       classId: classMembership.classId,
       count: sql<number>`count(${classMembership.id})`,
@@ -116,6 +74,59 @@ export default async function ClassesPage() {
     .where(eq(classMembership.role, "student"))
     .groupBy(classMembership.classId)
 
+  if (isAuthenticated && userId) {
+    const [teachingResult, enrolledResult] = await Promise.all([
+      db
+        .select({
+          id: classes.id,
+          title: classes.title,
+          description: classes.description,
+          category: classes.category,
+          color: classes.color,
+          schedule: classes.schedule,
+          createdAt: classes.createdAt,
+          teacherName: user.name,
+          teacherImage: user.image,
+        })
+        .from(classes)
+        .innerJoin(
+          classMembership,
+          and(
+            eq(classMembership.classId, classes.id),
+            eq(classMembership.userId, userId),
+            eq(classMembership.role, "teacher"),
+          ),
+        )
+        .innerJoin(user, eq(classes.ownerId, user.id)),
+      db
+        .select({
+          id: classes.id,
+          title: classes.title,
+          description: classes.description,
+          category: classes.category,
+          color: classes.color,
+          schedule: classes.schedule,
+          createdAt: classes.createdAt,
+          teacherName: user.name,
+          teacherImage: user.image,
+        })
+        .from(classes)
+        .innerJoin(
+          classMembership,
+          and(
+            eq(classMembership.classId, classes.id),
+            eq(classMembership.userId, userId),
+            eq(classMembership.role, "student"),
+          ),
+        )
+        .innerJoin(user, eq(classes.ownerId, user.id)),
+    ])
+
+    teachingRows = teachingResult
+    enrolledRows = enrolledResult
+  }
+
+  const enrollmentCounts = await enrollmentCountsPromise
   const countMap = new Map<string, number>()
   enrollmentCounts.forEach((row) => countMap.set(row.classId, Number(row.count)))
 
@@ -130,12 +141,10 @@ export default async function ClassesPage() {
     }))
 
   return (
-    <ClassesPageWrapper userRole={userRole} isAuthenticated={isAuthenticated}>
-      <ClassesClient
-        teachingClasses={mapRows(teachingRows, "teaching")}
-        enrolledClasses={mapRows(enrolledRows, "enrolled")}
-        isAuthenticated={isAuthenticated}
-      />
-    </ClassesPageWrapper>
+    <ClassesClient
+      teachingClasses={mapRows(teachingRows, "teaching")}
+      enrolledClasses={mapRows(enrolledRows, "enrolled")}
+      isAuthenticated={isAuthenticated}
+    />
   )
 }

@@ -30,9 +30,14 @@ type Conversation = {
 type MessagesClientProps = {
   conversations: Conversation[]
   userId: string
+  showHeader?: boolean
 }
 
-export function MessagesClient({ conversations: initialConversations, userId }: MessagesClientProps) {
+export function MessagesClient({
+  conversations: initialConversations,
+  userId,
+  showHeader = true,
+}: MessagesClientProps) {
   const router = useRouter()
   const [offlineConversations, setOfflineConversations] = useState<Conversation[] | null>(null)
 
@@ -118,18 +123,25 @@ export function MessagesClient({ conversations: initialConversations, userId }: 
   }
 
   return (
-    <div className="flex flex-col gap-6 h-[calc(100vh-8rem)]">
-      <div className="flex flex-row items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Messages</h1>
-          <p className="text-muted-foreground mt-1">
-            Connect with your classmates and teachers.
-          </p>
+    <div className={cn("flex flex-col h-[calc(100vh-8rem)]", showHeader ? "gap-6" : "gap-4")}>
+      {showHeader ? (
+        <div className="flex flex-row items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Messages</h1>
+            <p className="text-muted-foreground mt-1">
+              Connect with your classmates and teachers.
+            </p>
+          </div>
+          <NewConversationDialog currentUserId={userId || ""} />
         </div>
-        <NewConversationDialog currentUserId={userId || ""} />
-      </div>
+      ) : null}
 
       <div className="flex flex-col gap-4 flex-1 overflow-hidden">
+        {!showHeader ? (
+          <div className="flex justify-end">
+            <NewConversationDialog currentUserId={userId || ""} />
+          </div>
+        ) : null}
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <Search className="h-4 w-4 text-muted-foreground" />
