@@ -1,9 +1,9 @@
 import Link from "next/link"
 
 import { BackgroundRefreshClient } from "@/components/layouts/background-refresh-client"
+import { RouteContentTransition } from "@/components/layouts/route-content-transition"
 import { HomeShellSidebarDrawer } from "@/components/layouts/home-shell-sidebar-drawer"
 import { HomeShellSidebarToggle } from "@/components/layouts/home-shell-sidebar-toggle"
-import { NavigationProgress } from "@/components/navigation-progress"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 
@@ -21,7 +21,6 @@ type HomeShellProps = {
 export function HomeShell({ children, isAuthenticated, userInfo, userId }: HomeShellProps) {
   return (
     <div className="min-h-screen bg-background">
-      <NavigationProgress />
       <BackgroundRefreshClient />
 
       <div className="flex">
@@ -58,7 +57,9 @@ export function HomeShell({ children, isAuthenticated, userInfo, userId }: HomeS
             </div>
           </div>
 
-          <div className="flex-1 px-4 py-6 sm:px-6 md:px-8">{children}</div>
+          <div className="flex-1 px-4 py-6 sm:px-6 md:px-8">
+            <RouteContentTransition>{children}</RouteContentTransition>
+          </div>
         </div>
       </div>
     </div>

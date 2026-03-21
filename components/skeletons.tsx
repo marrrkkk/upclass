@@ -1,6 +1,26 @@
 import { Skeleton } from "@/components/ui/skeleton"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 
+export function GenericPageSkeleton() {
+    return (
+        <div className="flex flex-col gap-6">
+            <div className="space-y-2">
+                <Skeleton className="h-9 w-40" />
+                <Skeleton className="h-5 w-72 max-w-full" />
+            </div>
+            <div className="grid gap-6 lg:grid-cols-3">
+                <Skeleton className="h-48 rounded-2xl lg:col-span-2" />
+                <Skeleton className="h-48 rounded-2xl" />
+            </div>
+            <div className="space-y-4">
+                {Array.from({ length: 3 }).map((_, i) => (
+                    <Skeleton key={i} className="h-24 rounded-2xl" />
+                ))}
+            </div>
+        </div>
+    )
+}
+
 export function AnnouncementSkeleton() {
     return (
         <Card className="border-border/60 overflow-hidden border-l-[6px] border-l-muted">
