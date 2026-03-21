@@ -7,8 +7,19 @@ type ConversationRow = {
   userName: string | null
   userImage: string | null
   lastMessage: string
-  lastMessageTime: Date | null
+  lastMessageTime: Date | string | null
   unreadCount: number
+}
+
+function toIsoString(value: Date | string | null) {
+  if (!value) return ""
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? "" : value.toISOString()
+  }
+
+  const parsedValue = new Date(value)
+  return Number.isNaN(parsedValue.getTime()) ? "" : parsedValue.toISOString()
 }
 
 export async function getConversationSummaries(userId: string) {
@@ -62,7 +73,7 @@ export async function getConversationSummaries(userId: string) {
     userName: row.userName ?? "User",
     userImage: row.userImage,
     lastMessage: row.lastMessage,
-    lastMessageTime: row.lastMessageTime?.toISOString() ?? "",
+    lastMessageTime: toIsoString(row.lastMessageTime),
     unreadCount: Number(row.unreadCount) || 0,
   }))
 }
