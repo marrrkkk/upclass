@@ -15,7 +15,9 @@ const nextConfig: NextConfig = {
   experimental: {
     cachedNavigations: true,
     staleTimes: {
-      dynamic: 30,
+      // Keep visited dynamic routes warm for the current browsing session unless
+      // they are explicitly refreshed or invalidated by a mutation/realtime update.
+      dynamic: 1800,
       static: 300,
     },
     optimizePackageImports: ['lucide-react', '@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu'],
