@@ -15,6 +15,12 @@ import type {
   QuizData,
   SubmissionData,
 } from "@/types/classes"
+import {
+  ClassworkTabSkeleton,
+  PeopleTabSkeleton,
+  QuizTabSkeleton,
+  StreamTabSkeleton,
+} from "@/components/skeletons"
 
 type ClassDetailTab = "stream" | "classwork" | "quizzes" | "people"
 
@@ -30,10 +36,18 @@ type ClassDetailContentClientProps = {
   members: MemberData[]
 }
 
-const StreamTab = dynamic(() => import("@/components/classes/stream-tab").then((mod) => mod.StreamTab))
-const ClassworkTab = dynamic(() => import("@/components/classes/classwork-tab").then((mod) => mod.ClassworkTab))
-const QuizTab = dynamic(() => import("@/components/classes/quiz-tab").then((mod) => mod.QuizTab))
-const PeopleTab = dynamic(() => import("@/components/classes/people-tab").then((mod) => mod.PeopleTab))
+const StreamTab = dynamic(() => import("@/components/classes/stream-tab").then((mod) => mod.StreamTab), {
+  loading: () => <StreamTabSkeleton />,
+})
+const ClassworkTab = dynamic(() => import("@/components/classes/classwork-tab").then((mod) => mod.ClassworkTab), {
+  loading: () => <ClassworkTabSkeleton />,
+})
+const QuizTab = dynamic(() => import("@/components/classes/quiz-tab").then((mod) => mod.QuizTab), {
+  loading: () => <QuizTabSkeleton />,
+})
+const PeopleTab = dynamic(() => import("@/components/classes/people-tab").then((mod) => mod.PeopleTab), {
+  loading: () => <PeopleTabSkeleton />,
+})
 
 export function ClassDetailContentClient({
   activeTab,

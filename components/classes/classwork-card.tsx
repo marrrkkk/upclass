@@ -15,7 +15,7 @@ import {
   Upload,
 } from "lucide-react"
 
-import { AnnouncementSkeleton } from "@/components/skeletons"
+import { ClassworkCardSkeleton } from "@/components/skeletons"
 import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -101,7 +101,7 @@ export function ClassworkCard({
     new Date(item.dueDate).getTime() - new Date().getTime() < 24 * 60 * 60 * 1000
 
   if (deleting) {
-    return <AnnouncementSkeleton />
+    return <ClassworkCardSkeleton />
   }
 
   return (

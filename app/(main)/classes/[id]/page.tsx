@@ -1,9 +1,16 @@
 import type { Metadata } from "next"
-import { headers } from "next/headers"
+import { Suspense } from "react"
 import { notFound, redirect } from "next/navigation"
 import { eq, and, desc, asc, inArray } from "drizzle-orm"
 
-import { auth } from "@/lib/auth"
+import { ClassDetailHero } from "@/components/classes/class-detail-hero"
+import { ClassDetailTabs } from "@/components/classes/class-detail-tabs"
+import {
+  ClassDetailTabContentBoundary,
+  ClassDetailTabProvider,
+} from "@/components/classes/class-detail-tab-provider"
+import { ClassDetailContentClient } from "@/components/classes/class-detail-content-client"
+import { ClassDetailTabSkeleton } from "@/components/skeletons"
 import { db } from "@/db"
 import {
   classes,
@@ -19,7 +26,9 @@ import {
   quizAnswers,
   announcementReactions,
 } from "@/db/schema"
-import { ClassDetailClient } from "@/components/classes/class-detail-client"
+import { requireSession } from "@/lib/server/auth"
+import { getVisibleClassTab } from "@/lib/classes/class-detail-tabs"
+import type { ClassData } from "@/types/classes"
 
 export function generateMetadata(): Metadata {
   return {
@@ -36,19 +45,9 @@ export default async function ClassDetailPage({
 }) {
   const { id } = await params
   const resolvedSearchParams = searchParams ? await searchParams : undefined
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  })
+  const session = await requireSession()
+  const userId = session.user.id
 
-  const isAuthenticated = !!session?.user?.id
-  const userId = session?.user?.id
-
-  // Require authentication to view classes
-  if (!isAuthenticated || !userId) {
-    redirect("/sign-in")
-  }
-
-  // Get class data
   const classData = await db
     .select({
       id: classes.id,
@@ -67,7 +66,6 @@ export default async function ClassDetailPage({
     notFound()
   }
 
-  // Check if user is a member of this class
   const membership = await db
     .select({
       role: classMembership.role,
@@ -81,226 +79,317 @@ export default async function ClassDetailPage({
     )
     .limit(1)
 
-  // If user is not a member, redirect to classes page
   if (membership.length === 0) {
     redirect("/classes")
   }
 
   const userRole = membership[0].role as "teacher" | "student"
+  const requestedTab = resolvedSearchParams?.tab ?? null
+  const activeTab = getVisibleClassTab(requestedTab, "stream")
+  const resolvedClassData: ClassData = {
+    id: classData[0].id,
+    title: classData[0].title,
+    description: classData[0].description,
+    category: classData[0].category,
+    code: classData[0].code,
+    color: classData[0].color || "#3b82f6",
+    schedule: classData[0].schedule,
+  }
+  const classColor = resolvedClassData.color || "#3b82f6"
 
-  // Get announcements with author info - allow public viewing
-  const announcementsData = await db
-    .select({
-      id: announcements.id,
-      content: announcements.content,
-      createdAt: announcements.createdAt,
-      author: {
-        id: user.id,
-        name: user.name,
-        image: user.image,
-      },
-    })
-    .from(announcements)
-    .innerJoin(user, eq(announcements.authorId, user.id))
-    .where(eq(announcements.classId, id))
-    .orderBy(desc(announcements.createdAt))
+  return (
+    <div className="flex flex-col gap-6 -mt-4">
+      <ClassDetailHero classData={resolvedClassData} classColor={classColor} userRole={userRole} />
+      <ClassDetailTabProvider activeTab={activeTab} classId={resolvedClassData.id}>
+        <ClassDetailTabs activeTab={activeTab} classColor={classColor} classId={resolvedClassData.id} />
+        <ClassDetailTabContentBoundary serverActiveTab={activeTab}>
+          <Suspense
+            key={`${id}-${activeTab}`}
+            fallback={<ClassDetailTabSkeleton activeTab={activeTab} />}
+          >
+            <ClassDetailContentSection
+              activeTab={activeTab}
+              classData={resolvedClassData}
+              classId={id}
+              userId={userId}
+              userRole={userRole}
+            />
+          </Suspense>
+        </ClassDetailTabContentBoundary>
+      </ClassDetailTabProvider>
+    </div>
+  )
+}
 
-  // Fetch reactions separately
-  const announcementIds = announcementsData.map(a => a.id)
-  const reactionsData = announcementIds.length > 0
-    ? await db
-      .select()
-      .from(announcementReactions)
-      .where(inArray(announcementReactions.announcementId, announcementIds))
-    : []
-
-  // Get classwork with submission counts - allow public viewing
-  const classworkData = await db
-    .select({
-      id: classwork.id,
-      title: classwork.title,
-      description: classwork.description,
-      type: classwork.type,
-      dueDate: classwork.dueDate,
-      points: classwork.points,
-      createdAt: classwork.createdAt,
-    })
-    .from(classwork)
-    .where(eq(classwork.classId, id))
-    .orderBy(desc(classwork.createdAt))
-
-  // Get all submissions for this class - only if user is a member
-  type SubmissionRow = {
+type SubmissionRow = {
+  id: string
+  classworkId: string
+  studentId: string
+  content: string | null
+  fileUrl: string | null
+  fileName: string | null
+  status: (typeof submissions.$inferSelect)["status"]
+  grade: string | null
+  feedback: string | null
+  submittedAt: Date | null
+  gradedAt: Date | null
+  student: {
     id: string
-    classworkId: string
+    name: string
+    image: string | null
+  }
+}
+
+async function ClassDetailContentSection({
+  activeTab,
+  classData,
+  classId,
+  userId,
+  userRole,
+}: {
+  activeTab: "stream" | "classwork" | "quizzes" | "people"
+  classData: ClassData
+  classId: string
+  userId: string
+  userRole: "teacher" | "student"
+}) {
+  let announcementsData: Array<{
+    id: string
+    content: string
+    createdAt: Date
+    author: { id: string; name: string; image: string | null }
+  }> = []
+  let reactionsData: Array<(typeof announcementReactions.$inferSelect)> = []
+  let classworkData: Array<{
+    id: string
+    title: string
+    description: string | null
+    type: "assignment" | "quiz" | "material"
+    dueDate: Date | null
+    points: string | null
+    createdAt: Date
+  }> = []
+  let allSubmissions: SubmissionRow[] = []
+  let membersData: Array<{
+    id: string
+    name: string
+    email: string
+    image: string | null
+    role: "teacher" | "student"
+  }> = []
+  let quizzesData: Array<(typeof quizzes.$inferSelect)> = []
+  let quizQuestionsData: Array<(typeof quizQuestions.$inferSelect)> = []
+  let quizOptionsData: Array<(typeof quizOptions.$inferSelect)> = []
+  let quizAttemptsData: Array<{
+    id: string
+    quizId: string
     studentId: string
-    content: string | null
-    fileUrl: string | null
-    fileName: string | null
-    status: (typeof submissions.$inferSelect)["status"]
-    grade: string | null
-    feedback: string | null
+    status: "pending_review" | "graded"
+    score: string | null
+    startedAt: Date
     submittedAt: Date | null
     gradedAt: Date | null
-    student: {
-      id: string
-      name: string
-      image: string | null
+    timeSpentSeconds: string | null
+    createdAt: Date
+    student: { id: string; name: string; image: string | null }
+  }> = []
+  let quizAnswersData: Array<(typeof quizAnswers.$inferSelect)> = []
+
+  if (activeTab === "stream") {
+    announcementsData = await db
+      .select({
+        id: announcements.id,
+        content: announcements.content,
+        createdAt: announcements.createdAt,
+        author: {
+          id: user.id,
+          name: user.name,
+          image: user.image,
+        },
+      })
+      .from(announcements)
+      .innerJoin(user, eq(announcements.authorId, user.id))
+      .where(eq(announcements.classId, classId))
+      .orderBy(desc(announcements.createdAt))
+
+    const announcementIds = announcementsData.map((announcement) => announcement.id)
+    reactionsData = announcementIds.length
+      ? await db
+          .select()
+          .from(announcementReactions)
+          .where(inArray(announcementReactions.announcementId, announcementIds))
+      : []
+  }
+
+  if (activeTab === "classwork") {
+    ;[classworkData, allSubmissions] = await Promise.all([
+      db
+        .select({
+          id: classwork.id,
+          title: classwork.title,
+          description: classwork.description,
+          type: classwork.type,
+          dueDate: classwork.dueDate,
+          points: classwork.points,
+          createdAt: classwork.createdAt,
+        })
+        .from(classwork)
+        .where(eq(classwork.classId, classId))
+        .orderBy(desc(classwork.createdAt)),
+      db
+        .select({
+          id: submissions.id,
+          classworkId: submissions.classworkId,
+          studentId: submissions.studentId,
+          content: submissions.content,
+          fileUrl: submissions.fileUrl,
+          fileName: submissions.fileName,
+          status: submissions.status,
+          grade: submissions.grade,
+          feedback: submissions.feedback,
+          submittedAt: submissions.submittedAt,
+          gradedAt: submissions.gradedAt,
+          student: {
+            id: user.id,
+            name: user.name,
+            image: user.image,
+          },
+        })
+        .from(submissions)
+        .innerJoin(user, eq(submissions.studentId, user.id))
+        .innerJoin(classwork, eq(submissions.classworkId, classwork.id))
+        .where(eq(classwork.classId, classId)) as Promise<SubmissionRow[]>,
+    ])
+  }
+
+  if (activeTab === "people") {
+    membersData = await db
+      .select({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        image: user.image,
+        role: classMembership.role,
+      })
+      .from(classMembership)
+      .innerJoin(user, eq(classMembership.userId, user.id))
+      .where(eq(classMembership.classId, classId))
+      .orderBy(asc(classMembership.role), asc(user.name))
+  }
+
+  if (activeTab === "quizzes") {
+    quizzesData = await db
+      .select()
+      .from(quizzes)
+      .where(eq(quizzes.classId, classId))
+      .orderBy(asc(quizzes.createdAt))
+
+    const quizIds = quizzesData.map((quiz) => quiz.id)
+    if (quizIds.length) {
+      quizQuestionsData = await db
+        .select()
+        .from(quizQuestions)
+        .where(inArray(quizQuestions.quizId, quizIds))
+
+      const quizQuestionIds = quizQuestionsData.map((question) => question.id)
+      quizOptionsData = quizQuestionIds.length
+        ? await db
+            .select()
+            .from(quizOptions)
+            .where(inArray(quizOptions.questionId, quizQuestionIds))
+        : []
+
+      quizAttemptsData = await db
+        .select({
+          id: quizAttempts.id,
+          quizId: quizAttempts.quizId,
+          studentId: quizAttempts.studentId,
+          status: quizAttempts.status,
+          score: quizAttempts.score,
+          startedAt: quizAttempts.startedAt,
+          submittedAt: quizAttempts.submittedAt,
+          gradedAt: quizAttempts.gradedAt,
+          timeSpentSeconds: quizAttempts.timeSpentSeconds,
+          createdAt: quizAttempts.createdAt,
+          student: {
+            id: user.id,
+            name: user.name,
+            image: user.image,
+          },
+        })
+        .from(quizAttempts)
+        .innerJoin(user, eq(quizAttempts.studentId, user.id))
+        .where(
+          userRole === "teacher"
+            ? inArray(quizAttempts.quizId, quizIds)
+            : and(
+                inArray(quizAttempts.quizId, quizIds),
+                eq(quizAttempts.studentId, userId),
+              ),
+        )
+
+      const attemptIds = quizAttemptsData.map((attempt) => attempt.id)
+      quizAnswersData = attemptIds.length
+        ? await db
+            .select()
+            .from(quizAnswers)
+            .where(inArray(quizAnswers.attemptId, attemptIds))
+        : []
     }
   }
 
-  let allSubmissions: SubmissionRow[] = []
-  if (isAuthenticated && userRole) {
-    allSubmissions = await db
-      .select({
-        id: submissions.id,
-        classworkId: submissions.classworkId,
-        studentId: submissions.studentId,
-        content: submissions.content,
-        fileUrl: submissions.fileUrl,
-        fileName: submissions.fileName,
-        status: submissions.status,
-        grade: submissions.grade,
-        feedback: submissions.feedback,
-        submittedAt: submissions.submittedAt,
-        gradedAt: submissions.gradedAt,
-        student: {
-          id: user.id,
-          name: user.name,
-          image: user.image,
-        },
-      })
-      .from(submissions)
-      .innerJoin(user, eq(submissions.studentId, user.id))
-      .innerJoin(classwork, eq(submissions.classworkId, classwork.id))
-      .where(eq(classwork.classId, id))
-  }
-
-  // Get all members - allow public viewing
-  const membersData = await db
-    .select({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      image: user.image,
-      role: classMembership.role,
-    })
-    .from(classMembership)
-    .innerJoin(user, eq(classMembership.userId, user.id))
-    .where(eq(classMembership.classId, id))
-    .orderBy(asc(classMembership.role), asc(user.name))
-
-  // Quizzes data (class members only)
-  const quizzesData = isAuthenticated && userRole
-    ? await db
-      .select()
-      .from(quizzes)
-      .where(eq(quizzes.classId, id))
-      .orderBy(asc(quizzes.createdAt))
-    : []
-
-  const quizIds = quizzesData.map((q) => q.id)
-  const quizQuestionsData = quizIds.length
-    ? await db.select().from(quizQuestions).where(inArray(quizQuestions.quizId, quizIds))
-    : []
-  const quizQuestionIds = quizQuestionsData.map((q) => q.id)
-  const quizOptionsData = quizQuestionIds.length
-    ? await db.select().from(quizOptions).where(inArray(quizOptions.questionId, quizQuestionIds))
-    : []
-  const quizAttemptsData = isAuthenticated && quizIds.length
-    ? await db
-      .select({
-        id: quizAttempts.id,
-        quizId: quizAttempts.quizId,
-        studentId: quizAttempts.studentId,
-        status: quizAttempts.status,
-        score: quizAttempts.score,
-        startedAt: quizAttempts.startedAt,
-        submittedAt: quizAttempts.submittedAt,
-        gradedAt: quizAttempts.gradedAt,
-        timeSpentSeconds: quizAttempts.timeSpentSeconds,
-        createdAt: quizAttempts.createdAt,
-        student: {
-          id: user.id,
-          name: user.name,
-          image: user.image,
-        },
-      })
-      .from(quizAttempts)
-      .innerJoin(user, eq(quizAttempts.studentId, user.id))
-      .where(
-        userRole === "teacher"
-          ? inArray(quizAttempts.quizId, quizIds)
-          : and(
-              inArray(quizAttempts.quizId, quizIds),
-              eq(quizAttempts.studentId, session?.user?.id || ""),
-            ),
-      )
-    : []
-  const attemptIds = quizAttemptsData.map((a) => a.id)
-  const quizAnswersData = attemptIds.length
-    ? await db.select().from(quizAnswers).where(inArray(quizAnswers.attemptId, attemptIds))
-    : []
-  const requestedTab = resolvedSearchParams?.tab
-  const activeTab =
-    requestedTab === "classwork" || requestedTab === "quizzes" || requestedTab === "people" || requestedTab === "stream"
-      ? requestedTab
-      : "stream"
-
   return (
-    <ClassDetailClient
-      classData={{
-        id: classData[0].id,
-        title: classData[0].title,
-        description: classData[0].description,
-        category: classData[0].category,
-        code: classData[0].code,
-        color: classData[0].color || "#3b82f6",
-        schedule: classData[0].schedule,
-      }}
+    <ClassDetailContentClient
       activeTab={activeTab}
+      classData={classData}
       userId={userId}
       userRole={userRole}
-      announcements={announcementsData.map((a) => ({
-        ...a,
-        createdAt: a.createdAt?.toISOString() ?? "",
+      announcements={announcementsData.map((announcement) => ({
+        ...announcement,
+        createdAt: announcement.createdAt?.toISOString() ?? "",
         reactions: reactionsData
-          .filter(r => r.announcementId === a.id)
-          .map(r => ({ userId: r.userId, reaction: r.reaction }))
+          .filter((reaction) => reaction.announcementId === announcement.id)
+          .map((reaction) => ({
+            userId: reaction.userId,
+            reaction: reaction.reaction,
+          })),
       }))}
-      classwork={classworkData.map((c) => ({
-        ...c,
-        dueDate: c.dueDate?.toISOString() ?? null,
-        createdAt: c.createdAt?.toISOString() ?? "",
+      classwork={classworkData.map((item) => ({
+        ...item,
+        dueDate: item.dueDate?.toISOString() ?? null,
+        createdAt: item.createdAt?.toISOString() ?? "",
       }))}
-      submissions={allSubmissions.map((s) => ({
-        ...s,
-        submittedAt: s.submittedAt?.toISOString() ?? null,
-        gradedAt: s.gradedAt?.toISOString() ?? null,
+      submissions={allSubmissions.map((submission) => ({
+        ...submission,
+        submittedAt: submission.submittedAt?.toISOString() ?? null,
+        gradedAt: submission.gradedAt?.toISOString() ?? null,
       }))}
-      quizzes={quizzesData.map((q) => {
-        const attempt = quizAttemptsData.find((a) => a.quizId === q.id && a.studentId === userId);
-        const attempts = quizAttemptsData.filter((a) => a.quizId === q.id);
+      quizzes={quizzesData.map((quiz) => {
+        const attempt = quizAttemptsData.find((entry) => entry.quizId === quiz.id && entry.studentId === userId)
+        const attempts = quizAttemptsData.filter((entry) => entry.quizId === quiz.id)
+
         return {
-          ...q,
-          dueDate: q.dueDate?.toISOString() ?? null,
-          createdAt: q.createdAt?.toISOString() ?? "",
-          updatedAt: q.updatedAt?.toISOString() ?? "",
+          ...quiz,
+          dueDate: quiz.dueDate?.toISOString() ?? null,
+          createdAt: quiz.createdAt?.toISOString() ?? "",
+          updatedAt: quiz.updatedAt?.toISOString() ?? "",
           questions: quizQuestionsData
-            .filter((qq) => qq.quizId === q.id)
-            .map((qq) => ({
-              ...qq,
-              options: quizOptionsData.filter((opt) => opt.questionId === qq.id),
+            .filter((question) => question.quizId === quiz.id)
+            .map((question) => ({
+              ...question,
+              options: quizOptionsData.filter((option) => option.questionId === question.id),
             })),
-          attempt: attempt ? {
-            ...attempt,
-            score: attempt.score?.toString() ?? null,
-            startedAt: attempt.startedAt?.toISOString() ?? "",
-            submittedAt: attempt.submittedAt?.toISOString() ?? null,
-            gradedAt: attempt.gradedAt?.toISOString() ?? null,
-            timeSpentSeconds: attempt.timeSpentSeconds?.toString() ?? null,
-            createdAt: attempt.createdAt?.toISOString() ?? "",
-          } : null,
+          attempt: attempt
+            ? {
+                ...attempt,
+                score: attempt.score?.toString() ?? null,
+                startedAt: attempt.startedAt?.toISOString() ?? "",
+                submittedAt: attempt.submittedAt?.toISOString() ?? null,
+                gradedAt: attempt.gradedAt?.toISOString() ?? null,
+                timeSpentSeconds: attempt.timeSpentSeconds?.toString() ?? null,
+                createdAt: attempt.createdAt?.toISOString() ?? "",
+              }
+            : null,
           attempts: attempts.map((quizAttempt) => ({
             ...quizAttempt,
             score: quizAttempt.score?.toString() ?? null,
@@ -310,10 +399,10 @@ export default async function ClassDetailPage({
             timeSpentSeconds: quizAttempt.timeSpentSeconds?.toString() ?? null,
             createdAt: quizAttempt.createdAt?.toISOString() ?? "",
           })),
-          answers: quizAnswersData.filter((a) =>
-            quizAttemptsData.find((att) => att.id === a.attemptId && att.quizId === q.id),
+          answers: quizAnswersData.filter((answer) =>
+            quizAttemptsData.find((quizAttempt) => quizAttempt.id === answer.attemptId && quizAttempt.quizId === quiz.id),
           ),
-        };
+        }
       })}
       members={membersData}
     />

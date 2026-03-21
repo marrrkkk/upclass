@@ -15,7 +15,7 @@ import {
   Edit
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { AnnouncementSkeleton } from "@/components/skeletons"
+import { QuizCardSkeleton } from "@/components/skeletons"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { buttonVariants } from "@/components/ui/button"
 import {
@@ -531,7 +531,7 @@ export function QuizTab({ classId, userRole, quizzes, classColor }: QuizTabProps
 
           {quizzes.map((quiz) => {
             if (deletingId === quiz.id) {
-              return <AnnouncementSkeleton key={quiz.id} />
+              return <QuizCardSkeleton key={quiz.id} />
             }
             if (userRole === "student" && quiz.status === "draft") return null; // Students don't see drafts
 

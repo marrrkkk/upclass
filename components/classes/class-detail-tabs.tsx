@@ -1,8 +1,10 @@
-import Link from "next/link"
+"use client"
 
 import { cn } from "@/lib/utils"
-
-type ClassDetailTab = "stream" | "classwork" | "quizzes" | "people"
+import {
+  type ClassDetailTab,
+} from "@/lib/classes/class-detail-tabs"
+import { useClassDetailTabState } from "@/components/classes/class-detail-tab-provider"
 
 type ClassDetailTabsProps = {
   activeTab: ClassDetailTab
@@ -17,42 +19,40 @@ const TABS: Array<{ id: ClassDetailTab; label: string }> = [
   { id: "people", label: "People" },
 ]
 
-export function getVisibleClassTab(
-  requestedTab: string | null,
-  fallbackTab: ClassDetailTab,
-): ClassDetailTab {
-  if (requestedTab === "stream" || requestedTab === "classwork" || requestedTab === "quizzes" || requestedTab === "people") {
-    return requestedTab
-  }
-
-  return fallbackTab
-}
-
 export function ClassDetailTabs({
-  activeTab,
+  activeTab: _activeTab,
   classColor,
-  classId,
+  classId: _classId,
 }: ClassDetailTabsProps) {
+  const { optimisticTab, isNavigating, navigateToTab, prefetchTab } = useClassDetailTabState()
+  const currentTab = optimisticTab
+
   return (
     <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b w-full">
       <div className="max-w-4xl mx-auto flex items-center gap-6 px-4 overflow-x-auto whitespace-nowrap scrollbar-none">
         {TABS.map((tab) => (
-          <Link
+          <button
             key={tab.id}
-            href={tab.id === "stream" ? `/classes/${classId}` : `/classes/${classId}?tab=${tab.id}`}
+            type="button"
+            onMouseEnter={() => prefetchTab(tab.id)}
+            onClick={() => {
+              if (tab.id === currentTab && !isNavigating) return
+              navigateToTab(tab.id)
+            }}
             className={cn(
               "relative py-3 text-sm font-medium transition-colors hover:text-foreground flex-shrink-0",
-              activeTab === tab.id ? "text-primary" : "text-muted-foreground",
+              currentTab === tab.id ? "text-primary" : "text-muted-foreground",
+              isNavigating && currentTab === tab.id ? "opacity-100" : "",
             )}
           >
             {tab.label}
-            {activeTab === tab.id && (
+            {currentTab === tab.id && (
               <span
                 className="absolute bottom-0 left-0 h-0.5 w-full bg-primary rounded-t-full"
                 style={{ backgroundColor: classColor }}
               />
             )}
-          </Link>
+          </button>
         ))}
       </div>
     </div>

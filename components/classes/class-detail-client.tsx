@@ -1,6 +1,7 @@
 import { ClassDetailHero } from "@/components/classes/class-detail-hero"
-import { ClassDetailTabs, getVisibleClassTab } from "@/components/classes/class-detail-tabs"
+import { ClassDetailTabs } from "@/components/classes/class-detail-tabs"
 import { ClassDetailContentClient } from "@/components/classes/class-detail-content-client"
+import { getVisibleClassTab } from "@/lib/classes/class-detail-tabs"
 import type {
   AnnouncementData,
   ClassData,

@@ -72,32 +72,39 @@ export function NavigationProgress() {
       const url = new URL(href, window.location.origin)
       if (url.origin !== window.location.origin) return null
 
-      return `${url.pathname}${url.search}`
+      return {
+        href: `${url.pathname}${url.search}`,
+        skipProgress: anchor.dataset.skipNavigationProgress === "true",
+      }
     }
 
     const handleClick = (event: MouseEvent) => {
       if (event.defaultPrevented || event.button !== 0) return
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
 
-      const href = resolveInternalHref(event.target instanceof Element ? event.target : null)
-      if (!href) return
+      const resolved = resolveInternalHref(event.target instanceof Element ? event.target : null)
+      if (!resolved) return
 
-      beginNavigation(href)
+      if (!resolved.skipProgress) {
+        beginNavigation(resolved.href)
+      }
     }
 
     const handlePointerEnter = (event: Event) => {
-      const href = resolveInternalHref(event.target instanceof Element ? event.target : null)
-      if (!href) return
-      maybePrefetch(href)
+      const resolved = resolveInternalHref(event.target instanceof Element ? event.target : null)
+      if (!resolved) return
+      maybePrefetch(resolved.href)
     }
 
     const handleTouchStart = (event: TouchEvent) => {
       const target = event.target
-      const href = resolveInternalHref(target instanceof Element ? target : null)
-      if (!href) return
+      const resolved = resolveInternalHref(target instanceof Element ? target : null)
+      if (!resolved) return
 
-      maybePrefetch(href)
-      beginNavigation(href)
+      maybePrefetch(resolved.href)
+      if (!resolved.skipProgress) {
+        beginNavigation(resolved.href)
+      }
     }
 
     document.addEventListener("click", handleClick, true)
