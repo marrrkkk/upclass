@@ -248,7 +248,7 @@ export function ExcalidrawBoard({
       if (options?.keepalive) {
         const body = JSON.stringify({
           document: nextDocument,
-          version: latestSnapshotRef.current.version,
+          expectedVersion: latestSnapshotRef.current.version,
         })
 
         if (body.length > KEEPALIVE_BODY_LIMIT) {
