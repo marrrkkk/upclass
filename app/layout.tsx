@@ -5,6 +5,14 @@ import { SpeedInsights } from '@vercel/speed-insights/next'
 
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
+import {
+  defaultDescription,
+  siteKeywords,
+  siteName,
+  siteTitle,
+  siteUrl,
+  socialImagePath,
+} from "@/lib/seo"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -13,11 +21,16 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
+  applicationName: siteName,
   title: {
     template: "%s | UpClass",
-    default: "UpClass - The Future of Learning Management",
+    default: siteTitle,
   },
-  description: "Manage courses, engage students, and track progress with UpClass.",
+  description: defaultDescription,
+  keywords: siteKeywords,
+  category: "education",
+  referrer: "origin-when-cross-origin",
   manifest: "/manifest.json",
   icons: {
     icon: [
@@ -30,6 +43,40 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: "default",
     title: "UpClass",
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: siteUrl,
+    siteName,
+    title: siteTitle,
+    description: defaultDescription,
+    images: [
+      {
+        url: socialImagePath,
+        width: 1200,
+        height: 630,
+        alt: "UpClass learning management system preview",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: siteTitle,
+    description: defaultDescription,
+    images: ["/twitter-image"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      noimageindex: false,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
   },
 }
 

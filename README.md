@@ -74,6 +74,7 @@ GEMINI_API_KEY=
 
 > [!NOTE]
 > `BETTER_AUTH_URL` can be omitted in some hosted environments because the app falls back to `VERCEL_URL`, but setting it explicitly is safer.
+> `NEXT_PUBLIC_APP_URL` is also used for SEO metadata, sitemap, robots, and canonical URLs. In production, set it to `https://upclass.xyz`.
 
 ### 3. Run database migrations
 

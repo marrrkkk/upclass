@@ -5,6 +5,14 @@ import { Logo } from "@/components/logo"
 
 export const metadata: Metadata = {
     title: "Sign Up",
+    description: "Create an UpClass account to organize classes, teach with shared whiteboards, and support students in one workspace.",
+    alternates: {
+        canonical: "/sign-up",
+    },
+    robots: {
+        index: false,
+        follow: false,
+    },
 }
 
 export default function SignUpPage() {

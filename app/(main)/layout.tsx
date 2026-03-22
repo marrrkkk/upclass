@@ -1,8 +1,22 @@
+import type { Metadata } from "next"
 import { Suspense } from "react"
 import { MainLayoutClient } from "@/components/main-layout-client"
 import { HomeShell } from "@/components/layouts/home-shell"
 import { RootClientShell } from "@/components/root-client-shell"
 import { getMainShellState } from "@/lib/server/auth"
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: {
+      index: false,
+      follow: false,
+      noimageindex: true,
+    },
+  },
+}
 
 async function ResolvedMainLayout({
   children,

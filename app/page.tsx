@@ -1,5 +1,6 @@
 import { headers } from "next/headers"
 import Link from "next/link"
+import type { Metadata } from "next"
 import { cache, Suspense } from "react"
 import {
   ArrowRight,
@@ -15,8 +16,15 @@ import {
 } from "lucide-react"
 
 import { Logo } from "@/components/logo"
+import { JsonLd } from "@/components/seo/json-ld"
 import { Button } from "@/components/ui/button"
 import { auth } from "@/lib/auth"
+import {
+  defaultDescription,
+  organizationSchema,
+  websiteSchema,
+  webApplicationSchema,
+} from "@/lib/seo"
 
 const proofPoints = [
   { label: "Shared class hub", value: "One place" },
@@ -77,6 +85,26 @@ const trustItems = [
   "Progressive web app support for mobile use",
   "Realtime collaboration backed by Supabase channels",
 ]
+
+const landingDescription =
+  "UpClass is a learning management system for teachers and schools that brings class management, student messaging, shared whiteboards, and offline-ready workflows into one product."
+
+export const metadata: Metadata = {
+  title: "Learning Management System for Realtime Teaching",
+  description: landingDescription,
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    title: "UpClass | Learning Management System for Realtime Teaching",
+    description: landingDescription,
+    url: "/",
+  },
+  twitter: {
+    title: "UpClass | Learning Management System for Realtime Teaching",
+    description: landingDescription,
+  },
+}
 
 const getIsAuthenticated = cache(async () => {
   const session = await auth.api.getSession({
@@ -271,9 +299,9 @@ function FooterActionsFallback() {
 }
 
 export default function LandingPage() {
-
   return (
     <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(77,111,255,0.16),_transparent_28%),radial-gradient(circle_at_80%_20%,_rgba(17,196,181,0.18),_transparent_24%),linear-gradient(180deg,_hsl(var(--background)),_color-mix(in_oklab,_hsl(var(--background))_92%,_hsl(var(--primary))_8%))] text-foreground">
+      <JsonLd data={[websiteSchema, organizationSchema, { ...webApplicationSchema, description: defaultDescription }]} />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.08)_1px,transparent_1px)] bg-[size:72px_72px] [mask-image:linear-gradient(180deg,rgba(255,255,255,0.9),transparent)]" />
       <div className="pointer-events-none absolute left-1/2 top-24 h-80 w-80 -translate-x-1/2 rounded-full bg-primary/20 blur-[120px]" />
 

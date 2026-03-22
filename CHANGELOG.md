@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Changelog entries will be tracked here before the next tagged release.
+- Rebuilt the app SEO configuration around the production domain `https://upclass.xyz` with richer metadata, structured data, sitemap and robots support, social preview images, and `noindex` protection for authenticated app routes.
 
 ## [0.1.0] - 2026-03-21
 
