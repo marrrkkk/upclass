@@ -7,6 +7,11 @@ import { useHomeShellSidebarState } from "@/components/layouts/home-shell-sideba
 const Sidebar = dynamic(() => import("@/components/sidebar").then((mod) => mod.Sidebar))
 
 type HomeShellSidebarDrawerProps = {
+  recentClasses?: Array<{
+    id: string
+    title: string
+    color: string | null
+  }>
   userId?: string
   userInfo?: {
     name: string | null
@@ -15,13 +20,14 @@ type HomeShellSidebarDrawerProps = {
   } | null
 }
 
-export function HomeShellSidebarDrawer({ userId, userInfo }: HomeShellSidebarDrawerProps) {
+export function HomeShellSidebarDrawer({ recentClasses, userId, userInfo }: HomeShellSidebarDrawerProps) {
   const isOpen = useHomeShellSidebarState((state) => state.isOpen)
   const setOpen = useHomeShellSidebarState((state) => state.setOpen)
 
   return (
     <>
       <Sidebar
+        recentClasses={recentClasses}
         userId={userId}
         userInfo={userInfo}
         onNavigate={() => setOpen(false)}

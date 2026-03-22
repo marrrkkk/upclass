@@ -7,7 +7,7 @@ describe("PWAInstallPrompt", () => {
   it("stays hidden until the browser fires the install prompt event", () => {
     render(<PWAInstallPrompt />)
 
-    expect(screen.queryByRole("button", { name: /install/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /install now/i })).not.toBeInTheDocument()
   })
 
   it("shows the install prompt and handles acceptance", async () => {
@@ -22,11 +22,11 @@ describe("PWAInstallPrompt", () => {
 
     expect(await screen.findByText("Install UpClass")).toBeInTheDocument()
 
-    await user.click(screen.getByRole("button", { name: /^install$/i }))
+    await user.click(screen.getByRole("button", { name: /^install now$/i }))
 
     expect(prompt).toHaveBeenCalledTimes(1)
-    expect(await screen.queryByRole("button", { name: /^install$/i })).not.toBeInTheDocument()
-    expect(sessionStorage.getItem("pwa-install-prompt-seen")).toBe("true")
+    expect(screen.queryByRole("button", { name: /^install now$/i })).not.toBeInTheDocument()
+    expect(localStorage.getItem("upclass-pwa-install-dismissed")).toBeNull()
   })
 
   it("dismisses the prompt when the user closes it", async () => {
@@ -38,11 +38,11 @@ describe("PWAInstallPrompt", () => {
     await user.click(screen.getByRole("button", { name: /dismiss install prompt/i }))
 
     expect(screen.queryByText("Install UpClass")).not.toBeInTheDocument()
-    expect(sessionStorage.getItem("pwa-install-prompt-seen")).toBe("true")
+    expect(localStorage.getItem("upclass-pwa-install-dismissed")).toBe("true")
   })
 
   it("does not show again after the session flag has been set", () => {
-    sessionStorage.setItem("pwa-install-prompt-seen", "true")
+    localStorage.setItem("upclass-pwa-install-dismissed", "true")
 
     render(<PWAInstallPrompt />)
     void dispatchBeforeInstallPrompt()

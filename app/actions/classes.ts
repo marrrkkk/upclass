@@ -6,8 +6,14 @@ import { eq, and } from "drizzle-orm"
 
 import { db } from "@/db"
 import { auth } from "@/lib/auth"
-import { classes, classMembership, user } from "@/db/schema"
+import { classChannels, classes, classMembership, user } from "@/db/schema"
 import { logActivity } from "@/lib/activity"
+import {
+  createClassSchema,
+  joinClassSchema,
+  updateClassSchema,
+} from "@/lib/validation/actions"
+import { parseFormData } from "@/lib/validation/form-data"
 
 type ActionResponse =
   | { success: true; classId?: string }
@@ -33,15 +39,12 @@ export async function createClass(formData: FormData): Promise<ActionResponse> {
     return { success: false, error: "Only teachers can create classes" }
   }
 
-  const title = (formData.get("title") as string | null)?.trim()
-  const description = (formData.get("description") as string | null)?.trim()
-  const category = (formData.get("category") as string | null)?.trim() || "General"
-  const color = (formData.get("color") as string | null)?.trim() || "#3b82f6"
-  const schedule = (formData.get("schedule") as string | null)?.trim() || null
-
-  if (!title) {
-    return { success: false, error: "Title is required" }
+  const parsed = parseFormData(createClassSchema, formData)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message || "Invalid class data" }
   }
+
+  const { title, description, category, color, schedule } = parsed.data
 
   const classId = crypto.randomUUID()
 
@@ -91,6 +94,15 @@ export async function createClass(formData: FormData): Promise<ActionResponse> {
         userId: session.user.id,
         role: "teacher",
       })
+
+      await tx.insert(classChannels).values({
+        id: crypto.randomUUID(),
+        classId,
+        name: "General",
+        slug: "general",
+        isDefault: true,
+        createdBy: session.user.id,
+      })
     })
 
     revalidatePath("/classes")
@@ -123,11 +135,12 @@ export async function joinClass(formData: FormData): Promise<ActionResponse> {
     return { success: false, error: "Unauthorized" }
   }
 
-  const code = (formData.get("code") as string | null)?.trim().toUpperCase()
-
-  if (!code) {
-    return { success: false, error: "Class code is required" }
+  const parsed = parseFormData(joinClassSchema, formData)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message || "Invalid class code" }
   }
+
+  const { code } = parsed.data
 
   try {
     // Find class by code
@@ -212,15 +225,12 @@ export async function updateClass(classId: string, formData: FormData): Promise<
     return { success: false, error: "Only the class owner can update the class" }
   }
 
-  const title = (formData.get("title") as string | null)?.trim()
-  const description = (formData.get("description") as string | null)?.trim()
-  const category = (formData.get("category") as string | null)?.trim() || "General"
-  const color = (formData.get("color") as string | null)?.trim() || "#3b82f6"
-  const schedule = (formData.get("schedule") as string | null)?.trim() || null
-
-  if (!title) {
-    return { success: false, error: "Title is required" }
+  const parsed = parseFormData(updateClassSchema, formData)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message || "Invalid class data" }
   }
+
+  const { title, description, category, color, schedule } = parsed.data
 
   try {
     await db

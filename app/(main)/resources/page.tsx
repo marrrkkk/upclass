@@ -27,7 +27,11 @@ export default async function ResourcesPage() {
   )
 }
 
-async function ResourcesPageContent({ isAuthenticated }: { isAuthenticated: boolean }) {
+async function ResourcesPageContent({
+  isAuthenticated,
+}: {
+  isAuthenticated: boolean
+}) {
   const resourcesList = await db
     .select({
       id: resources.id,

@@ -61,11 +61,43 @@ export type SubmissionData = {
   feedback: string | null
   submittedAt: string | null
   gradedAt: string | null
+  attachments: SubmissionAttachmentData[]
+  revisions: SubmissionRevisionData[]
+  gradingHistory: SubmissionGradeHistoryData[]
   student: {
     id: string
     name: string
     image: string | null
   }
+}
+
+export type SubmissionAttachmentData = {
+  id: string
+  submissionId: string
+  fileUrl: string
+  fileName: string
+  fileType: string | null
+  fileSize: string | null
+  createdAt: string
+}
+
+export type SubmissionRevisionData = {
+  id: string
+  submissionId: string
+  revisionNumber: number
+  action: string
+  content: string | null
+  status: string
+  submittedAt: string | null
+  createdAt: string
+}
+
+export type SubmissionGradeHistoryData = {
+  id: string
+  submissionId: string
+  grade: string
+  feedback: string | null
+  createdAt: string
 }
 
 export type QuizOption = {

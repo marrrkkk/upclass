@@ -21,7 +21,6 @@ const segmentNames: Record<string, string> = {
   home: "Home",
   classes: "Classes",
   resources: "Resources",
-  favorites: "Favorites",
   settings: "Settings",
   notifications: "Notifications",
   messages: "Messages",

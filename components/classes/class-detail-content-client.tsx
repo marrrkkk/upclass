@@ -2,7 +2,6 @@
 
 import dynamic from "next/dynamic"
 import { useEffect, useState } from "react"
-import { usePathname } from "next/navigation"
 
 import { BackgroundCache } from "@/lib/background-cache"
 import { useClassDetailCache } from "@/hooks/classes/use-class-detail-cache"
@@ -72,8 +71,6 @@ export function ClassDetailContentClient({
     userRole: "teacher" | "student" | null
   } | null>(null)
 
-  const pathname = usePathname()
-
   useEffect(() => {
     if (typeof window === "undefined" || navigator.onLine) return
 
@@ -124,7 +121,6 @@ export function ClassDetailContentClient({
     submissions: effectiveSubmissions,
     quizzes: effectiveQuizzes,
     members: effectiveMembers,
-    pathname,
     userId: effectiveUserId,
     userRole: effectiveUserRole,
   })

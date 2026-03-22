@@ -13,7 +13,6 @@ export default function robots(): MetadataRoute.Robots {
           "/_next/",
           "/activity",
           "/classes",
-          "/favorites",
           "/home",
           "/messages",
           "/notifications",

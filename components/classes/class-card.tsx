@@ -48,8 +48,10 @@ export const ClassCard = memo(function ClassCard({
         >
           <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_1px_1px,white_1px,transparent_0)] [background-size:16px_16px]" />
 
-          <div className="absolute top-3 right-3 rounded-full bg-white/20 backdrop-blur-md px-2.5 py-1 text-[11px] font-medium text-white shadow-sm border border-white/10">
-            {data.enrolledCount} enrolled
+          <div className="absolute top-3 right-3 z-20 flex items-center gap-2">
+            <div className="rounded-full bg-white/20 backdrop-blur-md px-2.5 py-1 text-[11px] font-medium text-white shadow-sm border border-white/10">
+              {data.enrolledCount} enrolled
+            </div>
           </div>
         </div>
 

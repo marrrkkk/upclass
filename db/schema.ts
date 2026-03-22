@@ -279,7 +279,12 @@ export const classwork = pgTable(
   (table) => [index("classwork_class_idx").on(table.classId)],
 );
 
-export const submissionStatus = pgEnum("submission_status", ["pending", "submitted", "graded"]);
+export const submissionStatus = pgEnum("submission_status", [
+  "pending",
+  "draft",
+  "submitted",
+  "graded",
+]);
 
 export const submissions = pgTable(
   "submissions",
@@ -313,6 +318,65 @@ export const submissions = pgTable(
       table.studentId,
     ),
   ],
+);
+
+export const submissionAttachments = pgTable(
+  "submission_attachments",
+  {
+    id: text("id").primaryKey(),
+    submissionId: text("submission_id")
+      .notNull()
+      .references(() => submissions.id, { onDelete: "cascade" }),
+    fileUrl: text("file_url").notNull(),
+    fileName: text("file_name").notNull(),
+    fileType: text("file_type"),
+    fileSize: text("file_size"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("submission_attachments_submission_idx").on(table.submissionId)],
+);
+
+export const submissionRevisions = pgTable(
+  "submission_revisions",
+  {
+    id: text("id").primaryKey(),
+    submissionId: text("submission_id")
+      .notNull()
+      .references(() => submissions.id, { onDelete: "cascade" }),
+    revisionNumber: integer("revision_number").notNull(),
+    action: text("action").notNull(),
+    content: text("content"),
+    status: submissionStatus("status").notNull(),
+    submittedAt: timestamp("submitted_at"),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("submission_revisions_submission_idx").on(table.submissionId),
+    uniqueIndex("submission_revisions_submission_number_unique").on(
+      table.submissionId,
+      table.revisionNumber,
+    ),
+  ],
+);
+
+export const gradingHistory = pgTable(
+  "grading_history",
+  {
+    id: text("id").primaryKey(),
+    submissionId: text("submission_id")
+      .notNull()
+      .references(() => submissions.id, { onDelete: "cascade" }),
+    gradedBy: text("graded_by")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    grade: text("grade").notNull(),
+    feedback: text("feedback"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("grading_history_submission_idx").on(table.submissionId)],
 );
 
 export const announcementRelations = relations(announcements, ({ one, many }) => ({
@@ -380,6 +444,35 @@ export const submissionRelations = relations(submissions, ({ one }) => ({
   }),
 }));
 
+export const submissionAttachmentRelations = relations(submissionAttachments, ({ one }) => ({
+  submission: one(submissions, {
+    fields: [submissionAttachments.submissionId],
+    references: [submissions.id],
+  }),
+}));
+
+export const submissionRevisionRelations = relations(submissionRevisions, ({ one }) => ({
+  submission: one(submissions, {
+    fields: [submissionRevisions.submissionId],
+    references: [submissions.id],
+  }),
+  author: one(user, {
+    fields: [submissionRevisions.createdBy],
+    references: [user.id],
+  }),
+}));
+
+export const gradingHistoryRelations = relations(gradingHistory, ({ one }) => ({
+  submission: one(submissions, {
+    fields: [gradingHistory.submissionId],
+    references: [submissions.id],
+  }),
+  grader: one(user, {
+    fields: [gradingHistory.gradedBy],
+    references: [user.id],
+  }),
+}));
+
 export const notificationType = pgEnum("notification_type", ["announcement", "classwork"]);
 export const activityEventType = pgEnum("activity_event_type", [
   "class_created",
@@ -389,7 +482,9 @@ export const activityEventType = pgEnum("activity_event_type", [
   "material_created",
   "quiz_created",
   "resource_uploaded",
+  "draft_saved",
   "assignment_submitted",
+  "assignment_resubmitted",
   "quiz_submitted",
   "submission_graded",
   "quiz_graded",
@@ -446,6 +541,48 @@ export const messages = pgTable(
     index("messages_sender_idx").on(table.senderId),
     index("messages_receiver_idx").on(table.receiverId),
     index("messages_read_idx").on(table.read),
+  ],
+);
+
+export const classChannels = pgTable(
+  "class_channels",
+  {
+    id: text("id").primaryKey(),
+    classId: text("class_id")
+      .notNull()
+      .references(() => classes.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    slug: text("slug").notNull(),
+    isDefault: boolean("is_default").default(false).notNull(),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("class_channels_class_idx").on(table.classId),
+    uniqueIndex("class_channels_class_slug_unique").on(table.classId, table.slug),
+  ],
+);
+
+export const channelMessages = pgTable(
+  "channel_messages",
+  {
+    id: text("id").primaryKey(),
+    channelId: text("channel_id")
+      .notNull()
+      .references(() => classChannels.id, { onDelete: "cascade" }),
+    senderId: text("sender_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    content: text("content").notNull(),
+    media: text("media"),
+    readBy: text("read_by").default("[]").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("channel_messages_channel_idx").on(table.channelId),
+    index("channel_messages_sender_idx").on(table.senderId),
   ],
 );
 
@@ -659,6 +796,29 @@ export const messageRelations = relations(messages, ({ one }) => ({
   }),
 }));
 
+export const classChannelRelations = relations(classChannels, ({ one, many }) => ({
+  class: one(classes, {
+    fields: [classChannels.classId],
+    references: [classes.id],
+  }),
+  creator: one(user, {
+    fields: [classChannels.createdBy],
+    references: [user.id],
+  }),
+  messages: many(channelMessages),
+}));
+
+export const channelMessageRelations = relations(channelMessages, ({ one }) => ({
+  channel: one(classChannels, {
+    fields: [channelMessages.channelId],
+    references: [classChannels.id],
+  }),
+  sender: one(user, {
+    fields: [channelMessages.senderId],
+    references: [user.id],
+  }),
+}));
+
 export const whiteboards = pgTable(
   "whiteboards",
   {
@@ -791,5 +951,3 @@ export const whiteboardOperationRelations = relations(whiteboardOperations, ({ o
     references: [user.id],
   }),
 }));
-
-

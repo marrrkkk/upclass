@@ -1,8 +1,11 @@
 import type { Metadata } from "next"
 import { Suspense } from "react"
+import { desc, eq, or } from "drizzle-orm"
 import { MainLayoutClient } from "@/components/main-layout-client"
 import { HomeShell } from "@/components/layouts/home-shell"
 import { RootClientShell } from "@/components/root-client-shell"
+import { db } from "@/db"
+import { classes, classMembership } from "@/db/schema"
 import { getMainShellState } from "@/lib/server/auth"
 
 export const metadata: Metadata = {
@@ -24,11 +27,27 @@ async function ResolvedMainLayout({
   children: React.ReactNode
 }) {
   const { hasRole, isAuthenticated, userId, userInfo } = await getMainShellState()
+  const recentClasses =
+    userId
+      ? await db
+          .select({
+            id: classes.id,
+            title: classes.title,
+            color: classes.color,
+          })
+          .from(classes)
+          .leftJoin(classMembership, eq(classMembership.classId, classes.id))
+          .where(or(eq(classes.ownerId, userId), eq(classMembership.userId, userId)))
+          .groupBy(classes.id)
+          .orderBy(desc(classes.updatedAt))
+          .limit(6)
+      : []
 
   return (
     <MainLayoutClient hasRole={hasRole} isAuthenticated={isAuthenticated}>
       <HomeShell
         isAuthenticated={isAuthenticated}
+        recentClasses={recentClasses}
         userInfo={userInfo}
         userId={userId}
       >

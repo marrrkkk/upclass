@@ -10,6 +10,11 @@ import { Button } from "@/components/ui/button"
 type HomeShellProps = {
   children: React.ReactNode
   isAuthenticated: boolean
+  recentClasses?: Array<{
+    id: string
+    title: string
+    color: string | null
+  }>
   userInfo?: {
     name: string | null
     email: string | null
@@ -18,13 +23,13 @@ type HomeShellProps = {
   userId?: string
 }
 
-export function HomeShell({ children, isAuthenticated, userInfo, userId }: HomeShellProps) {
+export function HomeShell({ children, isAuthenticated, recentClasses, userInfo, userId }: HomeShellProps) {
   return (
     <div className="min-h-screen bg-background">
       <BackgroundRefreshClient />
 
       <div className="flex">
-        <HomeShellSidebarDrawer userId={userId} userInfo={userInfo} />
+        <HomeShellSidebarDrawer recentClasses={recentClasses} userId={userId} userInfo={userInfo} />
 
         <div className="flex min-h-screen min-w-0 flex-1 flex-col">
           <div className="sticky top-0 z-30 border-b bg-background">

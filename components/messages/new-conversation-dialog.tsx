@@ -19,9 +19,15 @@ import { cn } from "@/lib/utils"
 
 type NewConversationDialogProps = {
   currentUserId: string
+  channels: Array<{
+    channelId: string
+    classId: string
+    className: string
+    classColor: string
+  }>
 }
 
-export function NewConversationDialog({ currentUserId }: NewConversationDialogProps) {
+export function NewConversationDialog({ currentUserId, channels }: NewConversationDialogProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [email, setEmail] = useState("")
@@ -77,10 +83,44 @@ export function NewConversationDialog({ currentUserId }: NewConversationDialogPr
           </div>
           <DialogTitle className="text-xl font-semibold tracking-tight">Start New Conversation</DialogTitle>
           <DialogDescription className="text-muted-foreground">
-            Connect with other users by entering their email address.
+            Start a direct message or jump into a class channel.
           </DialogDescription>
         </DialogHeader>
         <div className="p-6 pt-2 space-y-6 flex-1 min-h-0 overflow-y-auto">
+          <div className="space-y-3">
+            <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Class Channels</Label>
+            {channels.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No class channels available yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {channels.map((channel) => (
+                  <button
+                    key={channel.channelId}
+                    type="button"
+                    onClick={() => {
+                      setOpen(false)
+                      router.push(`/messages/class/${channel.classId}`)
+                    }}
+                    className="flex w-full items-center justify-between rounded-lg border p-3 text-left transition-colors hover:bg-muted/40"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="flex h-9 w-9 items-center justify-center rounded-xl text-sm font-semibold text-white"
+                        style={{ backgroundColor: channel.classColor }}
+                      >
+                        #
+                      </div>
+                      <div>
+                        <p className="font-medium">{channel.className}</p>
+                        <p className="text-xs text-muted-foreground">General channel</p>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Email Address</Label>
@@ -140,4 +180,3 @@ export function NewConversationDialog({ currentUserId }: NewConversationDialogPr
     </Dialog>
   )
 }
-

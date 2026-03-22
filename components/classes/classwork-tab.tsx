@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useEffect, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { BookOpen, Edit, Trash2 } from "lucide-react"
 
@@ -36,6 +36,8 @@ type ClassworkTabProps = {
 
 export function ClassworkTab({ classId, userId, userRole, classwork, submissions, classColor }: ClassworkTabProps) {
   const router = useRouter()
+  const [classworkItems, setClassworkItems] = useState(classwork)
+  const [submissionItems, setSubmissionItems] = useState(submissions)
   const [createOpen, setCreateOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
@@ -45,31 +47,138 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
   const [deletePending, startDeleteTransition] = useTransition()
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
-  useClassworkRealtime({ classId, classwork, router, userId, userRole })
+  useEffect(() => {
+    setClassworkItems(classwork)
+  }, [classwork])
+
+  useEffect(() => {
+    setSubmissionItems(submissions)
+  }, [submissions])
+
+  useClassworkRealtime({
+    classId,
+    classwork,
+    router,
+    userId,
+    userRole,
+    onClassworkPayload: (payload) => {
+      const nextRecord = payload.new as
+        | {
+            id?: string
+            title?: string
+            description?: string | null
+            type?: string
+            due_date?: string | null
+            points?: string | null
+          }
+        | null
+      const prevRecord = payload.old as { id?: string } | null
+
+      if (payload.eventType === "UPDATE" && nextRecord?.id) {
+        setClassworkItems((current) =>
+          current.map((item) =>
+            item.id === nextRecord.id
+              ? {
+                  ...item,
+                  title: nextRecord.title ?? item.title,
+                  description: nextRecord.description ?? item.description,
+                  type: nextRecord.type ?? item.type,
+                  dueDate: nextRecord.due_date ?? item.dueDate,
+                  points: nextRecord.points ?? item.points,
+                }
+              : item,
+          ),
+        )
+        return true
+      }
+
+      if (payload.eventType === "DELETE" && prevRecord?.id) {
+        setClassworkItems((current) => current.filter((item) => item.id !== prevRecord.id))
+        setSubmissionItems((current) =>
+          current.filter((submission) => submission.classworkId !== prevRecord.id),
+        )
+        return true
+      }
+
+      return false
+    },
+    onSubmissionPayload: (payload) => {
+      const nextRecord = payload.new as
+        | {
+            id?: string
+            content?: string | null
+            file_url?: string | null
+            file_name?: string | null
+            status?: string
+            grade?: string | null
+            feedback?: string | null
+            submitted_at?: string | null
+            graded_at?: string | null
+          }
+        | null
+      const prevRecord = payload.old as { id?: string } | null
+
+      if (payload.eventType === "UPDATE" && nextRecord?.id) {
+        setSubmissionItems((current) =>
+          current.map((submission) =>
+            submission.id === nextRecord.id
+              ? {
+                  ...submission,
+                  content: nextRecord.content ?? submission.content,
+                  fileUrl: nextRecord.file_url ?? submission.fileUrl,
+                  fileName: nextRecord.file_name ?? submission.fileName,
+                  status: nextRecord.status ?? submission.status,
+                  grade: nextRecord.grade ?? submission.grade,
+                  feedback: nextRecord.feedback ?? submission.feedback,
+                  submittedAt: nextRecord.submitted_at ?? submission.submittedAt,
+                  gradedAt: nextRecord.graded_at ?? submission.gradedAt,
+                }
+              : submission,
+          ),
+        )
+        return true
+      }
+
+      if (payload.eventType === "DELETE" && prevRecord?.id) {
+        setSubmissionItems((current) =>
+          current.filter((submission) => submission.id !== prevRecord.id),
+        )
+        return true
+      }
+
+      return false
+    },
+  })
 
   const handleCreateClasswork = async (formData: FormData) => {
     setError(null)
-
-    if (!navigator.onLine) {
-      setError("You're offline. Please check your internet connection and try again.")
-      return
-    }
 
     startTransition(async () => {
       const result = await executeWithOfflineHandling(
         () => createClasswork(classId, formData),
         "create-classwork",
-        { classId, ...Object.fromEntries(formData.entries()) },
+        {
+          classId,
+          title: String(formData.get("title") || ""),
+          description: String(formData.get("description") || ""),
+          type:
+            String(formData.get("type") || "") === "material" ||
+            String(formData.get("type") || "") === "quiz"
+              ? (String(formData.get("type")) as "material" | "quiz")
+              : "assignment",
+          dueDate: String(formData.get("dueDate") || ""),
+          points: String(formData.get("points") || ""),
+        },
       )
-
-      if (!result.success) {
-        setError(result.error || "Failed to create classwork")
-        return
-      }
 
       if (result.queued) {
         setError("Action queued. It will be synced when you're back online.")
         setTimeout(() => setCreateOpen(false), 2000)
+        return
+      }
+
+      if (!result.success) {
+        setError(result.error || "Failed to create classwork")
         return
       }
 
@@ -80,26 +189,29 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
   const handleSubmit = async (classworkId: string, formData: FormData) => {
     setError(null)
 
-    if (!navigator.onLine) {
-      setError("You're offline. Please check your internet connection and try again.")
-      return
-    }
-
     startTransition(async () => {
       const result = await executeWithOfflineHandling(
         () => submitClasswork(classworkId, formData),
         "submit-classwork",
-        { classworkId, ...Object.fromEntries(formData.entries()) },
+        {
+          classworkId,
+          content: String(formData.get("content") || ""),
+          attachments: JSON.parse(String(formData.get("attachments") || "[]")),
+          mode: String(formData.get("mode") || "submit") === "draft" ? "draft" : "submit",
+        },
       )
+
+      if (result.queued) {
+        setError("Submission queued. It will be synced when you're back online.")
+        return
+      }
 
       if (!result.success) {
         setError(result.error || "Failed to submit classwork")
         return
       }
 
-      if (result.queued) {
-        setError("Submission queued. It will be synced when you're back online.")
-      }
+      router.refresh()
     })
   }
 
@@ -109,7 +221,10 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
       const result = await gradeSubmission(submissionId, formData)
       if (!result.success) {
         setError(result.error)
+        return
       }
+
+      router.refresh()
     })
   }
 
@@ -143,10 +258,10 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
   }
 
   const getSubmissionForClasswork = (classworkId: string) =>
-    submissions.find((submission) => submission.classworkId === classworkId && submission.studentId === userId)
+    submissionItems.find((submission) => submission.classworkId === classworkId && submission.studentId === userId)
 
   const getSubmissionsForClasswork = (classworkId: string) =>
-    submissions.filter((submission) => submission.classworkId === classworkId)
+    submissionItems.filter((submission) => submission.classworkId === classworkId)
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 max-w-4xl mx-auto w-full">
@@ -165,7 +280,7 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
         )}
       </div>
 
-      {classwork.length === 0 ? (
+      {classworkItems.length === 0 ? (
         <Card className="border-dashed bg-muted/10 border-2">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <div className="p-4 rounded-full bg-muted/50 mb-4">
@@ -181,7 +296,7 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
         </Card>
       ) : (
         <div className="grid gap-4">
-          {classwork.map((item) => (
+          {classworkItems.map((item) => (
             <ClassworkCard
               key={item.id}
               allSubmissions={getSubmissionsForClasswork(item.id)}
@@ -202,7 +317,7 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
       )}
 
       {editClassworkOpen && (() => {
-        const item = classwork.find((entry) => entry.id === editClassworkOpen)
+        const item = classworkItems.find((entry) => entry.id === editClassworkOpen)
         if (!item) return null
 
         return (
@@ -269,7 +384,7 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
       })()}
 
       {deleteClassworkOpen && (() => {
-        const item = classwork.find((entry) => entry.id === deleteClassworkOpen)
+        const item = classworkItems.find((entry) => entry.id === deleteClassworkOpen)
         if (!item) return null
 
         return (

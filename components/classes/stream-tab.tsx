@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useEffect, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { MessageSquare } from "lucide-react"
 
@@ -22,35 +22,101 @@ type StreamTabProps = {
 
 export function StreamTab({ classId, userId, userRole, announcements, classColor }: StreamTabProps) {
   const router = useRouter()
+  const [announcementItems, setAnnouncementItems] = useState(announcements)
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
-  useStreamRealtime(classId, router)
+  useEffect(() => {
+    setAnnouncementItems(announcements)
+  }, [announcements])
+
+  useStreamRealtime({
+    classId,
+    router,
+    onAnnouncementPayload: (payload) => {
+      const nextRecord = payload.new as { id?: string; content?: string } | null
+      const prevRecord = payload.old as { id?: string } | null
+
+      if (payload.eventType === "UPDATE" && nextRecord?.id) {
+        setAnnouncementItems((current) =>
+          current.map((announcement) =>
+            announcement.id === nextRecord.id
+              ? { ...announcement, content: nextRecord.content ?? announcement.content }
+              : announcement,
+          ),
+        )
+        return true
+      }
+
+      if (payload.eventType === "DELETE" && prevRecord?.id) {
+        setAnnouncementItems((current) =>
+          current.filter((announcement) => announcement.id !== prevRecord.id),
+        )
+        return true
+      }
+
+      return false
+    },
+    onReactionPayload: (payload) => {
+      const nextRecord = payload.new as
+        | { announcement_id?: string; user_id?: string; reaction?: string }
+        | null
+      const prevRecord = payload.old as
+        | { announcement_id?: string; user_id?: string; reaction?: string }
+        | null
+      const announcementId = nextRecord?.announcement_id || prevRecord?.announcement_id
+      const reactionUserId = nextRecord?.user_id || prevRecord?.user_id
+
+      if (!announcementId || !reactionUserId) return false
+
+      setAnnouncementItems((current) =>
+        current.map((announcement) => {
+          if (announcement.id !== announcementId) return announcement
+
+          const reactions = announcement.reactions.filter(
+            (reaction) => reaction.userId !== reactionUserId,
+          )
+
+          if (payload.eventType !== "DELETE" && nextRecord?.reaction) {
+            reactions.push({
+              userId: reactionUserId,
+              reaction: nextRecord.reaction,
+            })
+          }
+
+          return {
+            ...announcement,
+            reactions,
+          }
+        }),
+      )
+
+      return true
+    },
+  })
 
   const handleCreate = async (formData: FormData) => {
     setError(null)
-    
-    if (!navigator.onLine) {
-      setError("You're offline. Please check your internet connection and try again.")
-      return
-    }
 
     startTransition(async () => {
       const res = await executeWithOfflineHandling(
         () => createAnnouncement(classId, formData),
-        'create-announcement',
-        { classId, ...Object.fromEntries(formData.entries()) }
+        "create-announcement",
+        {
+          classId,
+          content: String(formData.get("content") || ""),
+        },
       )
-
-      if (!res.success) {
-        setError(res.error || "Failed to create announcement")
-        return
-      }
 
       if (res.queued) {
         setError("Announcement queued. It will be synced when you're back online.")
         setTimeout(() => setOpen(false), 2000)
+        return
+      }
+
+      if (!res.success) {
+        setError(res.error || "Failed to create announcement")
         return
       }
 
@@ -74,7 +140,7 @@ export function StreamTab({ classId, userId, userRole, announcements, classColor
           onSubmit={handleCreate}
         />
 
-        {announcements.length === 0 ? (
+        {announcementItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center rounded-xl border-2 border-dashed border-muted-foreground/10 bg-muted/10">
             <div className="rounded-full bg-background p-4 shadow-sm mb-3">
               <MessageSquare className="h-6 w-6 text-muted-foreground" />
@@ -88,7 +154,7 @@ export function StreamTab({ classId, userId, userRole, announcements, classColor
           </div>
         ) : (
           <div className="flex flex-col gap-4">
-            {announcements.map((announcement) => (
+            {announcementItems.map((announcement) => (
               <AnnouncementCard
                 key={announcement.id}
                 announcement={announcement}

@@ -163,6 +163,38 @@
     transform: translateX(0);
   }
 }
+
+.minimal-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.minimal-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.minimal-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.minimal-scrollbar::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 9999px;
+  transition: background-color 180ms ease;
+}
+
+.minimal-scrollbar[data-scrolling="true"] {
+  scrollbar-color: color-mix(in oklab, var(--muted-foreground) 18%, transparent) transparent;
+}
+
+.minimal-scrollbar[data-scrolling="true"]::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--muted-foreground) 18%, transparent);
+}
+
+.minimal-scrollbar[data-scrolling="true"]::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklab, var(--muted-foreground) 28%, transparent);
+}
+
 @keyframes navigation-progress {
   0% {
     transform: scaleX(0.08);

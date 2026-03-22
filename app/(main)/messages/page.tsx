@@ -5,7 +5,7 @@ import { redirect } from "next/navigation"
 import { MessagesContentSkeleton } from "@/components/skeletons"
 import { MessagesClient } from "@/components/messages/messages-client"
 import { getOptionalSession } from "@/lib/server/auth"
-import { getConversationSummaries } from "@/lib/server/messages"
+import { getChannelSummaries, getConversationSummaries } from "@/lib/server/messages"
 
 export const metadata: Metadata = {
   title: "Messages",
@@ -35,7 +35,24 @@ export default async function MessagesPage() {
 }
 
 async function MessagesPageContent({ userId }: { userId: string }) {
-  const conversations = await getConversationSummaries(userId)
+  const [conversations, channels] = await Promise.all([
+    getConversationSummaries(userId),
+    getChannelSummaries(userId),
+  ])
 
-  return <MessagesClient conversations={conversations} userId={userId} showHeader={false} />
+  const threads = [...conversations, ...channels]
+    .sort((left, right) => {
+      const leftTime = left.lastMessageTime ? new Date(left.lastMessageTime).getTime() : 0
+      const rightTime = right.lastMessageTime ? new Date(right.lastMessageTime).getTime() : 0
+      return rightTime - leftTime
+    })
+
+  return (
+    <MessagesClient
+      threads={threads}
+      channels={channels}
+      userId={userId}
+      showHeader={false}
+    />
+  )
 }

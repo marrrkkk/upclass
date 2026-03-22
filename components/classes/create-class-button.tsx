@@ -4,12 +4,11 @@ import { useState, useTransition } from "react"
 import { Plus } from "lucide-react"
 
 import { createClass } from "@/app/actions/classes"
-import { Button, buttonVariants } from "@/components/ui/button"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { executeWithOfflineHandling } from "@/lib/offline-action-handler"
-import { AlertCircle } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -36,29 +35,29 @@ export function CreateClassButton({ iconOnly = false }: CreateClassButtonProps) 
   const handleCreate = async (formData: FormData) => {
     setError(null)
     startTransition(async () => {
-      // Check if offline
-      if (!navigator.onLine) {
-        setError("You're offline. Please check your internet connection and try again.")
-        return
-      }
-
       const res = await executeWithOfflineHandling(
         () => createClass(formData),
-        'create-class',
-        Object.fromEntries(formData.entries())
+        "create-class",
+        {
+          title: String(formData.get("title") || ""),
+          description: String(formData.get("description") || ""),
+          category: String(formData.get("category") || ""),
+          color: String(formData.get("color") || ""),
+          schedule: String(formData.get("schedule") || ""),
+        },
       )
 
-      if (!res.success) {
-        setError(res.error || "Failed to create class")
-        return
-      }
-      
       if (res.queued) {
         setError("Action queued. It will be synced when you're back online.")
         setTimeout(() => setOpen(false), 2000)
         return
       }
-      
+
+      if (!res.success) {
+        setError(res.error || "Failed to create class")
+        return
+      }
+
       setOpen(false)
     })
   }
@@ -240,4 +239,3 @@ export function CreateClassButton({ iconOnly = false }: CreateClassButtonProps) 
     </Dialog>
   )
 }
-

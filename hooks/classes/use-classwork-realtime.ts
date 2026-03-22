@@ -2,6 +2,7 @@
 
 import { useEffect } from "react"
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime"
+import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js"
 
 import { supabase } from "@/lib/supabase-client"
 import type { ClassworkData } from "@/types/classes"
@@ -12,6 +13,8 @@ type UseClassworkRealtimeParams = {
   router: AppRouterInstance
   userId?: string
   userRole: "teacher" | "student" | null
+  onClassworkPayload?: (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => boolean
+  onSubmissionPayload?: (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => boolean
 }
 
 export function useClassworkRealtime({
@@ -20,6 +23,8 @@ export function useClassworkRealtime({
   router,
   userId,
   userRole,
+  onClassworkPayload,
+  onSubmissionPayload,
 }: UseClassworkRealtimeParams) {
   useEffect(() => {
     if (!supabase) return
@@ -34,7 +39,9 @@ export function useClassworkRealtime({
           table: "classwork",
           filter: `class_id=eq.${classId}`,
         },
-        () => {
+        (payload) => {
+          const handled = onClassworkPayload?.(payload)
+          if (handled) return
           router.refresh()
         },
       )
@@ -53,6 +60,9 @@ export function useClassworkRealtime({
           ...(userRole === "student" ? { filter: `student_id=eq.${userId}` } : {}),
         },
         (payload) => {
+          const handled = onSubmissionPayload?.(payload)
+          if (handled) return
+
           if (userRole === "teacher") {
             const newRecord = payload.new as { classwork_id?: string } | null
             const oldRecord = payload.old as { classwork_id?: string } | null
@@ -73,5 +83,5 @@ export function useClassworkRealtime({
       supabase?.removeChannel(classworkChannel)
       supabase?.removeChannel(submissionsChannel)
     }
-  }, [classId, classwork, router, userId, userRole])
+  }, [classId, classwork, onClassworkPayload, onSubmissionPayload, router, userId, userRole])
 }
