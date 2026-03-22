@@ -8,11 +8,11 @@ UpClass is a classroom and learning-management web app built for teachers and st
 
 - Role-aware experience for teachers and students
 - Class creation and joining with codes, schedules, announcements, and member management
-- Classwork, submissions, grading, and quiz workflows
+- Draft-aware classwork, submissions, grading history, and quiz workflows
 - Resource library with uploads, previews, and a resource-focused AI assistant
-- Direct messaging and in-app notifications
+- Direct messaging, class channels, and in-app notifications
 - Collaborative whiteboards powered by Excalidraw
-- Dashboard and activity views for deadlines, summaries, and recent activity
+- Dashboard and activity views for deadlines, teacher analytics, summaries, and recent activity
 - PWA support with service worker caching, install prompts, background sync, and offline-aware flows
 
 ## Tech Stack
@@ -27,6 +27,7 @@ UpClass is a classroom and learning-management web app built for teachers and st
 - UploadThing
 - Excalidraw
 - Zustand
+- Zod
 - Vitest + Testing Library
 
 ## Project Structure
@@ -70,11 +71,14 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 UPLOADTHING_TOKEN=
 GEMINI_API_KEY=
+RESEND_API_KEY=
+EMAIL_FROM="UpClass <notifications@your-domain.com>"
 ```
 
 > [!NOTE]
 > `BETTER_AUTH_URL` can be omitted in some hosted environments because the app falls back to `VERCEL_URL`, but setting it explicitly is safer.
 > `NEXT_PUBLIC_APP_URL` is also used for SEO metadata, sitemap, robots, and canonical URLs. In production, set it to `https://upclass.xyz`.
+> For email delivery, verify your sending domain in Resend and set `EMAIL_FROM` to an address on that domain.
 
 ### 3. Run database migrations
 
@@ -96,16 +100,14 @@ Open `http://localhost:3000`.
 npm run dev           # start the local dev server
 npm run db:migrate    # apply Drizzle migrations
 npm run build         # create a production build
-npm run build:vercel  # run migrations, then build
+npm run build:vercel  # lint, type-check, test, migrate, then build
 npm run start         # serve the production build
 npm run lint          # run ESLint
+npm run type-check    # run TypeScript without emitting files
 npm run test          # run Vitest once
 npm run test:watch    # run Vitest in watch mode
 npm run test:coverage # run Vitest with coverage
 ```
-
-> [!TIP]
-> There is no dedicated `type-check` script yet. Use `npx tsc --noEmit` when you want an explicit TypeScript pass.
 
 ## Environment & Integrations
 
@@ -120,7 +122,7 @@ npm run test:coverage # run Vitest with coverage
 
 ### Important runtime notes
 
-- Deploy builds on Vercel use `npm run build:vercel`, which runs migrations before building.
+- Deploy builds on Vercel use `npm run build:vercel`, which gates deploys on `lint`, `type-check`, and `test` before migrations and the production build.
 - The target database must already exist and be reachable before deployment builds run.
 - Upload routes enforce authenticated uploads.
 - Missing Supabase client env vars will degrade realtime behavior.
@@ -131,6 +133,7 @@ UpClass treats offline and mobile installation as core product behavior, not an 
 
 - `/sw.js` and `public/manifest.json` provide the PWA runtime
 - background cache and sync helpers in `lib/` warm key routes and replay pending actions
+- pending offline actions are stored in a dedicated IndexedDB queue so supported mutations can survive reloads and retry safely
 - cached data is used for classes, resources, conversations, notifications, and related assets when available
 - some flows remain intentionally online-only, including collaborative whiteboards, quiz-taking sync, authenticated uploads, and other live server-dependent operations
 
@@ -141,8 +144,13 @@ UpClass treats offline and mobile installation as core product behavior, not an 
 
 - Route pages are mostly server-rendered and fetch initial data with Drizzle and `auth.api.getSession(...)`
 - Interactive feature surfaces are split into client components where browser APIs, realtime updates, dialogs, or local state are required
+- Shared server input validation lives in `lib/validation/` and uses Zod schemas plus `FormData` parsing helpers for server actions and route handlers
+- The main shell sidebar now uses a recent-classes accordion instead of a saved-items/favorites flow
+- Messaging includes direct conversations plus a default `general` channel per class, with server-side search and offline queue support for sends
+- Assignment submissions track attachments, revisions, and grading history on the current canonical submission row
 - `components/ui/` provides the reusable design-system layer
 - `whiteboard/` isolates canvas, persistence, realtime, and state logic for Excalidraw-based collaboration
+- Whiteboard saves use optimistic concurrency and return conflict data instead of silently overwriting newer snapshots
 
 ## Data Model Overview
 
@@ -159,7 +167,7 @@ The schema in [`db/schema.ts`](./db/schema.ts) covers:
 
 ## Testing
 
-The repo already includes Vitest-based coverage for selected hooks, components, and utility modules under `tests/`.
+The repo includes Vitest coverage for UI, hooks, utilities, and server-side action/API behavior under `tests/`.
 
 Examples:
 
@@ -167,6 +175,8 @@ Examples:
 - offline indicator and install prompt behavior
 - presence and legacy whiteboard utilities
 - background refresh and prefetch hooks
+- server actions for classes, resources, and messages
+- API routes such as AI chat, user lookup, and whiteboard auth checks
 
 ## Product Direction
 

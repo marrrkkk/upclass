@@ -7,9 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Minimal public `/terms`, `/privacy`, and `/contact` pages so auth and support links resolve to live routes.
+- Draft/resubmission assignment workflow support with multiple submission attachments, revision history, grading history, and richer classwork review dialogs.
+- Teacher analytics on Home covering overdue work, a global review queue, unread student questions, low-participation alerts, and weekly summary cards.
+- Class `general` channels, unified messaging search, and offline queue support for direct and channel message sends.
+
 ### Changed
 - Changelog entries will be tracked here before the next tagged release.
 - Rebuilt the app SEO configuration around the production domain `https://upclass.xyz` with richer metadata, structured data, sitemap and robots support, social preview images, and `noindex` protection for authenticated app routes.
+- Deploy builds now gate on lint, type-check, and test before migrations and the production build.
+- Whiteboard snapshot persistence now uses optimistic concurrency with reload-on-conflict handling instead of last-write-wins version bumps.
+- Cache cleanup removed the old page HTML cache layer in favor of the typed IndexedDB data caches already used by offline flows.
+- Notification delivery now runs through a shared provider abstraction instead of leaving email and push TODOs in server actions.
+- Transactional email delivery now runs through Resend using React Email templates and a dedicated authenticated test endpoint.
+
+### Removed
+- The favorites feature, `/favorites` route, favorite toggles, and supporting saved-item schema/helpers were removed in favor of a simpler recent-classes sidebar flow.
 
 ## [0.1.0] - 2026-03-21
 
