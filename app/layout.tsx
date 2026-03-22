@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next"
-import { Inter } from "next/font/google"
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 
@@ -13,12 +12,6 @@ import {
   siteUrl,
   socialImagePath,
 } from "@/lib/seo"
-
-const inter = Inter({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-inter",
-})
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -97,7 +90,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <body className="font-sans antialiased" suppressHydrationWarning>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           {children}

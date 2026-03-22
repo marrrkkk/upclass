@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Changelog entries will be tracked here before the next tagged release.
 - Rebuilt the app SEO configuration around the production domain `https://upclass.xyz` with richer metadata, structured data, sitemap and robots support, social preview images, and `noindex` protection for authenticated app routes.
 - Deploy builds now gate on lint, type-check, and test before migrations and the production build.
+- Deploy builds now skip `db:migrate` when `DATABASE_URL` is missing instead of failing before the application build starts.
+- Production builds now use webpack instead of Turbopack to avoid Excalidraw CSS build crashes in restricted deploy environments.
 - Whiteboard snapshot persistence now uses optimistic concurrency with reload-on-conflict handling instead of last-write-wins version bumps.
 - Cache cleanup removed the old page HTML cache layer in favor of the typed IndexedDB data caches already used by offline flows.
 - Notification delivery now runs through a shared provider abstraction instead of leaving email and push TODOs in server actions.

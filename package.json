@@ -5,8 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "db:migrate": "drizzle-kit migrate --config drizzle.config.ts",
-    "build": "next build",
-    "build:vercel": "npm run lint && npm run type-check && npm run test && npm run db:migrate && next build",
+    "build": "next build --webpack",
+    "build:vercel": "npm run lint && npm run type-check && npm run test && if [ -n \"$DATABASE_URL\" ]; then npm run db:migrate; else echo 'Skipping db:migrate because DATABASE_URL is not set'; fi && next build --webpack",
     "start": "next start",
     "lint": "eslint",
     "type-check": "tsc --noEmit",

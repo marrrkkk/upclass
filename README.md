@@ -99,8 +99,8 @@ Open `http://localhost:3000`.
 ```bash
 npm run dev           # start the local dev server
 npm run db:migrate    # apply Drizzle migrations
-npm run build         # create a production build
-npm run build:vercel  # lint, type-check, test, migrate, then build
+npm run build         # create a production webpack build
+npm run build:vercel  # lint, type-check, test, optionally migrate, then webpack build
 npm run start         # serve the production build
 npm run lint          # run ESLint
 npm run type-check    # run TypeScript without emitting files
@@ -123,6 +123,7 @@ npm run test:coverage # run Vitest with coverage
 ### Important runtime notes
 
 - Deploy builds on Vercel use `npm run build:vercel`, which gates deploys on `lint`, `type-check`, and `test` before migrations and the production build.
+- `build:vercel` only runs `db:migrate` when `DATABASE_URL` is available in the environment; otherwise it skips migrations and continues to the build.
 - The target database must already exist and be reachable before deployment builds run.
 - Upload routes enforce authenticated uploads.
 - Missing Supabase client env vars will degrade realtime behavior.
