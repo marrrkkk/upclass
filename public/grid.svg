@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160" fill="none">
+  <path d="M0 0H160V160H0V0Z" fill="transparent"/>
+  <g stroke="rgba(148,163,184,0.24)" stroke-width="1">
+    <path d="M40 0V160"/>
+    <path d="M80 0V160"/>
+    <path d="M120 0V160"/>
+    <path d="M0 40H160"/>
+    <path d="M0 80H160"/>
+    <path d="M0 120H160"/>
+  </g>
+</svg>

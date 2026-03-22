@@ -70,6 +70,15 @@ export type WhiteboardShapeUpdateEvent = {
   sentAt: string
 }
 
+export type WhiteboardSnapshotSavedEvent = {
+  type: "snapshot_saved"
+  boardId: string
+  actorId: string
+  clientId: string
+  version: number
+  sentAt: string
+}
+
 export type WhiteboardCursorUpdateEvent = {
   type: "cursor_update"
   boardId: string
@@ -99,6 +108,7 @@ export type WhiteboardUserLeaveEvent = {
 
 export type WhiteboardRealtimeEvent =
   | WhiteboardShapeUpdateEvent
+  | WhiteboardSnapshotSavedEvent
   | WhiteboardCursorUpdateEvent
   | WhiteboardUserJoinEvent
   | WhiteboardUserLeaveEvent
