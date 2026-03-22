@@ -10,9 +10,9 @@
     "start": "next start",
     "lint": "eslint",
     "type-check": "tsc --noEmit",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test": "NODE_ENV=test vitest run",
+    "test:watch": "NODE_ENV=test vitest",
+    "test:coverage": "NODE_ENV=test vitest run --coverage"
   },
   "dependencies": {
     "@excalidraw/excalidraw": "^0.18.0",
