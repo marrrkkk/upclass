@@ -31,6 +31,11 @@
       "sourceType": "github",
       "computedHash": "ea2ac97c0f3a5afe4d0196969840d383a30882b8e00a4da895e4ea6eaa32af09"
     },
+    "nextjs-seo": {
+      "source": "laguagu/claude-code-nextjs-skills",
+      "sourceType": "github",
+      "computedHash": "95d96a22d53f9f74e3ed116ef55a36a15599344a790baf012fff8be91c9c09b8"
+    },
     "pwa-development": {
       "source": "alinaqi/claude-bootstrap",
       "sourceType": "github",
