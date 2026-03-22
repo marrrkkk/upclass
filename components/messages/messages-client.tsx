@@ -1,86 +1,83 @@
 "use client"
 
 import dynamic from "next/dynamic"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Search, Users } from "lucide-react"
+import { formatDistanceToNow } from "date-fns"
+
+import { searchMessages } from "@/app/actions/messages"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
-import { formatDistanceToNow } from "date-fns"
-import { useOfflineCollectionCache } from "@/lib/cache-hooks"
-import { BackgroundCache } from "@/lib/background-cache"
 
 const NewConversationDialog = dynamic(
   () => import("@/components/messages/new-conversation-dialog").then((mod) => mod.NewConversationDialog),
 )
 
-type Conversation = {
+type DirectThread = {
+  kind: "direct"
+  id: string
   userId: string
+  title: string
   userName: string
   userImage: string | null
   lastMessage: string
   lastMessageTime: string
   unreadCount: number
+  href: string
+}
+
+type ChannelThread = {
+  kind: "channel"
+  id: string
+  channelId: string
+  classId: string
+  title: string
+  className: string
+  classColor: string
+  channelName: string
+  lastMessage: string
+  lastMessageTime: string
+  unreadCount: number
+  href: string
+}
+
+type SearchResult = {
+  id: string
+  title: string
+  subtitle: string
+  snippet: string
+  href: string
+  createdAt: string
 }
 
 type MessagesClientProps = {
-  conversations: Conversation[]
+  threads: Array<DirectThread | ChannelThread>
+  channels: ChannelThread[]
   userId: string
   showHeader?: boolean
 }
 
 export function MessagesClient({
-  conversations: initialConversations,
+  threads,
+  channels,
   userId,
   showHeader = true,
 }: MessagesClientProps) {
   const router = useRouter()
-  const [offlineConversations, setOfflineConversations] = useState<Conversation[] | null>(null)
-
-  // Don't cache conversations as messages - they have different structure
-  // Conversations will be cached separately if needed
-  useOfflineCollectionCache<Conversation>({
-    onlineData: initialConversations,
-    getCachedData: () => BackgroundCache.getInstance().getCachedConversations(),
-    onHydrate: setOfflineConversations,
-  })
-
-  useEffect(() => {
-    if (typeof window === "undefined" || navigator.onLine) return
-
-    let cancelled = false
-
-    const hydrateOfflineConversations = async () => {
-      const cachedConversations = await BackgroundCache.getInstance().getCachedConversations()
-      if (cancelled || cachedConversations.length === 0) return
-
-      setOfflineConversations(cachedConversations)
-    }
-
-    void hydrateOfflineConversations()
-
-    return () => {
-      cancelled = true
-    }
-  }, [userId])
-
-  const conversations = useMemo(
-    () => offlineConversations ?? initialConversations,
-    [initialConversations, offlineConversations],
-  )
-
   const [searchQuery, setSearchQuery] = useState("")
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([])
+  const [searchPending, startSearchTransition] = useTransition()
 
   useEffect(() => {
     if (!supabase || !userId) return
 
-    // Subscribe to real-time changes
-    const channel = supabase
-      .channel(`messages:${userId}`)
+    const directChannel = supabase
+      .channel(`messages:list:${userId}`)
       .on(
         "postgres_changes",
         {
@@ -90,131 +87,198 @@ export function MessagesClient({
           filter: `receiver_id=eq.${userId}`,
         },
         () => {
-          // Use router.refresh() instead of window.location.reload() for better UX
+          router.refresh()
+        },
+      )
+      .subscribe()
+
+    const classChannel = supabase
+      .channel(`channel-messages:list:${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "channel_messages",
+        },
+        () => {
           router.refresh()
         },
       )
       .subscribe()
 
     return () => {
-      supabase?.removeChannel(channel)
+      supabase?.removeChannel(directChannel)
+      supabase?.removeChannel(classChannel)
     }
-  }, [userId, router])
+  }, [router, userId])
 
-  const filteredConversations = conversations.filter((conv) =>
-    conv.userName.toLowerCase().includes(searchQuery.toLowerCase()),
-  )
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      return
+    }
+
+    startSearchTransition(async () => {
+      const result = await searchMessages(searchQuery)
+      if (result.success) {
+        setSearchResults(result.results)
+      }
+    })
+  }, [searchQuery])
+
+  const filteredThreads = useMemo(() => {
+    if (searchQuery.trim()) return []
+
+    return threads.filter((thread) =>
+      thread.title.toLowerCase().includes(searchQuery.toLowerCase()),
+    )
+  }, [threads, searchQuery])
 
   const formatLastMessageTime = (dateString: string) => {
     try {
-      return formatDistanceToNow(new Date(dateString), { addSuffix: true })
+      return dateString ? formatDistanceToNow(new Date(dateString), { addSuffix: true }) : "No activity"
     } catch {
       return "Just now"
     }
   }
 
-  const getInitials = (name: string) => {
-    return name
+  const getInitials = (name: string) =>
+    name
       .split(" ")
-      .map((n) => n[0])
+      .map((part) => part[0])
       .join("")
       .toUpperCase()
       .slice(0, 2)
-  }
 
   return (
-    <div className={cn("flex flex-col h-[calc(100vh-8rem)]", showHeader ? "gap-6" : "gap-4")}>
+    <div className={cn("flex h-[calc(100vh-8rem)] flex-col", showHeader ? "gap-6" : "gap-4")}>
       {showHeader ? (
         <div className="flex flex-row items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Messages</h1>
-            <p className="text-muted-foreground mt-1">
-              Connect with your classmates and teachers.
-            </p>
+            <p className="mt-1 text-muted-foreground">Connect with your classmates and teachers.</p>
           </div>
-          <NewConversationDialog currentUserId={userId || ""} />
+          <NewConversationDialog currentUserId={userId} channels={channels} />
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-4 flex-1 overflow-hidden">
+      <div className="flex flex-1 flex-col gap-4 overflow-hidden">
         {!showHeader ? (
           <div className="flex justify-end">
-            <NewConversationDialog currentUserId={userId || ""} />
+            <NewConversationDialog currentUserId={userId} channels={channels} />
           </div>
         ) : null}
         <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
             <Search className="h-4 w-4 text-muted-foreground" />
           </div>
           <Input
             type="text"
-            placeholder="Search conversations..."
+            placeholder="Search chats and class channels..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 h-11 bg-muted/40 border-muted-foreground/20 focus-visible:bg-background transition-all"
+            onChange={(event) => {
+              const value = event.target.value
+              setSearchQuery(value)
+              if (!value.trim()) {
+                setSearchResults([])
+              }
+            }}
+            className="h-11 border-muted-foreground/20 bg-muted/40 pl-10 transition-all focus-visible:bg-background"
           />
         </div>
 
         <div className="flex-1 overflow-y-auto pr-1">
-          {filteredConversations.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center animate-in fade-in zoom-in-50 duration-500 h-full">
-              <div className="rounded-full bg-muted/50 p-6 mb-6">
-                <Users className="h-10 w-10 text-muted-foreground/50" />
-              </div>
-              <h3 className="text-xl font-semibold text-foreground">
-                {searchQuery ? "No conversations found" : "No messages yet"}
-              </h3>
-              <p className="mt-2 text-muted-foreground max-w-sm">
-                {searchQuery
-                  ? `We couldn't find any conversations matching "${searchQuery}"`
-                  : "Start a conversation to connect with others."}
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {filteredConversations.map((conv) => {
-                const messageHref = `/messages/${conv.userId}`
-                return (
-                  <Link 
-                    key={conv.userId} 
-                    href={messageHref} 
-                  >
-                    <div className="group flex items-center gap-4 p-4 rounded-xl border border-transparent hover:bg-card hover:border-border hover:shadow-sm transition-all duration-200 cursor-pointer bg-card/40">
-                      <Avatar className="h-12 w-12 border border-border/50">
-                        <AvatarImage src={conv.userImage || undefined} alt={conv.userName} />
-                        <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-medium">
-                          {getInitials(conv.userName)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <span className="font-semibold text-foreground truncate">{conv.userName}</span>
-                          <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                            {formatLastMessageTime(conv.lastMessageTime)}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between gap-2">
-                          <p className={cn(
-                            "text-sm truncate pr-4",
-                            conv.unreadCount > 0 ? "text-foreground font-medium" : "text-muted-foreground"
-                          )}>
-                            {conv.lastMessage}
-                          </p>
-                          {conv.unreadCount > 0 && (
-                            <Badge variant="default" className="h-5 min-w-[1.25rem] px-1.5 flex justify-center items-center rounded-full text-[10px] font-bold">
-                              {conv.unreadCount}
-                            </Badge>
-                          )}
-                        </div>
+          {searchQuery.trim() ? (
+            searchResults.length === 0 && !searchPending ? (
+              <EmptyState title="No results found" description={`Nothing matched "${searchQuery}".`} />
+            ) : (
+              <div className="space-y-2">
+                {searchResults.map((result) => (
+                  <Link key={result.id} href={result.href}>
+                    <div className="rounded-xl border bg-card/40 p-4 transition-all duration-200 hover:border-border hover:bg-card hover:shadow-sm">
+                      <div className="mb-1 flex items-center justify-between gap-2">
+                        <span className="font-semibold text-foreground">{result.title}</span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {formatLastMessageTime(result.createdAt)}
+                        </span>
                       </div>
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                        {result.subtitle}
+                      </p>
+                      <p className="mt-2 truncate text-sm text-muted-foreground">{result.snippet}</p>
                     </div>
                   </Link>
-                )
-              })}
+                ))}
+              </div>
+            )
+          ) : filteredThreads.length === 0 ? (
+            <EmptyState title="No messages yet" description="Start a conversation to connect with others." />
+          ) : (
+            <div className="space-y-2">
+              {filteredThreads.map((thread) => (
+                <Link key={thread.id} href={thread.href}>
+                  <div className="group flex cursor-pointer items-center gap-4 rounded-xl border border-transparent bg-card/40 p-4 transition-all duration-200 hover:border-border hover:bg-card hover:shadow-sm">
+                    {thread.kind === "direct" ? (
+                      <Avatar className="h-12 w-12 border border-border/50">
+                        <AvatarImage src={thread.userImage || undefined} alt={thread.userName} />
+                        <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-medium">
+                          {getInitials(thread.userName)}
+                        </AvatarFallback>
+                      </Avatar>
+                    ) : (
+                      <div
+                        className="flex h-12 w-12 items-center justify-center rounded-2xl text-sm font-semibold text-white"
+                        style={{ backgroundColor: thread.classColor }}
+                      >
+                        #
+                      </div>
+                    )}
+
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1 flex items-center justify-between gap-2">
+                        <span className="truncate font-semibold text-foreground">{thread.title}</span>
+                        <span className="whitespace-nowrap text-[10px] text-muted-foreground">
+                          {formatLastMessageTime(thread.lastMessageTime)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <p
+                          className={cn(
+                            "truncate pr-4 text-sm",
+                            thread.unreadCount > 0 ? "font-medium text-foreground" : "text-muted-foreground",
+                          )}
+                        >
+                          {thread.lastMessage}
+                        </p>
+                        {thread.unreadCount > 0 ? (
+                          <Badge
+                            variant="default"
+                            className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full px-1.5 text-[10px] font-bold"
+                          >
+                            {thread.unreadCount}
+                          </Badge>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              ))}
             </div>
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+function EmptyState({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="flex h-full animate-in zoom-in-50 flex-col items-center justify-center py-16 text-center duration-500">
+      <div className="mb-6 rounded-full bg-muted/50 p-6">
+        <Users className="h-10 w-10 text-muted-foreground/50" />
+      </div>
+      <h3 className="text-xl font-semibold text-foreground">{title}</h3>
+      <p className="mt-2 max-w-sm text-muted-foreground">{description}</p>
     </div>
   )
 }

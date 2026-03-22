@@ -6,7 +6,8 @@ import {
     ClipboardList,
     MessageSquare,
     Bell,
-    CheckCircle2,
+    Users,
+    TriangleAlert,
     Clock
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -82,6 +83,9 @@ export type StatsData = {
     unreadNotifications: number
     // Teacher-specific
     pendingSubmissions?: number
+    overdueWork?: number
+    unreadStudentQuestions?: number
+    lowParticipationAlerts?: number
     // Student-specific
     completedTasks?: number
 }
@@ -93,7 +97,7 @@ type StatsCardsProps = {
 
 export function StatsCards({ stats, role }: StatsCardsProps) {
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className={cn("grid gap-4", role === "teacher" ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-6" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4")}>
             <StatCard
                 title="Active Classes"
                 value={stats.totalClasses}
@@ -137,6 +141,32 @@ export function StatsCards({ stats, role }: StatsCardsProps) {
                 description="New alerts"
                 variant={stats.unreadNotifications > 0 ? "info" : "default"}
             />
+
+            {role === "teacher" ? (
+                <>
+                    <StatCard
+                        title="Overdue Work"
+                        value={stats.overdueWork || 0}
+                        icon={<TriangleAlert className="h-5 w-5" />}
+                        description="Students missing due work"
+                        variant={stats.overdueWork && stats.overdueWork > 0 ? "warning" : "default"}
+                    />
+                    <StatCard
+                        title="Unread Questions"
+                        value={stats.unreadStudentQuestions || 0}
+                        icon={<MessageSquare className="h-5 w-5" />}
+                        description="Student messages needing attention"
+                        variant={stats.unreadStudentQuestions && stats.unreadStudentQuestions > 0 ? "info" : "default"}
+                    />
+                    <StatCard
+                        title="Low Participation"
+                        value={stats.lowParticipationAlerts || 0}
+                        icon={<Users className="h-5 w-5" />}
+                        description="Students inactive this week"
+                        variant={stats.lowParticipationAlerts && stats.lowParticipationAlerts > 0 ? "warning" : "default"}
+                    />
+                </>
+            ) : null}
         </div>
     )
 }

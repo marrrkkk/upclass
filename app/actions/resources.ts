@@ -8,6 +8,11 @@ import { db } from "@/db"
 import { auth } from "@/lib/auth"
 import { resources } from "@/db/schema"
 import { logActivity } from "@/lib/activity"
+import {
+  createResourceSchema,
+  updateResourceSchema,
+} from "@/lib/validation/actions"
+import { parseFormData } from "@/lib/validation/form-data"
 
 type ActionResponse =
   | { success: true }
@@ -22,21 +27,12 @@ export async function createResource(formData: FormData): Promise<ActionResponse
     return { success: false, error: "Unauthorized" }
   }
 
-  const title = (formData.get("title") as string | null)?.trim()
-  const description = (formData.get("description") as string | null)?.trim()
-  const category = (formData.get("category") as string | null)?.trim() || "General"
-  const fileUrl = formData.get("fileUrl") as string | null
-  const fileName = formData.get("fileName") as string | null
-  const fileType = formData.get("fileType") as string | null
-  const fileSize = formData.get("fileSize") as string | null
-
-  if (!title) {
-    return { success: false, error: "Title is required" }
+  const parsed = parseFormData(createResourceSchema, formData)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message || "Invalid resource data" }
   }
 
-  if (!fileUrl || !fileName || !fileType) {
-    return { success: false, error: "File information is required" }
-  }
+  const { title, description, category, fileUrl, fileName, fileSize } = parsed.data
 
   // Map file extension to enum type
   const getFileType = (fileName: string): "pdf" | "ppt" | "pptx" | "doc" | "docx" | "xls" | "xlsx" | "txt" | "other" => {
@@ -96,18 +92,12 @@ export async function updateResource(formData: FormData): Promise<ActionResponse
     return { success: false, error: "Unauthorized" }
   }
 
-  const id = formData.get("id") as string | null
-  const title = (formData.get("title") as string | null)?.trim()
-  const description = (formData.get("description") as string | null)?.trim()
-  const category = (formData.get("category") as string | null)?.trim() || "General"
-
-  if (!id) {
-    return { success: false, error: "Resource ID is required" }
+  const parsed = parseFormData(updateResourceSchema, formData)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message || "Invalid resource data" }
   }
 
-  if (!title) {
-    return { success: false, error: "Title is required" }
-  }
+  const { id, title, description, category } = parsed.data
 
   try {
     // Verify user is the owner

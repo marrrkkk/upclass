@@ -21,7 +21,6 @@ type UseClassDetailCacheArgs = {
   submissions: SubmissionData[]
   quizzes: QuizData[]
   members: MemberData[]
-  pathname: string | null
   userId?: string
   userRole: "teacher" | "student" | null
 }
@@ -33,7 +32,6 @@ export function useClassDetailCache({
   submissions,
   quizzes,
   members,
-  pathname,
   userId,
   userRole,
 }: UseClassDetailCacheArgs) {
@@ -56,18 +54,6 @@ export function useClassDetailCache({
           userRole,
         })
 
-        if (pathname) {
-          try {
-            const response = await fetch(pathname)
-            if (response.ok) {
-              const html = await response.text()
-              await cache.cachePage(pathname, html)
-            }
-          } catch (error) {
-            console.debug("Failed to cache class detail page HTML:", error)
-          }
-        }
-
         await sync.cacheAllData()
       } catch (error) {
         console.error("Failed to cache class detail:", error)
@@ -76,5 +62,5 @@ export function useClassDetailCache({
 
     const timeout = setTimeout(cacheClassDetail, 2000)
     return () => clearTimeout(timeout)
-  }, [announcements, classData, classwork, members, pathname, quizzes, submissions, userId, userRole])
+  }, [announcements, classData, classwork, members, quizzes, submissions, userId, userRole])
 }

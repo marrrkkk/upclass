@@ -28,7 +28,9 @@ export type ActivityEventType =
   | "material_created"
   | "quiz_created"
   | "resource_uploaded"
+  | "draft_saved"
   | "assignment_submitted"
+  | "assignment_resubmitted"
   | "quiz_submitted"
   | "submission_graded"
   | "quiz_graded"
@@ -108,7 +110,9 @@ function getActivityHref(item: {
   if (
     item.eventType === "assignment_created" ||
     item.eventType === "material_created" ||
+    item.eventType === "draft_saved" ||
     item.eventType === "assignment_submitted" ||
+    item.eventType === "assignment_resubmitted" ||
     item.eventType === "submission_graded"
   ) {
     return `/classes/${item.classId}#classwork`
@@ -153,7 +157,12 @@ function getCategoryCondition(category: ActivityCategory) {
   }
 
   if (category === "coursework") {
-    return inArray(activityLog.eventType, ["assignment_submitted", "quiz_submitted"])
+    return inArray(activityLog.eventType, [
+      "draft_saved",
+      "assignment_submitted",
+      "assignment_resubmitted",
+      "quiz_submitted",
+    ])
   }
 
   if (category === "resources") {

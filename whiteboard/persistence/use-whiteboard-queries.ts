@@ -4,6 +4,16 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import type { WhiteboardPageData, WhiteboardSnapshotDocument } from "@/whiteboard/types"
 
+export class WhiteboardConflictError extends Error {
+  latestData: WhiteboardPageData
+
+  constructor(latestData: WhiteboardPageData) {
+    super("Whiteboard conflict detected")
+    this.name = "WhiteboardConflictError"
+    this.latestData = latestData
+  }
+}
+
 async function fetchBoard(boardId: string) {
   const response = await fetch(`/api/whiteboards/${boardId}`, { cache: "no-store" })
   if (!response.ok) {
@@ -16,10 +26,10 @@ async function fetchBoard(boardId: string) {
 type SaveSnapshotInput = {
   boardId: string
   document: WhiteboardSnapshotDocument
-  version: number
+  expectedVersion: number
 }
 
-async function saveSnapshot({ boardId, document, version }: SaveSnapshotInput) {
+async function saveSnapshot({ boardId, document, expectedVersion }: SaveSnapshotInput) {
   const response = await fetch(`/api/whiteboards/${boardId}`, {
     method: "PUT",
     headers: {
@@ -27,9 +37,13 @@ async function saveSnapshot({ boardId, document, version }: SaveSnapshotInput) {
     },
     body: JSON.stringify({
       document,
-      version,
+      expectedVersion,
     }),
   })
+
+  if (response.status === 409) {
+    throw new WhiteboardConflictError((await response.json()) as WhiteboardPageData)
+  }
 
   if (!response.ok) {
     throw new Error("Failed to save whiteboard snapshot")

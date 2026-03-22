@@ -278,7 +278,7 @@ const ResourceCard = memo(function ResourceCard({ data }: { data: ResourceCardDa
           </div>
         </div>
 
-        <div className="absolute top-3 right-3">
+        <div className="absolute top-3 right-3 z-20 flex items-center gap-2">
           <span className="inline-flex items-center rounded-md bg-white/80 px-2 py-1 text-xs font-semibold uppercase tracking-wider shadow-sm text-foreground/80 backdrop-blur-sm">
             {data.fileType}
           </span>

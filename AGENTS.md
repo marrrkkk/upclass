@@ -12,31 +12,32 @@
 - `npm run dev`: start the local development server on `http://localhost:3000`.
 - `npm run db:migrate`: apply Drizzle migrations using `drizzle.config.ts`.
 - `npm run build`: create a production build.
-- `npm run build:vercel`: run migrations, then build; this is the deploy build used by `vercel.json`.
+- `npm run build:vercel`: run `lint`, `type-check`, `test`, migrations, then build; this is the deploy build used by `vercel.json`.
 - `npm run start`: serve the production build locally.
 - `npm run lint`: run ESLint via the flat config in `eslint.config.mjs`.
+- `npm run type-check`: run TypeScript without emitting files.
 - `npm run test`: run Vitest once.
 - `npm run test:watch`: run Vitest in watch mode.
 - `npm run test:coverage`: run Vitest with coverage.
-
-There is still no dedicated `type-check` script in `package.json`; use `npx tsc --noEmit` when an explicit TypeScript pass is needed.
 
 ## Coding Style & Naming Conventions
 Use TypeScript with strict typing and existing path aliases such as `@/lib/utils`. Follow the current style: React components in PascalCase, hooks/utilities in camelCase, and route or feature folders in kebab-case where applicable. Prefer existing UI primitives from `components/ui/` and compose classes with `cn(...)` from `lib/utils.ts`.
 
 Keep route pages and layouts server-first when possible, and push browser-only state or realtime interactivity into leaf client components. Keep server actions in `app/actions/` with `"use server"` at the top, and use Drizzle via `db/index.ts` for app data access. For navigation/loading work, prefer localized Suspense boundaries and existing skeleton components over route-wide blocking loaders.
+Shared server input validation now lives in `lib/validation/` and uses Zod; prefer updating those schemas/helpers over hand-parsing `FormData` in each action or route.
 
 ## Architecture Notes
 Most route pages are server components that fetch initial data with Drizzle and auth helpers, then hand off to client feature components for interactivity. The authenticated shell is centralized in `components/layouts/home-shell.tsx`, and route-content transitions are handled through `components/layouts/route-content-transition.tsx` with route-specific skeletons.
 
-Offline, PWA, caching, and realtime behavior are core product concerns, not add-ons. Before changing data loading or mutation flows, inspect related modules such as `lib/background-cache.ts`, `lib/background-sync.ts`, `lib/cache-hooks.ts`, `lib/cache/page-cache.ts`, `lib/offline-action-handler.ts`, `lib/pwa-register.ts`, `lib/pwa-state.ts`, `lib/sync-manager.ts`, and `lib/supabase-client.ts`. Preserve queueing, replay, cache warming, and sync behavior unless the task explicitly changes them.
+Offline, PWA, caching, and realtime behavior are core product concerns, not add-ons. Before changing data loading or mutation flows, inspect related modules such as `lib/background-cache.ts`, `lib/background-sync.ts`, `lib/cache-hooks.ts`, `lib/offline-action-handler.ts`, `lib/pwa-register.ts`, `lib/pwa-state.ts`, `lib/sync-manager.ts`, and `lib/supabase-client.ts`. Preserve queueing, replay, cache warming, and sync behavior unless the task explicitly changes them.
+Pending offline actions are now backed by a dedicated IndexedDB queue in `lib/offline-queue.ts`; do not reintroduce `localStorage`-only queue state for syncable mutations.
 
 `next.config.ts` enables `cacheComponents`, `experimental.cachedNavigations`, `experimental.staleTimes`, optimized package imports, and service-worker/manifest headers. Keep those performance assumptions in mind when adjusting route-loading or caching behavior.
 
 ## Testing Guidelines
-Vitest is already wired up with config in `vitest.config.ts` and shared setup in `tests/setup.ts`. Existing coverage lives under `tests/components/`, `tests/hooks/`, and `tests/unit/`.
+Vitest is already wired up with config in `vitest.config.ts` and shared setup in `tests/setup.ts`. Existing coverage lives under `tests/components/`, `tests/hooks/`, `tests/unit/`, and `tests/server/`.
 
-For changes with meaningful business logic, shared utilities, state management, or user-critical UI behavior, add focused tests alongside the existing suites. At minimum, run `npm run lint` and the relevant Vitest command for the affected area before submitting. If you add or change a developer workflow, update the documented command in `README.md` and related docs.
+For changes with meaningful business logic, shared utilities, state management, server actions, API handlers, or user-critical UI behavior, add focused tests alongside the existing suites. At minimum, run `npm run lint`, `npm run type-check`, and the relevant Vitest command for the affected area before submitting. If you add or change a developer workflow, update the documented command in `README.md` and related docs.
 
 ## Documentation & Release Maintenance
 `README.md` is the high-level source of truth for setup, environment variables, scripts, architecture, and deployment workflow. Check it before changing setup docs, commands, or runtime expectations, and keep it aligned when those change.
@@ -53,6 +54,6 @@ Recent history uses scoped Conventional Commits such as `feat(classes,tabs): opt
 PRs should explain user-visible changes, note schema or env updates, mention testing performed, and include screenshots or recordings for UI changes. When practical, keep documentation-only release bookkeeping separate from product code changes.
 
 ## Security & Configuration Tips
-Required secrets include `DATABASE_URL`, Better Auth settings, Google OAuth credentials, Supabase realtime keys, UploadThing credentials, and the Gemini API key. Never hardcode secrets or bypass session and role checks in server actions or API routes.
+Required secrets include `DATABASE_URL`, Better Auth settings, Google OAuth credentials, Supabase realtime keys, UploadThing credentials, the Gemini API key, and Resend mail settings (`RESEND_API_KEY`, `EMAIL_FROM`) when transactional email is enabled. Never hardcode secrets or bypass session and role checks in server actions or API routes.
 
-Deploy builds on Vercel use `npm run build:vercel`, which runs migrations before building. Ensure database changes, migration files in `db/migrations/`, and environment requirements stay consistent. When changing uploads, realtime, offline, or whiteboard flows, verify that auth checks and server-dependent constraints still hold.
+Deploy builds on Vercel use `npm run build:vercel`, which now gates deploys on `lint`, `type-check`, and `test` before migrations and the production build. Ensure database changes, migration files in `db/migrations/`, and environment requirements stay consistent. When changing uploads, realtime, offline, or whiteboard flows, verify that auth checks and server-dependent constraints still hold.

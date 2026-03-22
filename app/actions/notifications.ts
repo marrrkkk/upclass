@@ -3,11 +3,12 @@
 
 import { headers } from "next/headers"
 import { revalidatePath } from "next/cache"
-import { eq, and, desc, ne } from "drizzle-orm"
+import { eq, and, ne } from "drizzle-orm"
 
 import { db } from "@/db"
 import { auth } from "@/lib/auth"
-import { notifications, classMembership, user } from "@/db/schema"
+import { notifications, classMembership, user, classes } from "@/db/schema"
+import { deliverClassNotifications } from "@/lib/notifications/delivery"
 
 type ActionResponse =
   | { success: true }
@@ -87,6 +88,7 @@ export async function createNotificationsForClass(
     const members = await db
       .select({
         userId: classMembership.userId,
+        email: user.email,
         classNotifications: user.classNotifications,
         emailNotifications: user.emailNotifications,
         pushNotifications: user.pushNotifications,
@@ -95,32 +97,28 @@ export async function createNotificationsForClass(
       .innerJoin(user, eq(classMembership.userId, user.id))
       .where(and(...whereConditions))
 
-    // Filter members based on notification settings
-    const membersToNotify = members.filter((member) => {
-      // Only create notification if class notifications are enabled
-      return member.classNotifications !== false
-    })
+    const [classRecord] = await db
+      .select({ title: classes.title })
+      .from(classes)
+      .where(eq(classes.id, classId))
+      .limit(1)
 
-    // Create notifications for each student who has notifications enabled
-    if (membersToNotify.length > 0) {
-      const notificationValues = membersToNotify.map((member) => ({
-        id: crypto.randomUUID(),
+    await deliverClassNotifications({
+      recipients: members.map((member) => ({
         userId: member.userId,
-        type: type as any,
-        title,
-        message,
-        classId,
-        relatedId,
-        read: false,
-      }))
-
-      await db.insert(notifications).values(notificationValues)
-
-      // TODO: Send email notifications if emailNotifications is enabled
-      // TODO: Send push notifications if pushNotifications is enabled
-    }
+        email: member.email,
+        classNotifications: member.classNotifications !== false,
+        emailNotifications: member.emailNotifications !== false,
+        pushNotifications: member.pushNotifications !== false,
+      })),
+      type,
+      title,
+      message,
+      classId,
+      classTitle: classRecord?.title ?? null,
+      relatedId,
+    })
   } catch (error) {
     console.error("createNotificationsForClass error", error)
   }
 }
-

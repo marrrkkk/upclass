@@ -5,7 +5,7 @@
 export class BackgroundCache {
   private static instance: BackgroundCache
   private dbName = 'upclass-cache'
-  private dbVersion = 2 // Increment version to trigger onupgradeneeded for new stores
+  private dbVersion = 3
   private db: IDBDatabase | null = null
 
   private constructor() {
@@ -36,6 +36,10 @@ export class BackgroundCache {
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result
 
+        if (db.objectStoreNames.contains('pages')) {
+          db.deleteObjectStore('pages')
+        }
+
         // Create object stores for different data types
         if (!db.objectStoreNames.contains('classes')) {
           db.createObjectStore('classes', { keyPath: 'id' })
@@ -53,9 +57,6 @@ export class BackgroundCache {
         }
         if (!db.objectStoreNames.contains('images')) {
           db.createObjectStore('images', { keyPath: 'url' })
-        }
-        if (!db.objectStoreNames.contains('pages')) {
-          db.createObjectStore('pages', { keyPath: 'url' })
         }
         if (!db.objectStoreNames.contains('conversations')) {
           db.createObjectStore('conversations', { keyPath: 'userId' })
@@ -324,49 +325,6 @@ export class BackgroundCache {
     }
   }
 
-  // Cache pages
-  async cachePage(url: string, html: string): Promise<void> {
-    try {
-      const db = await this.ensureDB()
-      const tx = db.transaction('pages', 'readwrite')
-      const store = tx.objectStore('pages')
-      
-      await new Promise<void>((resolve, reject) => {
-        const request = store.put({ url, html, cachedAt: Date.now() })
-        request.onsuccess = () => resolve()
-        request.onerror = () => reject(request.error)
-      })
-    } catch (error) {
-      console.error('Failed to cache page:', error)
-    }
-  }
-
-  async getCachedPage(url: string): Promise<string | null> {
-    try {
-      const db = await this.ensureDB()
-      
-      // Check if store exists
-      if (!db.objectStoreNames.contains('pages')) {
-        return null
-      }
-      
-      const tx = db.transaction('pages', 'readonly')
-      const store = tx.objectStore('pages')
-      const request = store.get(url)
-      
-      return new Promise((resolve, reject) => {
-        request.onsuccess = () => {
-          const result = request.result
-          resolve(result ? result.html : null)
-        }
-        request.onerror = () => reject(request.error)
-      })
-    } catch (error) {
-      console.error('Failed to get cached page:', error)
-      return null
-    }
-  }
-
   // Cache class detail data
   async cacheClassDetail(classId: string, data: any): Promise<void> {
     try {
@@ -421,7 +379,7 @@ export class BackgroundCache {
     try {
       const db = await this.ensureDB()
       const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
-      const stores = ['classes', 'resources', 'messages', 'notifications', 'images', 'pages', 'conversations', 'classDetails']
+      const stores = ['classes', 'resources', 'messages', 'notifications', 'images', 'conversations', 'classDetails']
       
       for (const storeName of stores) {
         // Check if store exists before trying to use it

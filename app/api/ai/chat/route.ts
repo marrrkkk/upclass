@@ -1,16 +1,20 @@
 import { NextRequest, NextResponse } from "next/server"
 import { GoogleGenerativeAI } from "@google/generative-ai"
 
+import { aiChatSchema } from "@/lib/validation/actions"
+
 export async function POST(request: NextRequest) {
   try {
-    const { message, resourceContext, conversationHistory } = await request.json()
-
-    if (!message || !resourceContext) {
+    const body = await request.json()
+    const parsed = aiChatSchema.safeParse(body)
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "Message and resource context are required" },
+        { error: parsed.error.issues[0]?.message || "Invalid request body" },
         { status: 400 }
       )
     }
+
+    const { message, resourceContext, conversationHistory } = parsed.data
 
     const apiKey = process.env.GEMINI_API_KEY
     if (!apiKey) {
@@ -38,9 +42,8 @@ IMPORTANT: You should ONLY answer questions related to this specific resource. I
 Keep your responses concise, helpful, and focused on the resource.`
 
     // Build conversation history as text
-    const history = conversationHistory || []
     let conversationText = ""
-    for (const msg of history) {
+    for (const msg of conversationHistory) {
       const role = msg.role === "user" ? "User" : "Assistant"
       conversationText += `${role}: ${msg.content}\n\n`
     }

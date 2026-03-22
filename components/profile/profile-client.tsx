@@ -2,7 +2,7 @@
 import React, { useEffect } from "react"
 import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
@@ -17,19 +17,15 @@ import {
   User as UserIcon,
   FileText,
   Download,
-  FileCode,
   FileSpreadsheet,
   Presentation,
   FileIcon as FileIconLucide,
   FileType,
-  Clock
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { EditProfileDialog } from "@/components/profile/edit-profile-dialog"
 import { buttonVariants } from "@/components/ui/button"
 import { usePageHeaderStore } from "@/stores/page-header-store"
-import { BackgroundCache } from "@/lib/background-cache"
-import { usePathname } from "next/navigation"
 
 type UserData = {
   id: string
@@ -75,9 +71,7 @@ type ProfileClientProps = {
   enrolledClasses: ClassData[]
   createdResources: ResourceData[]
   isOwnProfile?: boolean
-  currentUserId?: string
   isPrivate?: boolean
-  isAuthenticated?: boolean
 }
 
 export function ProfileClient({
@@ -87,10 +81,8 @@ export function ProfileClient({
   createdResources,
   isOwnProfile = false,
   isPrivate = false,
-  isAuthenticated = false,
 }: ProfileClientProps) {
   const setPageTitle = usePageHeaderStore((state) => state.setPageTitle)
-  const pathname = usePathname()
 
   useEffect(() => {
     setPageTitle(user.name)
@@ -100,36 +92,6 @@ export function ProfileClient({
   useEffect(() => {
     document.title = `${user.name} | UpClass`
   }, [user.name])
-
-  // Cache profile page in background
-  useEffect(() => {
-    if (!navigator.onLine) return
-
-    const cacheProfilePage = async () => {
-      try {
-        const cache = BackgroundCache.getInstance()
-        
-        // Cache the page HTML
-        if (pathname) {
-          try {
-            const response = await fetch(pathname)
-            if (response.ok) {
-              const html = await response.text()
-              await cache.cachePage(pathname, html)
-            }
-          } catch (error) {
-            console.debug('Failed to cache profile page HTML:', error)
-          }
-        }
-      } catch (error) {
-        console.error('Failed to cache profile page:', error)
-      }
-    }
-
-    // Debounce caching
-    const timeout = setTimeout(cacheProfilePage, 2000)
-    return () => clearTimeout(timeout)
-  }, [user, pathname])
 
   const initials = user.name
     .split(" ")

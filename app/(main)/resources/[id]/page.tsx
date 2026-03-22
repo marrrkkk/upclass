@@ -67,8 +67,6 @@ export default async function ResourceDetailPage({
         updatedAt: resource.updatedAt?.toISOString() ?? "",
       }}
       isOwner={isOwner}
-      currentUserId={session?.user?.id}
-      isAuthenticated={isAuthenticated}
     />
   )
 }

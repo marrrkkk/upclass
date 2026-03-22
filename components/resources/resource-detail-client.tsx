@@ -10,10 +10,7 @@ import {
   Edit,
   FileText,
   Calendar,
-  User,
-  Tag,
   Bot,
-  FileCode,
   FileSpreadsheet,
   Presentation,
   FileIcon as FileIconLucide,
@@ -35,12 +32,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import { buttonVariants } from "@/components/ui/button"
 import { updateResource, deleteResource } from "@/app/actions/resources"
-import { BackgroundCache } from "@/lib/background-cache"
-import { usePathname } from "next/navigation"
 
 const AIChatDialog = dynamic(
   () => import("@/components/resources/ai-chat-dialog").then((mod) => mod.AIChatDialog),
@@ -72,8 +66,6 @@ type ResourceData = {
 type ResourceDetailClientProps = {
   resource: ResourceData
   isOwner: boolean
-  currentUserId?: string
-  isAuthenticated?: boolean
 }
 
 const getFileTypeInfo = (type: string) => {
@@ -109,7 +101,7 @@ const canPreview = (fileType: string) => {
   return fileType === "pdf" || fileType === "txt"
 }
 
-export function ResourceDetailClient({ resource, isOwner, currentUserId, isAuthenticated = false }: ResourceDetailClientProps) {
+export function ResourceDetailClient({ resource, isOwner }: ResourceDetailClientProps) {
   const router = useRouter()
   const setPageTitle = usePageHeaderStore((state) => state.setPageTitle)
   const [editOpen, setEditOpen] = useState(false)
@@ -125,8 +117,6 @@ export function ResourceDetailClient({ resource, isOwner, currentUserId, isAuthe
   // Determine styles based on file type
   const fileInfo = getFileTypeInfo(resource.fileType)
 
-  const pathname = usePathname()
-
   // Set page title for breadcrumbs
   useEffect(() => {
     setPageTitle(resource.title)
@@ -136,36 +126,6 @@ export function ResourceDetailClient({ resource, isOwner, currentUserId, isAuthe
   useEffect(() => {
     document.title = `${resource.title} | UpClass`
   }, [resource.title])
-
-  // Cache resource detail page in background
-  useEffect(() => {
-    if (!navigator.onLine) return
-
-    const cacheResourceDetail = async () => {
-      try {
-        const cache = BackgroundCache.getInstance()
-        
-        // Cache the page HTML
-        if (pathname) {
-          try {
-            const response = await fetch(pathname)
-            if (response.ok) {
-              const html = await response.text()
-              await cache.cachePage(pathname, html)
-            }
-          } catch (error) {
-            console.debug('Failed to cache resource detail page HTML:', error)
-          }
-        }
-      } catch (error) {
-        console.error('Failed to cache resource detail:', error)
-      }
-    }
-
-    // Debounce caching
-    const timeout = setTimeout(cacheResourceDetail, 2000)
-    return () => clearTimeout(timeout)
-  }, [resource, pathname])
 
   const handleOpenEdit = () => {
     setTitle(resource.title)

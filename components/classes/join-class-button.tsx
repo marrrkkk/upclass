@@ -4,7 +4,7 @@ import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { UserPlus } from "lucide-react"
 import { joinClass } from "@/app/actions/classes"
-import { Button, buttonVariants } from "@/components/ui/button"
+import { Button } from "@/components/ui/button"
 import { executeWithOfflineHandling } from "@/lib/offline-action-handler"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -31,39 +31,28 @@ export function JoinClassButton({ iconOnly = false }: JoinClassButtonProps) {
 
   const handleJoin = async (formData: FormData) => {
     setError(null)
-    
-    // Check if offline
-    if (!navigator.onLine) {
-      setError("You're offline. Please check your internet connection and try again.")
-      return
-    }
 
     startTransition(async () => {
-      let joinResult: { success: boolean; error?: string; classId?: string } | null = null
-      
-      try {
-        joinResult = await joinClass(formData)
-      } catch (error) {
-        if (!navigator.onLine) {
-          setError("You're offline. This action will be queued and synced when you're back online.")
-          // Queue the action
-          const { queueOfflineAction } = await import('@/lib/offline-action-handler')
-          queueOfflineAction('join-class', Object.fromEntries(formData.entries()))
-          setTimeout(() => setOpen(false), 2000)
-          return
-        }
-        setError("Failed to join class. Please try again.")
+      const joinResult = await executeWithOfflineHandling(
+        () => joinClass(formData),
+        "join-class",
+        { code: String(formData.get("code") || "") },
+      )
+
+      if (joinResult.queued) {
+        setError("Action queued. It will be synced when you're back online.")
+        setTimeout(() => setOpen(false), 2000)
         return
       }
 
-      if (!joinResult?.success) {
-        setError(joinResult?.error || "Failed to join class")
+      if (!joinResult.success) {
+        setError(joinResult.error || "Failed to join class")
         return
       }
 
       setOpen(false)
       // Redirect to the class page
-      if ('classId' in joinResult && joinResult.classId) {
+      if ("classId" in joinResult && joinResult.classId) {
         router.push(`/classes/${joinResult.classId}`)
       }
     })
@@ -145,4 +134,3 @@ export function JoinClassButton({ iconOnly = false }: JoinClassButtonProps) {
     </Dialog>
   )
 }
-

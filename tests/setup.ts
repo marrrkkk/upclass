@@ -31,44 +31,50 @@ vi.mock("next/link", () => ({
     React.createElement("a", { href, ...props }, children),
 }))
 
-Object.defineProperty(window, "matchMedia", {
-  writable: true,
-  value: vi.fn().mockImplementation((query: string) => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: vi.fn(),
-    removeListener: vi.fn(),
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn(),
-  })),
-})
+if (typeof window !== "undefined") {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  })
 
-Object.defineProperty(window, "PointerEvent", {
-  writable: true,
-  value: MouseEvent,
-})
+  Object.defineProperty(window, "PointerEvent", {
+    writable: true,
+    value: MouseEvent,
+  })
 
-Object.defineProperty(window.HTMLElement.prototype, "scrollIntoView", {
-  writable: true,
-  value: vi.fn(),
-})
+  Object.defineProperty(window.HTMLElement.prototype, "scrollIntoView", {
+    writable: true,
+    value: vi.fn(),
+  })
 
-class ResizeObserverMock {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
+  class ResizeObserverMock {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+
+  Object.defineProperty(window, "ResizeObserver", {
+    writable: true,
+    value: ResizeObserverMock,
+  })
 }
-
-Object.defineProperty(window, "ResizeObserver", {
-  writable: true,
-  value: ResizeObserverMock,
-})
 
 afterEach(() => {
   cleanup()
   vi.clearAllMocks()
-  sessionStorage.clear()
-  localStorage.clear()
+  if (typeof sessionStorage !== "undefined") {
+    sessionStorage.clear()
+  }
+  if (typeof localStorage !== "undefined") {
+    localStorage.clear()
+  }
 })

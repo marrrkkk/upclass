@@ -3,7 +3,6 @@
  
 import dynamic from "next/dynamic"
 import { useState, useEffect, useRef, useTransition } from "react"
-import { useRouter } from "next/navigation"
 import { Send, ArrowLeft, MoreVertical, Phone, Video } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent } from "@/components/ui/card"
@@ -21,6 +20,7 @@ import { useMessagesStore } from "@/stores/messages-store"
 import { usePageHeaderStore } from "@/stores/page-header-store"
 import { useCacheData, useOfflineCollectionCache } from "@/lib/cache-hooks"
 import { BackgroundCache } from "@/lib/background-cache"
+import { executeWithOfflineHandling } from "@/lib/offline-action-handler"
 
 const ImageViewerDialog = dynamic(
   () => import("@/components/messages/image-viewer-dialog").then((mod) => mod.ImageViewerDialog),
@@ -59,7 +59,6 @@ type ChatClientProps = {
 }
 
 export function ChatClient({ messages: initialMessages, currentUserId, otherUser }: ChatClientProps) {
-  const router = useRouter()
   const { setCurrentMessages, setCurrentUserId, setCurrentOtherUser, currentMessages: messages, addMessage, updateMessage, setUserPresence, getUserPresence } = useMessagesStore()
   const [otherUserPresence, setOtherUserPresence] = useState<{ isOnline: boolean; lastSeen: string | null }>({ isOnline: false, lastSeen: null })
   
@@ -412,14 +411,31 @@ export function ChatClient({ messages: initialMessages, currentUserId, otherUser
 
     startTransition(async () => {
       const mediaJson = mediaFiles.length > 0 ? JSON.stringify(mediaFiles) : undefined
-      const res = await sendMessage(
-        otherUser.id,
-        messageContent,
-        mediaJson,
-        undefined // No separate URL field
+      const res = await executeWithOfflineHandling(
+        () =>
+          sendMessage(
+            otherUser.id,
+            messageContent,
+            mediaJson,
+            undefined,
+          ),
+        "send-direct-message",
+        {
+          receiverId: otherUser.id,
+          content: messageContent,
+          media: mediaJson,
+        },
       )
       if (!res.success) {
-        setError(res.error)
+        setError(res.error || "Failed to send message")
+        if (res.queued) {
+          setNewMessage("")
+          setSelectedFiles([])
+          if (fileInputRef.current) {
+            fileInputRef.current.value = ""
+          }
+          return
+        }
         const currentMessages = useMessagesStore.getState().currentMessages
         useMessagesStore.getState().setCurrentMessages(currentMessages.filter((m) => m.id !== tempId))
         optimisticTimestamps.current.delete(tempId)

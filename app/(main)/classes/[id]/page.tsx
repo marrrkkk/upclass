@@ -17,6 +17,9 @@ import {
   classMembership,
   announcements,
   classwork,
+  gradingHistory,
+  submissionAttachments,
+  submissionRevisions,
   submissions,
   user,
   quizzes,
@@ -133,6 +136,32 @@ type SubmissionRow = {
   feedback: string | null
   submittedAt: Date | null
   gradedAt: Date | null
+  attachments: Array<{
+    id: string
+    submissionId: string
+    fileUrl: string
+    fileName: string
+    fileType: string | null
+    fileSize: string | null
+    createdAt: Date
+  }>
+  revisions: Array<{
+    id: string
+    submissionId: string
+    revisionNumber: number
+    action: string
+    content: string | null
+    status: (typeof submissions.$inferSelect)["status"]
+    submittedAt: Date | null
+    createdAt: Date
+  }>
+  gradingHistory: Array<{
+    id: string
+    submissionId: string
+    grade: string
+    feedback: string | null
+    createdAt: Date
+  }>
   student: {
     id: string
     name: string
@@ -222,6 +251,30 @@ async function ClassDetailContentSection({
   }
 
   if (activeTab === "classwork") {
+    const submissionsPromise = db
+      .select({
+        id: submissions.id,
+        classworkId: submissions.classworkId,
+        studentId: submissions.studentId,
+        content: submissions.content,
+        fileUrl: submissions.fileUrl,
+        fileName: submissions.fileName,
+        status: submissions.status,
+        grade: submissions.grade,
+        feedback: submissions.feedback,
+        submittedAt: submissions.submittedAt,
+        gradedAt: submissions.gradedAt,
+        student: {
+          id: user.id,
+          name: user.name,
+          image: user.image,
+        },
+      })
+      .from(submissions)
+      .innerJoin(user, eq(submissions.studentId, user.id))
+      .innerJoin(classwork, eq(submissions.classworkId, classwork.id))
+      .where(eq(classwork.classId, classId))
+
     ;[classworkData, allSubmissions] = await Promise.all([
       db
         .select({
@@ -236,30 +289,44 @@ async function ClassDetailContentSection({
         .from(classwork)
         .where(eq(classwork.classId, classId))
         .orderBy(desc(classwork.createdAt)),
-      db
-        .select({
-          id: submissions.id,
-          classworkId: submissions.classworkId,
-          studentId: submissions.studentId,
-          content: submissions.content,
-          fileUrl: submissions.fileUrl,
-          fileName: submissions.fileName,
-          status: submissions.status,
-          grade: submissions.grade,
-          feedback: submissions.feedback,
-          submittedAt: submissions.submittedAt,
-          gradedAt: submissions.gradedAt,
-          student: {
-            id: user.id,
-            name: user.name,
-            image: user.image,
-          },
-        })
-        .from(submissions)
-        .innerJoin(user, eq(submissions.studentId, user.id))
-        .innerJoin(classwork, eq(submissions.classworkId, classwork.id))
-        .where(eq(classwork.classId, classId)) as Promise<SubmissionRow[]>,
+      submissionsPromise.then((rows) =>
+        rows.map((row) => ({
+          ...row,
+          attachments: [],
+          revisions: [],
+          gradingHistory: [],
+        })),
+      ),
     ])
+
+    const submissionIds = allSubmissions.map((submission) => submission.id)
+    const [attachmentsData, revisionsData, gradingHistoryData] = submissionIds.length
+      ? await Promise.all([
+          db
+            .select()
+            .from(submissionAttachments)
+            .where(inArray(submissionAttachments.submissionId, submissionIds))
+            .orderBy(asc(submissionAttachments.createdAt)),
+          db
+            .select()
+            .from(submissionRevisions)
+            .where(inArray(submissionRevisions.submissionId, submissionIds))
+            .orderBy(desc(submissionRevisions.createdAt)),
+          db
+            .select()
+            .from(gradingHistory)
+            .where(inArray(gradingHistory.submissionId, submissionIds))
+            .orderBy(desc(gradingHistory.createdAt)),
+        ])
+      : [[], [], []]
+
+    allSubmissions = allSubmissions.map((submission) => ({
+      ...submission,
+      attachments: attachmentsData.filter((attachment) => attachment.submissionId === submission.id),
+      revisions: revisionsData.filter((revision) => revision.submissionId === submission.id),
+      gradingHistory: gradingHistoryData.filter((entry) => entry.submissionId === submission.id),
+    }))
+
   }
 
   if (activeTab === "people") {
@@ -363,6 +430,19 @@ async function ClassDetailContentSection({
         ...submission,
         submittedAt: submission.submittedAt?.toISOString() ?? null,
         gradedAt: submission.gradedAt?.toISOString() ?? null,
+        attachments: submission.attachments.map((attachment) => ({
+          ...attachment,
+          createdAt: attachment.createdAt?.toISOString() ?? "",
+        })),
+        revisions: submission.revisions.map((revision) => ({
+          ...revision,
+          submittedAt: revision.submittedAt?.toISOString() ?? null,
+          createdAt: revision.createdAt?.toISOString() ?? "",
+        })),
+        gradingHistory: submission.gradingHistory.map((entry) => ({
+          ...entry,
+          createdAt: entry.createdAt?.toISOString() ?? "",
+        })),
       }))}
       quizzes={quizzesData.map((quiz) => {
         const attempt = quizAttemptsData.find((entry) => entry.quizId === quiz.id && entry.studentId === userId)

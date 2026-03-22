@@ -190,11 +190,6 @@ export function QuizTab({ classId, userRole, quizzes, classColor }: QuizTabProps
 
   const handleCreate = (publishAfterCreate = false) => {
     setError(null)
-    
-    if (!navigator.onLine) {
-      setError("You're offline. Please check your internet connection and try again.")
-      return
-    }
 
     startTransition(async () => {
       const payload = {
@@ -221,11 +216,6 @@ export function QuizTab({ classId, userRole, quizzes, classColor }: QuizTabProps
         { classId, payload }
       )
 
-      if (!res.success) {
-        setError(res.error || "Failed to create quiz")
-        return
-      }
-
       if (res.queued) {
         setError("Quiz queued. It will be synced when you're back online.")
         setTimeout(() => {
@@ -236,6 +226,11 @@ export function QuizTab({ classId, userRole, quizzes, classColor }: QuizTabProps
           setTimeLimitSeconds("")
           setQuestions([createDraftQuestion()])
         }, 2000)
+        return
+      }
+
+      if (!res.success) {
+        setError(res.error || "Failed to create quiz")
         return
       }
 

@@ -6,13 +6,57 @@ import { eq, and } from "drizzle-orm"
 
 import { db } from "@/db"
 import { auth } from "@/lib/auth"
-import { announcements, classwork, submissions, classMembership, announcementReactions } from "@/db/schema"
+import {
+  announcements,
+  announcementReactions,
+  classMembership,
+  classwork,
+  gradingHistory,
+  submissionAttachments,
+  submissionRevisions,
+  submissions,
+} from "@/db/schema"
 import { createNotificationsForClass } from "@/app/actions/notifications"
 import { logActivity } from "@/lib/activity"
+import { gradeSubmissionSchema } from "@/lib/validation/actions"
 
 type ActionResponse =
   | { success: true }
   | { success: false; error: string }
+
+type SubmissionAttachmentInput = {
+  fileUrl: string
+  fileName: string
+  fileType?: string | null
+  fileSize?: string | null
+}
+
+function parseSubmissionAttachments(formData: FormData) {
+  const rawAttachments = formData.get("attachments")
+
+  if (typeof rawAttachments === "string" && rawAttachments.trim().length > 0) {
+    try {
+      const parsed = JSON.parse(rawAttachments) as SubmissionAttachmentInput[]
+      return parsed
+        .filter((entry) => entry?.fileUrl?.trim() && entry?.fileName?.trim())
+        .map((entry) => ({
+          fileUrl: entry.fileUrl.trim(),
+          fileName: entry.fileName.trim(),
+          fileType: entry.fileType?.trim() || null,
+          fileSize: entry.fileSize?.trim() || null,
+        }))
+    } catch (error) {
+      console.warn("Failed to parse submission attachments", error)
+    }
+  }
+
+  const fileUrl = (formData.get("fileUrl") as string | null)?.trim()
+  const fileName = (formData.get("fileName") as string | null)?.trim()
+
+  if (!fileUrl || !fileName) return []
+
+  return [{ fileUrl, fileName, fileType: null, fileSize: null }]
+}
 
 export async function createAnnouncement(
   classId: string,
@@ -192,11 +236,11 @@ export async function submitClasswork(
     return { success: false, error: "Unauthorized" }
   }
 
-  const content = (formData.get("content") as string | null)?.trim()
-  const fileUrl = (formData.get("fileUrl") as string | null)?.trim()
-  const fileName = (formData.get("fileName") as string | null)?.trim()
+  const content = (formData.get("content") as string | null)?.trim() || ""
+  const mode = (formData.get("mode") as string | null) === "draft" ? "draft" : "submit"
+  const attachments = parseSubmissionAttachments(formData)
 
-  if (!content && !fileUrl) {
+  if (!content && attachments.length === 0) {
     return { success: false, error: "Content or file is required" }
   }
 
@@ -229,47 +273,96 @@ export async function submitClasswork(
   }
 
   try {
-    // Check if submission already exists
-    const existing = await db
-      .select()
-      .from(submissions)
-      .where(
-        and(
-          eq(submissions.classworkId, classworkId),
-          eq(submissions.studentId, session.user.id),
-        ),
-      )
-      .limit(1)
+    let submissionEvent: "draft_saved" | "assignment_submitted" | "assignment_resubmitted" =
+      mode === "draft" ? "draft_saved" : "assignment_submitted"
 
-    let savedSubmissionId = existing[0]?.id ?? null
+    const savedSubmissionId = await db.transaction(async (tx) => {
+      const existing = await tx
+        .select()
+        .from(submissions)
+        .where(
+          and(
+            eq(submissions.classworkId, classworkId),
+            eq(submissions.studentId, session.user.id),
+          ),
+        )
+        .limit(1)
 
-    if (existing.length > 0) {
-      // Update existing submission
-      savedSubmissionId = existing[0].id
-      await db
-        .update(submissions)
-        .set({
+      const firstAttachment = attachments[0] ?? null
+      const previousSubmission = existing[0]
+      const nextStatus = mode === "draft" ? "draft" : "submitted"
+      const submissionId = previousSubmission?.id ?? crypto.randomUUID()
+      const isResubmission =
+        mode === "submit" &&
+        (previousSubmission?.status === "submitted" || previousSubmission?.status === "graded")
+      if (isResubmission) {
+        submissionEvent = "assignment_resubmitted"
+      }
+
+      if (previousSubmission) {
+        await tx
+          .update(submissions)
+          .set({
+            content,
+            fileUrl: firstAttachment?.fileUrl ?? null,
+            fileName: firstAttachment?.fileName ?? null,
+            status: nextStatus,
+            submittedAt: mode === "submit" ? new Date() : previousSubmission.submittedAt,
+            grade: mode === "submit" ? null : previousSubmission.grade,
+            feedback: mode === "submit" ? null : previousSubmission.feedback,
+            gradedAt: mode === "submit" ? null : previousSubmission.gradedAt,
+          })
+          .where(eq(submissions.id, submissionId))
+      } else {
+        await tx.insert(submissions).values({
+          id: submissionId,
+          classworkId,
+          studentId: session.user.id,
           content,
-          fileUrl,
-          fileName,
-          status: "submitted",
-          submittedAt: new Date(),
+          fileUrl: firstAttachment?.fileUrl ?? null,
+          fileName: firstAttachment?.fileName ?? null,
+          status: nextStatus,
+          submittedAt: mode === "submit" ? new Date() : null,
         })
-        .where(eq(submissions.id, existing[0].id))
-    } else {
-      // Create new submission
-      savedSubmissionId = crypto.randomUUID()
-      await db.insert(submissions).values({
-        id: savedSubmissionId,
-        classworkId,
-        studentId: session.user.id,
+      }
+
+      await tx.delete(submissionAttachments).where(eq(submissionAttachments.submissionId, submissionId))
+      if (attachments.length > 0) {
+        await tx.insert(submissionAttachments).values(
+          attachments.map((attachment) => ({
+            id: crypto.randomUUID(),
+            submissionId,
+            fileUrl: attachment.fileUrl,
+            fileName: attachment.fileName,
+            fileType: attachment.fileType ?? null,
+            fileSize: attachment.fileSize ?? null,
+          })),
+        )
+      }
+
+      const revisionCount = await tx
+        .select()
+        .from(submissionRevisions)
+        .where(eq(submissionRevisions.submissionId, submissionId))
+
+      await tx.insert(submissionRevisions).values({
+        id: crypto.randomUUID(),
+        submissionId,
+        revisionNumber: revisionCount.length + 1,
+        action:
+          mode === "draft"
+            ? "draft_saved"
+            : isResubmission
+              ? "resubmitted"
+              : "submitted",
         content,
-        fileUrl,
-        fileName,
-        status: "submitted",
-        submittedAt: new Date(),
+        status: nextStatus,
+        submittedAt: mode === "submit" ? new Date() : null,
+        createdBy: session.user.id,
       })
-    }
+
+      return submissionId
+    })
 
     revalidatePath(`/classes/${classworkData[0].classId}`)
     revalidatePath("/home")
@@ -277,12 +370,15 @@ export async function submitClasswork(
 
     await logActivity({
       actorId: session.user.id,
-      eventType: "assignment_submitted",
+      eventType: submissionEvent,
       entityType: "submission",
-      entityId: savedSubmissionId || classworkId,
+      entityId: savedSubmissionId,
       classId: classworkData[0].classId,
-      title: `Submitted "${classworkData[0].title}"`,
-      description: content || fileName || "Turned in classwork",
+      title:
+        mode === "draft"
+          ? `Saved draft for "${classworkData[0].title}"`
+          : `Submitted "${classworkData[0].title}"`,
+      description: content || attachments[0]?.fileName || "Turned in classwork",
     })
 
     return { success: true }
@@ -304,11 +400,14 @@ export async function gradeSubmission(
     return { success: false, error: "Unauthorized" }
   }
 
-  const grade = (formData.get("grade") as string | null)?.trim()
-  const feedback = (formData.get("feedback") as string | null)?.trim()
+  const parsed = gradeSubmissionSchema.safeParse({
+    submissionId,
+    grade: formData.get("grade"),
+    feedback: formData.get("feedback"),
+  })
 
-  if (!grade) {
-    return { success: false, error: "Grade is required" }
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message || "Invalid grade" }
   }
 
   // Get submission to find classwork and classId
@@ -350,15 +449,25 @@ export async function gradeSubmission(
   }
 
   try {
-    await db
-      .update(submissions)
-      .set({
-        grade,
-        feedback,
-        status: "graded",
-        gradedAt: new Date(),
+    await db.transaction(async (tx) => {
+      await tx
+        .update(submissions)
+        .set({
+          grade: parsed.data.grade,
+          feedback: parsed.data.feedback ?? null,
+          status: "graded",
+          gradedAt: new Date(),
+        })
+        .where(eq(submissions.id, submissionId))
+
+      await tx.insert(gradingHistory).values({
+        id: crypto.randomUUID(),
+        submissionId,
+        gradedBy: session.user.id,
+        grade: parsed.data.grade,
+        feedback: parsed.data.feedback ?? null,
       })
-      .where(eq(submissions.id, submissionId))
+    })
 
     revalidatePath(`/classes/${classworkData[0].classId}`)
     revalidatePath("/home")
@@ -371,7 +480,7 @@ export async function gradeSubmission(
       entityId: submissionId,
       classId: classworkData[0].classId,
       title: `Graded "${classworkData[0].title}"`,
-      description: feedback || `Recorded a grade of ${grade}`,
+      description: parsed.data.feedback || `Recorded a grade of ${parsed.data.grade}`,
     })
 
     return { success: true }

@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "@/db";  // path to your Drizzle client
 import * as schema from "@/db/schema";
+import { siteUrl } from "@/lib/seo";
 
 // Determine base URL for production/development
 const getBaseURL = () => {
@@ -18,7 +19,7 @@ export const auth = betterAuth({
   baseURL: getBaseURL(),
   trustedOrigins: [
     getBaseURL(),
-    // Add your production domain(s) here
+    siteUrl,
     process.env.NEXT_PUBLIC_APP_URL || "",
   ].filter(Boolean),
   database: drizzleAdapter(db, {

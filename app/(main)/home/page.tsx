@@ -6,6 +6,10 @@ import { GraduationCap } from "lucide-react"
 
 import { db } from "@/db"
 import {
+  activityLog,
+  channelMessages,
+  classChannels,
+  submissionAttachments,
   user,
   classes,
   classMembership,
@@ -24,6 +28,7 @@ import { DeadlineWidget, type DeadlineItem } from "@/components/home/deadline-wi
 import { RecentClasses, type ClassItem } from "@/components/home/recent-classes"
 import { ActivityGraphCard } from "@/components/home/activity-graph-card"
 import { RecentActivityCard } from "@/components/home/recent-activity-card"
+import { TeacherAnalyticsPanel } from "@/components/home/teacher-analytics-panel"
 
 export const metadata: Metadata = {
   title: "Home",
@@ -209,6 +214,11 @@ async function HomeOverviewSection({
           )
       : Promise.resolve([])
 
+  const teacherAnalyticsPromise =
+    userRole === "teacher" && ownedClassIds.length
+      ? getTeacherAnalytics(userId, ownedClassIds)
+      : Promise.resolve(null)
+
   const [
     unreadMessagesResult,
     unreadNotificationsResult,
@@ -216,6 +226,7 @@ async function HomeOverviewSection({
     submissionStatus,
     pendingTasks,
     pendingSubmissions,
+    teacherAnalytics,
   ] = await Promise.all([
     unreadMessagesPromise,
     unreadNotificationsPromise,
@@ -223,6 +234,7 @@ async function HomeOverviewSection({
     submissionStatusPromise,
     pendingTasksPromise,
     pendingSubmissionsPromise,
+    teacherAnalyticsPromise,
   ])
 
   const submissionMap = new Map(submissionStatus.map((item) => [item.classworkId, item.status]))
@@ -245,6 +257,9 @@ async function HomeOverviewSection({
     unreadMessages: unreadMessagesResult[0]?.count || 0,
     unreadNotifications: unreadNotificationsResult[0]?.count || 0,
     pendingSubmissions: pendingSubmissions[0]?.count || 0,
+    overdueWork: teacherAnalytics?.overdueCount || 0,
+    unreadStudentQuestions: teacherAnalytics?.unreadStudentQuestions || 0,
+    lowParticipationAlerts: teacherAnalytics?.lowParticipation.length || 0,
   }
 
   return (
@@ -259,8 +274,221 @@ async function HomeOverviewSection({
           <RecentClasses classes={classesData} userRole={userRole} />
         </div>
       </div>
+
+      {userRole === "teacher" && teacherAnalytics ? (
+        <TeacherAnalyticsPanel
+          lowParticipation={teacherAnalytics.lowParticipation}
+          reviewQueue={teacherAnalytics.reviewQueue}
+          weeklySummary={teacherAnalytics.weeklySummary}
+        />
+      ) : null}
     </>
   )
+}
+
+async function getTeacherAnalytics(userId: string, ownedClassIds: string[]) {
+  const studentMemberships = await db
+    .select({
+      userId: user.id,
+      studentName: user.name,
+      classId: classes.id,
+      className: classes.title,
+    })
+    .from(classMembership)
+    .innerJoin(user, eq(classMembership.userId, user.id))
+    .innerJoin(classes, eq(classMembership.classId, classes.id))
+    .where(
+      and(
+        sql`${classMembership.classId} IN (${sql.join(ownedClassIds.map((entry) => sql`${entry}`), sql`, `)})`,
+        eq(classMembership.role, "student"),
+      ),
+    )
+
+  const studentIds = [...new Set(studentMemberships.map((membership) => membership.userId))]
+
+  const overdueResult = await db.execute<{ count: number }>(sql`
+    SELECT COUNT(*)::int AS count
+    FROM classwork cw
+    INNER JOIN class_membership cm
+      ON cm.class_id = cw.class_id
+      AND cm.role = 'student'
+    LEFT JOIN submissions s
+      ON s.classwork_id = cw.id
+      AND s.student_id = cm.user_id
+    WHERE cw.class_id IN (${sql.join(ownedClassIds.map((entry) => sql`${entry}`), sql`, `)})
+      AND cw.type IN ('assignment', 'quiz')
+      AND cw.due_date IS NOT NULL
+      AND cw.due_date < NOW()
+      AND (s.id IS NULL OR s.status NOT IN ('submitted', 'graded'))
+  `)
+
+  const reviewQueue = await db
+    .select({
+      submissionId: submissions.id,
+      classId: classes.id,
+      className: classes.title,
+      classColor: classes.color,
+      classworkTitle: classwork.title,
+      studentName: user.name,
+      submittedAt: submissions.submittedAt,
+      attachmentCount: count(submissionAttachments.id),
+    })
+    .from(submissions)
+    .innerJoin(classwork, eq(submissions.classworkId, classwork.id))
+    .innerJoin(classes, eq(classwork.classId, classes.id))
+    .innerJoin(user, eq(submissions.studentId, user.id))
+    .leftJoin(submissionAttachments, eq(submissionAttachments.submissionId, submissions.id))
+    .where(
+      and(
+        sql`${classwork.classId} IN (${sql.join(ownedClassIds.map((entry) => sql`${entry}`), sql`, `)})`,
+        eq(submissions.status, "submitted"),
+      ),
+    )
+    .groupBy(submissions.id, classes.id, classwork.id, user.id)
+    .orderBy(desc(submissions.submittedAt))
+    .limit(8)
+
+  const directUnreadQuestions = studentIds.length
+    ? await db
+        .select({ count: count() })
+        .from(messages)
+        .where(
+          and(
+            eq(messages.receiverId, userId),
+            eq(messages.read, false),
+            sql`${messages.senderId} IN (${sql.join(studentIds.map((entry) => sql`${entry}`), sql`, `)})`,
+          ),
+        )
+    : [{ count: 0 }]
+
+  const channelUnreadQuestions = await db
+    .select({ count: count() })
+    .from(channelMessages)
+    .innerJoin(classChannels, eq(channelMessages.channelId, classChannels.id))
+    .where(
+      and(
+        sql`${classChannels.classId} IN (${sql.join(ownedClassIds.map((entry) => sql`${entry}`), sql`, `)})`,
+        sql`${channelMessages.senderId} != ${userId}`,
+        sql`${channelMessages.readBy} NOT LIKE ${`%"${userId}"%`}`,
+      ),
+    )
+
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+  const [submissionSummary, gradedSummary] = await Promise.all([
+    db
+      .select({ count: count() })
+      .from(submissions)
+      .innerJoin(classwork, eq(submissions.classworkId, classwork.id))
+      .where(
+        and(
+          sql`${classwork.classId} IN (${sql.join(ownedClassIds.map((entry) => sql`${entry}`), sql`, `)})`,
+          gte(submissions.updatedAt, sevenDaysAgo),
+        ),
+      ),
+    db
+      .select({ count: count() })
+      .from(submissions)
+      .innerJoin(classwork, eq(submissions.classworkId, classwork.id))
+      .where(
+        and(
+          sql`${classwork.classId} IN (${sql.join(ownedClassIds.map((entry) => sql`${entry}`), sql`, `)})`,
+          eq(submissions.status, "graded"),
+          gte(submissions.gradedAt, sevenDaysAgo),
+        ),
+      ),
+  ])
+
+  const lowParticipation = (
+    await Promise.all(
+      studentMemberships.map(async (member) => {
+        const [[latestActivity], [latestSubmission], [latestMessage], [latestChannelMessage]] =
+          await Promise.all([
+            db
+              .select({ occurredAt: activityLog.occurredAt })
+              .from(activityLog)
+              .where(
+                and(eq(activityLog.actorId, member.userId), eq(activityLog.classId, member.classId)),
+              )
+              .orderBy(desc(activityLog.occurredAt))
+              .limit(1),
+            db
+              .select({ updatedAt: submissions.updatedAt })
+              .from(submissions)
+              .innerJoin(classwork, eq(submissions.classworkId, classwork.id))
+              .where(
+                and(eq(submissions.studentId, member.userId), eq(classwork.classId, member.classId)),
+              )
+              .orderBy(desc(submissions.updatedAt))
+              .limit(1),
+            db
+              .select({ createdAt: messages.createdAt })
+              .from(messages)
+              .where(and(eq(messages.senderId, member.userId), eq(messages.receiverId, userId)))
+              .orderBy(desc(messages.createdAt))
+              .limit(1),
+            db
+              .select({ createdAt: channelMessages.createdAt })
+              .from(channelMessages)
+              .innerJoin(classChannels, eq(channelMessages.channelId, classChannels.id))
+              .where(
+                and(eq(channelMessages.senderId, member.userId), eq(classChannels.classId, member.classId)),
+              )
+              .orderBy(desc(channelMessages.createdAt))
+              .limit(1),
+          ])
+
+        const timestamps = [
+          latestActivity?.occurredAt,
+          latestSubmission?.updatedAt,
+          latestMessage?.createdAt,
+          latestChannelMessage?.createdAt,
+        ]
+          .filter(Boolean)
+          .map((value) => new Date(value as Date).getTime())
+
+        const lastActiveAt = timestamps.length ? new Date(Math.max(...timestamps)) : null
+        if (lastActiveAt && lastActiveAt >= sevenDaysAgo) {
+          return null
+        }
+
+        return {
+          userId: member.userId,
+          studentName: member.studentName,
+          classId: member.classId,
+          className: member.className,
+          lastActiveAt: lastActiveAt?.toISOString() ?? null,
+        }
+      }),
+    )
+  )
+    .filter(Boolean)
+    .slice(0, 6) as Array<{
+    userId: string
+    studentName: string
+    classId: string
+    className: string
+    lastActiveAt: string | null
+  }>
+
+  return {
+    overdueCount: Array.from(overdueResult)[0]?.count || 0,
+    unreadStudentQuestions:
+      (directUnreadQuestions[0]?.count || 0) + (channelUnreadQuestions[0]?.count || 0),
+    reviewQueue: reviewQueue.map((item) => ({
+      ...item,
+      classColor: item.classColor || "#3b82f6",
+      submittedAt: item.submittedAt?.toISOString() ?? null,
+      attachmentCount: Number(item.attachmentCount) || 0,
+    })),
+    lowParticipation,
+    weeklySummary: {
+      submissions: submissionSummary[0]?.count || 0,
+      graded: gradedSummary[0]?.count || 0,
+      unreadQuestions:
+        (directUnreadQuestions[0]?.count || 0) + (channelUnreadQuestions[0]?.count || 0),
+      overdue: Array.from(overdueResult)[0]?.count || 0,
+    },
+  }
 }
 
 async function HomeActivitySection({ userId }: { userId: string }) {

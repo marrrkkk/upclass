@@ -5,6 +5,14 @@ import { Logo } from "@/components/logo"
 
 export const metadata: Metadata = {
     title: "Sign In",
+    description: "Sign in to UpClass to manage classes, collaborate in realtime, and keep classroom work moving.",
+    alternates: {
+        canonical: "/sign-in",
+    },
+    robots: {
+        index: false,
+        follow: false,
+    },
 }
 
 export default function SignInPage() {

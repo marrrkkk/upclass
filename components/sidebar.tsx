@@ -2,11 +2,13 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useEffect, useRef, useState } from "react"
 
 import {
   Activity,
   Home,
   GraduationCap,
+  ChevronDown,
   FolderOpen,
   Settings,
   User,
@@ -27,6 +29,11 @@ const navItems = [
 ]
 
 type SidebarProps = {
+  recentClasses?: Array<{
+    id: string
+    title: string
+    color: string | null
+  }>
   userId?: string
   userInfo?: {
     name: string | null
@@ -39,11 +46,41 @@ type SidebarProps = {
   onClose?: () => void
 }
 
-export function Sidebar({ userId, userInfo, className, "data-state": dataState, onNavigate, onClose }: SidebarProps = {}) {
+export function Sidebar({
+  recentClasses,
+  userId,
+  userInfo,
+  className,
+  "data-state": dataState,
+  onNavigate,
+  onClose,
+}: SidebarProps = {}) {
   const pathname = usePathname()
   const currentPath = pathname || "/home"
   const currentUserInfo = userInfo
   const currentUserId = userId
+  const [isScrolling, setIsScrolling] = useState(false)
+  const scrollTimeoutRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (scrollTimeoutRef.current) {
+        window.clearTimeout(scrollTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  const handleSidebarScroll = () => {
+    setIsScrolling(true)
+
+    if (scrollTimeoutRef.current) {
+      window.clearTimeout(scrollTimeoutRef.current)
+    }
+
+    scrollTimeoutRef.current = window.setTimeout(() => {
+      setIsScrolling(false)
+    }, 500)
+  }
 
   return (
     <aside
@@ -70,7 +107,11 @@ export function Sidebar({ userId, userInfo, className, "data-state": dataState, 
       </div>
 
       {/* Main Navigation */}
-      <div className="flex-1 overflow-y-auto py-6 px-3 space-y-6">
+      <div
+        className="minimal-scrollbar flex-1 overflow-y-auto py-6 px-3 space-y-6"
+        data-scrolling={isScrolling ? "true" : "false"}
+        onScroll={handleSidebarScroll}
+      >
         {/* Discover Section */}
         <div className="space-y-1">
           <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
@@ -110,6 +151,49 @@ export function Sidebar({ userId, userInfo, className, "data-state": dataState, 
             })}
           </nav>
         </div>
+
+        {recentClasses && recentClasses.length > 0 ? (
+          <div className="space-y-1">
+            <h3 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Recent Classes
+            </h3>
+            <details className="group rounded-xl border bg-muted/20 px-3 py-2">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-foreground">
+                <span className="flex items-center gap-3">
+                  <GraduationCap className="h-4 w-4 text-muted-foreground" />
+                  Recent Classes
+                </span>
+                <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="mt-3 space-y-1">
+                {recentClasses.map((item) => {
+                  const href = `/classes/${item.id}`
+                  const isActive = currentPath === href
+
+                  return (
+                    <Link
+                      key={item.id}
+                      href={href}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-2 py-2 text-sm transition-colors",
+                        isActive
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:bg-background hover:text-foreground",
+                      )}
+                      onClick={onNavigate}
+                    >
+                      <span
+                        className="h-2.5 w-2.5 rounded-full"
+                        style={{ backgroundColor: item.color || "#3b82f6" }}
+                      />
+                      <span className="truncate">{item.title}</span>
+                    </Link>
+                  )
+                })}
+              </div>
+            </details>
+          </div>
+        ) : null}
 
         {/* Connect Section */}
         {currentUserId && (
