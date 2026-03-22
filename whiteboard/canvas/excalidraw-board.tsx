@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils"
 import { uploadWhiteboardImage } from "@/whiteboard/persistence/storage"
 import { useWhiteboardRealtime } from "@/whiteboard/realtime/use-whiteboard-realtime"
 import { useWhiteboardUiStore } from "@/whiteboard/state/use-whiteboard-ui-store"
+import { WhiteboardConflictError } from "@/whiteboard/persistence/use-whiteboard-queries"
 import type {
   WhiteboardPresence,
   WhiteboardPresenceUser,
@@ -469,7 +470,7 @@ export function ExcalidrawBoard({
           setSaveStatus("saved")
         } catch (error) {
           console.error("Failed to persist whiteboard snapshot", error)
-          setSaveStatus("error")
+          setSaveStatus(error instanceof WhiteboardConflictError ? "conflict" : "error")
         }
       }, 1200)
     },

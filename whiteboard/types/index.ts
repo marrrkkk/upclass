@@ -115,4 +115,4 @@ export type WhiteboardTool =
   | "sticky"
   | "image"
 
-export type SaveStatus = "saved" | "saving" | "error" | "offline"
+export type SaveStatus = "saved" | "saving" | "error" | "offline" | "conflict"

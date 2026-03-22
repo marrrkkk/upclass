@@ -98,6 +98,13 @@ export function WhiteboardToolbar({
     syncEditorTool(editor, tool)
   }
 
+  const statusLabel =
+    saveStatus === "conflict"
+      ? "conflict detected"
+      : saveStatus === "offline"
+        ? "offline"
+        : saveStatus
+
   return (
     <Card className="border-border/80 bg-background/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <CardContent className="flex flex-col gap-3 p-3">
@@ -121,7 +128,7 @@ export function WhiteboardToolbar({
             <Download data-icon="inline-start" />
             Export JSON
           </Button>
-          <span className="text-xs text-muted-foreground">Status: {saveStatus}</span>
+          <span className="text-xs text-muted-foreground">Status: {statusLabel}</span>
           <span className="text-xs text-muted-foreground">
             Built-in Excalidraw controls handle history, layering, and style editing.
           </span>

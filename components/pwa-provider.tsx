@@ -44,8 +44,6 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
 
     const syncManager = SyncManager.getInstance()
     const backgroundSync = BackgroundSync.getInstance()
-
-    setPWAPendingActions(syncManager.getPendingActions().length)
     setPWAConnectionState(navigator.onLine)
 
     const cleanup = backgroundSync.startPeriodicCache(30)
@@ -65,7 +63,7 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
 
       try {
         await syncManager.syncPendingActions()
-        setPWAPendingActions(syncManager.getPendingActions().length)
+        setPWAPendingActions(await syncManager.getPendingCount())
         setPWALastSyncAt(Date.now())
       } catch (error) {
         console.error("Sync failed:", error)
@@ -77,7 +75,7 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
     const handleConnectionChange = () => {
       const online = navigator.onLine
       setPWAConnectionState(online)
-      setPWAPendingActions(syncManager.getPendingActions().length)
+      void syncManager.getPendingCount().then(setPWAPendingActions)
 
       if (online) {
         markRouteWarm(window.location.pathname)
@@ -85,23 +83,23 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    const handleStorage = () => {
-      setPWAPendingActions(syncManager.getPendingActions().length)
-    }
+    const unsubscribe = syncManager.subscribe(() => {
+      void syncManager.getPendingCount().then(setPWAPendingActions)
+    })
 
+    void syncManager.getPendingCount().then(setPWAPendingActions)
     handleConnectionChange()
 
     window.addEventListener("online", handleConnectionChange)
     window.addEventListener("offline", handleConnectionChange)
-    window.addEventListener("storage", handleStorage)
 
     return () => {
       if (cleanup) cleanup()
+      unsubscribe()
       window.clearTimeout(cacheTimeout)
       window.clearTimeout(cacheProbeTimeout)
       window.removeEventListener("online", handleConnectionChange)
       window.removeEventListener("offline", handleConnectionChange)
-      window.removeEventListener("storage", handleStorage)
     }
   }, [isProduction])
 

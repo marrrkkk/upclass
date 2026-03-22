@@ -184,9 +184,7 @@ export default async function UserProfilePage({
         authorImage: profileUser.image,
       }))}
       isOwnProfile={isOwnProfile}
-      currentUserId={currentUserId || undefined}
       isPrivate={isPrivate}
-      isAuthenticated={isAuthenticated}
     />
   )
 }

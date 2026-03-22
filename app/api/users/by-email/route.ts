@@ -1,10 +1,15 @@
 import { headers } from "next/headers"
 import { NextResponse } from "next/server"
 import { eq } from "drizzle-orm"
+import { z } from "zod"
 
 import { auth } from "@/lib/auth"
 import { db } from "@/db"
 import { user } from "@/db/schema"
+
+const emailQuerySchema = z.object({
+  email: z.string().trim().email("A valid email is required"),
+})
 
 export async function GET(request: Request) {
   const session = await auth.api.getSession({
@@ -16,10 +21,15 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url)
-  const email = searchParams.get("email")
+  const parsed = emailQuerySchema.safeParse({
+    email: searchParams.get("email"),
+  })
 
-  if (!email) {
-    return NextResponse.json({ error: "Email is required" }, { status: 400 })
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message || "A valid email is required" },
+      { status: 400 },
+    )
   }
 
   try {
@@ -30,7 +40,7 @@ export async function GET(request: Request) {
         email: user.email,
       })
       .from(user)
-      .where(eq(user.email, email))
+      .where(eq(user.email, parsed.data.email))
       .limit(1)
 
     if (userData.length === 0) {
@@ -43,4 +53,3 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
-

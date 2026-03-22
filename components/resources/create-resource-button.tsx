@@ -4,7 +4,7 @@ import { useState, useTransition, useRef } from "react"
 import { Plus, Upload, X } from "lucide-react"
 
 import { createResource } from "@/app/actions/resources"
-import { Button, buttonVariants } from "@/components/ui/button"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
@@ -20,7 +20,6 @@ import {
 import { useUploadThing } from "@/lib/uploadthing"
 import { cn } from "@/lib/utils"
 import { executeWithOfflineHandling } from "@/lib/offline-action-handler"
-import { AlertCircle } from "lucide-react"
 
 type CreateResourceButtonProps = {
   iconOnly?: boolean
@@ -84,14 +83,17 @@ export function CreateResourceButton({ iconOnly = false }: CreateResourceButtonP
         // Create resource with offline handling
         const res = await executeWithOfflineHandling(
           () => createResource(formData),
-          'create-resource',
-          Object.fromEntries(formData.entries())
+          "create-resource",
+          {
+            title: String(formData.get("title") || ""),
+            description: String(formData.get("description") || ""),
+            category: String(formData.get("category") || ""),
+            fileUrl: String(formData.get("fileUrl") || ""),
+            fileName: String(formData.get("fileName") || ""),
+            fileType: String(formData.get("fileType") || ""),
+            fileSize: String(formData.get("fileSize") || ""),
+          },
         )
-
-        if (!res.success) {
-          setError(res.error || "Failed to create resource")
-          return
-        }
 
         if (res.queued) {
           setError("Action queued. It will be synced when you're back online.")
@@ -102,6 +104,11 @@ export function CreateResourceButton({ iconOnly = false }: CreateResourceButtonP
               fileInputRef.current.value = ""
             }
           }, 2000)
+          return
+        }
+
+        if (!res.success) {
+          setError(res.error || "Failed to create resource")
           return
         }
 
@@ -280,4 +287,3 @@ export function CreateResourceButton({ iconOnly = false }: CreateResourceButtonP
     </Dialog>
   )
 }
-

@@ -52,7 +52,7 @@ export class OfflineErrorBoundary extends Component<Props, State> {
       const db = await cache['ensureDB']()
       
       // Check if we have any cached data
-      const stores = ['classes', 'resources', 'messages', 'notifications', 'pages']
+      const stores = ['classes', 'resources', 'messages', 'notifications', 'conversations', 'classDetails']
       for (const storeName of stores) {
         if (db.objectStoreNames.contains(storeName)) {
           const tx = db.transaction(storeName, 'readonly')

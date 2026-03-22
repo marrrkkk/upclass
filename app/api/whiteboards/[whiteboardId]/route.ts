@@ -6,6 +6,56 @@ import { db } from "@/db"
 import { auth } from "@/lib/auth"
 import { classMembership, whiteboardSnapshots, whiteboards } from "@/db/schema"
 
+async function getWhiteboardResponse(boardId: string) {
+  const [board] = await db
+    .select({
+      id: whiteboards.id,
+      classId: whiteboards.classId,
+      title: whiteboards.title,
+      ownerId: whiteboards.ownerId,
+      data: whiteboards.data,
+      createdAt: whiteboards.createdAt,
+      updatedAt: whiteboards.updatedAt,
+    })
+    .from(whiteboards)
+    .where(eq(whiteboards.id, boardId))
+    .limit(1)
+
+  if (!board) {
+    return null
+  }
+
+  const [snapshot] = await db
+    .select({
+      id: whiteboardSnapshots.id,
+      document: whiteboardSnapshots.document,
+      version: whiteboardSnapshots.version,
+      updatedAt: whiteboardSnapshots.updatedAt,
+    })
+    .from(whiteboardSnapshots)
+    .where(eq(whiteboardSnapshots.boardId, boardId))
+    .limit(1)
+
+  return {
+    board: {
+      id: board.id,
+      classId: board.classId,
+      title: board.title,
+      ownerId: board.ownerId,
+      createdAt: board.createdAt.toISOString(),
+      updatedAt: board.updatedAt.toISOString(),
+    },
+    snapshot: {
+      id: snapshot?.id ?? `snapshot-${board.id}`,
+      boardId: board.id,
+      version: snapshot?.version ?? 0,
+      document: snapshot?.document ?? null,
+      legacyData: board.data,
+      updatedAt: snapshot?.updatedAt?.toISOString() ?? null,
+    },
+  }
+}
+
 async function requireWhiteboardAccess(boardId: string) {
   let session: Awaited<ReturnType<typeof auth.api.getSession>> | null = null
 
@@ -69,35 +119,12 @@ export async function GET(
   const access = await requireWhiteboardAccess(whiteboardId)
   if ("error" in access) return access.error
 
-  const [snapshot] = await db
-    .select({
-      id: whiteboardSnapshots.id,
-      document: whiteboardSnapshots.document,
-      version: whiteboardSnapshots.version,
-      updatedAt: whiteboardSnapshots.updatedAt,
-    })
-    .from(whiteboardSnapshots)
-    .where(eq(whiteboardSnapshots.boardId, whiteboardId))
-    .limit(1)
+  const response = await getWhiteboardResponse(whiteboardId)
+  if (!response) {
+    return NextResponse.json({ error: "Whiteboard not found" }, { status: 404 })
+  }
 
-  return NextResponse.json({
-    board: {
-      id: access.board.id,
-      classId: access.board.classId,
-      title: access.board.title,
-      ownerId: access.board.ownerId,
-      createdAt: access.board.createdAt.toISOString(),
-      updatedAt: access.board.updatedAt.toISOString(),
-    },
-    snapshot: {
-      id: snapshot?.id ?? `snapshot-${access.board.id}`,
-      boardId: access.board.id,
-      version: snapshot?.version ?? 0,
-      document: snapshot?.document ?? null,
-      legacyData: access.board.data,
-      updatedAt: snapshot?.updatedAt?.toISOString() ?? null,
-    },
-  })
+  return NextResponse.json(response)
 }
 
 export async function PUT(
@@ -110,11 +137,19 @@ export async function PUT(
 
   const body = (await request.json()) as {
     document?: Record<string, unknown>
-    version?: number
+    expectedVersion?: number
   }
 
   if (!body.document || typeof body.document !== "object") {
     return NextResponse.json({ error: "Missing or invalid document payload" }, { status: 400 })
+  }
+
+  if (
+    typeof body.expectedVersion !== "number" ||
+    !Number.isInteger(body.expectedVersion) ||
+    body.expectedVersion < 0
+  ) {
+    return NextResponse.json({ error: "Missing or invalid expectedVersion" }, { status: 400 })
   }
 
   const [existingSnapshot] = await db
@@ -126,7 +161,13 @@ export async function PUT(
     .where(eq(whiteboardSnapshots.boardId, whiteboardId))
     .limit(1)
 
-  const nextVersion = Math.max(existingSnapshot?.version ?? 0, body.version ?? 0) + 1
+  const currentVersion = existingSnapshot?.version ?? 0
+  if (body.expectedVersion !== currentVersion) {
+    const latest = await getWhiteboardResponse(whiteboardId)
+    return NextResponse.json(latest, { status: 409 })
+  }
+
+  const nextVersion = currentVersion + 1
 
   const [snapshot] = existingSnapshot
     ? await db
