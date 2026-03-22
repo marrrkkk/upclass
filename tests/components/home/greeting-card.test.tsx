@@ -3,16 +3,12 @@ import { render, screen } from "@testing-library/react"
 import { GreetingCard } from "@/components/home/greeting-card"
 
 describe("GreetingCard", () => {
-  beforeEach(() => {
-    vi.useFakeTimers()
-  })
-
   afterEach(() => {
-    vi.useRealTimers()
+    vi.restoreAllMocks()
   })
 
   it("renders a morning greeting and role-specific message for teachers", () => {
-    vi.setSystemTime(new Date("2026-03-19T08:30:00+08:00"))
+    vi.spyOn(Date.prototype, "getHours").mockReturnValue(8)
 
     render(<GreetingCard userName="Ada Lovelace" role="teacher" />)
 
@@ -22,7 +18,7 @@ describe("GreetingCard", () => {
   })
 
   it("falls back to a generic greeting for unnamed students at night", () => {
-    vi.setSystemTime(new Date("2026-03-19T22:15:00+08:00"))
+    vi.spyOn(Date.prototype, "getHours").mockReturnValue(22)
 
     render(<GreetingCard userName="" role={null} />)
 
