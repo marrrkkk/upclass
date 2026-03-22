@@ -1,8 +1,10 @@
 import type { NextConfig } from "next";
 
+const isProduction = process.env.NODE_ENV === "production";
+
 const nextConfig: NextConfig = {
   /* config options here */
-  cacheComponents: true,
+  cacheComponents: isProduction,
   images: {
     formats: ['image/avif', 'image/webp'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
@@ -13,13 +15,15 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
   experimental: {
-    cachedNavigations: true,
-    staleTimes: {
-      // Keep visited dynamic routes warm for the current browsing session unless
-      // they are explicitly refreshed or invalidated by a mutation/realtime update.
-      dynamic: 1800,
-      static: 300,
-    },
+    cachedNavigations: isProduction,
+    staleTimes: isProduction
+      ? {
+          // Keep visited dynamic routes warm for the current browsing session unless
+          // they are explicitly refreshed or invalidated by a mutation/realtime update.
+          dynamic: 1800,
+          static: 300,
+        }
+      : undefined,
     optimizePackageImports: ['lucide-react', '@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu'],
   },
   // Ensure service worker is served correctly

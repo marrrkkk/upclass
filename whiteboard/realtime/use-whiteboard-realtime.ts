@@ -8,6 +8,7 @@ import type {
   WhiteboardPresence,
   WhiteboardPresenceUser,
   WhiteboardRealtimeEvent,
+  WhiteboardSnapshotSavedEvent,
   WhiteboardShapeUpdateEvent,
 } from "@/whiteboard/types"
 
@@ -16,6 +17,7 @@ type UseWhiteboardRealtimeParams = {
   clientId: string
   currentUser: WhiteboardPresenceUser
   onRemoteShapeEvent: (event: WhiteboardShapeUpdateEvent) => void
+  onRemoteSnapshotSaved: (event: WhiteboardSnapshotSavedEvent) => void
 }
 
 type PresencePayload = {
@@ -36,6 +38,7 @@ export function useWhiteboardRealtime({
   clientId,
   currentUser,
   onRemoteShapeEvent,
+  onRemoteSnapshotSaved,
 }: UseWhiteboardRealtimeParams) {
   const [presences, setPresences] = useState<Record<string, WhiteboardPresence>>({})
   const channelRef = useRef<ReturnType<NonNullable<typeof supabase>["channel"]> | null>(null)
@@ -92,6 +95,14 @@ export function useWhiteboardRealtime({
         }
 
         onRemoteShapeEvent(event)
+      })
+      .on("broadcast", { event: "snapshot_saved" }, ({ payload }) => {
+        const event = payload as WhiteboardSnapshotSavedEvent
+        if (event.actorId === currentUser.id || event.clientId === clientId) {
+          return
+        }
+
+        onRemoteSnapshotSaved(event)
       })
       .on("broadcast", { event: "cursor_update" }, ({ payload }) => {
         const event = payload as WhiteboardCursorUpdateEvent
@@ -150,13 +161,24 @@ export function useWhiteboardRealtime({
       void supabaseClient.removeChannel(channel)
       channelRef.current = null
     }
-  }, [boardId, clientId, currentUser, onRemoteShapeEvent, syncPresenceState])
+  }, [boardId, clientId, currentUser, onRemoteShapeEvent, onRemoteSnapshotSaved, syncPresenceState])
 
   const broadcastShapeEvent = useCallback(
     (event: WhiteboardShapeUpdateEvent) => {
       channelRef.current?.send({
         type: "broadcast",
         event: "shape_update",
+        payload: event satisfies WhiteboardRealtimeEvent,
+      })
+    },
+    [],
+  )
+
+  const broadcastSnapshotSaved = useCallback(
+    (event: WhiteboardSnapshotSavedEvent) => {
+      channelRef.current?.send({
+        type: "broadcast",
+        event: "snapshot_saved",
         payload: event satisfies WhiteboardRealtimeEvent,
       })
     },
@@ -232,8 +254,9 @@ export function useWhiteboardRealtime({
     () => ({
       presences,
       broadcastShapeEvent,
+      broadcastSnapshotSaved,
       updatePresence,
     }),
-    [broadcastShapeEvent, presences, updatePresence],
+    [broadcastShapeEvent, broadcastSnapshotSaved, presences, updatePresence],
   )
 }

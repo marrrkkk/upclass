@@ -27,6 +27,7 @@ import type {
   WhiteboardPresence,
   WhiteboardPresenceUser,
   WhiteboardShapeUpdateEvent,
+  WhiteboardSnapshotSavedEvent,
   WhiteboardSnapshot,
   WhiteboardSnapshotDocument,
 } from "@/whiteboard/types"
@@ -44,6 +45,7 @@ const KEEPALIVE_BODY_LIMIT = 60_000
 const CURSOR_SMOOTHING = 0.58
 const CURSOR_SETTLE_DISTANCE = 0.2
 const CURSOR_SNAP_DISTANCE = 18
+const LOCAL_DRAFT_KEY_PREFIX = "upclass:whiteboard:draft:"
 
 type ElementVersionState = Record<
   string,
@@ -190,6 +192,56 @@ function buildDocument(
   return JSON.parse(serializeAsJSON(elements, appState, files, "database")) as WhiteboardSnapshotDocument
 }
 
+function getLocalDraftStorageKey(boardId: string) {
+  return `${LOCAL_DRAFT_KEY_PREFIX}${boardId}`
+}
+
+function readLocalDraft(boardId: string) {
+  if (typeof window === "undefined") return null
+
+  try {
+    const raw = window.sessionStorage.getItem(getLocalDraftStorageKey(boardId))
+    if (!raw) return null
+
+    const parsed = JSON.parse(raw) as {
+      document?: WhiteboardSnapshotDocument
+      updatedAt?: number
+    }
+
+    if (
+      !parsed ||
+      typeof parsed !== "object" ||
+      !parsed.document ||
+      typeof parsed.updatedAt !== "number"
+    ) {
+      return null
+    }
+
+    return {
+      document: parsed.document,
+      updatedAt: parsed.updatedAt,
+    }
+  } catch {
+    return null
+  }
+}
+
+function writeLocalDraft(boardId: string, document: WhiteboardSnapshotDocument) {
+  if (typeof window === "undefined") return
+
+  try {
+    window.sessionStorage.setItem(
+      getLocalDraftStorageKey(boardId),
+      JSON.stringify({
+        document,
+        updatedAt: Date.now(),
+      }),
+    )
+  } catch {
+    // Ignore storage quota / private mode failures.
+  }
+}
+
 type ExcalidrawBoardProps = {
   boardId: string
   currentUser: WhiteboardPresenceUser
@@ -213,6 +265,7 @@ export function ExcalidrawBoard({
   const setIsUploading = useWhiteboardUiStore((state) => state.setIsUploading)
   const setSaveStatus = useWhiteboardUiStore((state) => state.setSaveStatus)
   const clientIdRef = useRef(crypto.randomUUID())
+  const broadcastSnapshotSavedRef = useRef<((event: WhiteboardSnapshotSavedEvent) => void) | null>(null)
   const saveTimeoutRef = useRef<number | null>(null)
   const loadedVersionRef = useRef<number | null>(null)
   const latestSnapshotRef = useRef(snapshot)
@@ -228,12 +281,24 @@ export function ExcalidrawBoard({
   const animatedPresencesRef = useRef<Record<string, WhiteboardPresence>>({})
 
   const initialDocument = useMemo(
-    () =>
-      resolveWhiteboardSnapshotDocument({
+    () => {
+      const serverDocument = resolveWhiteboardSnapshotDocument({
         document: snapshot.document,
         legacyData: snapshot.legacyData,
-      }),
-    [snapshot.document, snapshot.legacyData],
+      })
+      const localDraft = readLocalDraft(boardId)
+      const serverUpdatedAt = snapshot.updatedAt ? Date.parse(snapshot.updatedAt) : 0
+
+      if (
+        localDraft &&
+        (!serverDocument || !Number.isFinite(serverUpdatedAt) || localDraft.updatedAt > serverUpdatedAt)
+      ) {
+        return localDraft.document
+      }
+
+      return serverDocument
+    },
+    [boardId, snapshot.document, snapshot.legacyData, snapshot.updatedAt],
   )
 
   const persistSnapshot = useCallback(
@@ -248,7 +313,7 @@ export function ExcalidrawBoard({
       if (options?.keepalive) {
         const body = JSON.stringify({
           document: nextDocument,
-          version: latestSnapshotRef.current.version,
+          expectedVersion: latestSnapshotRef.current.version,
         })
 
         if (body.length > KEEPALIVE_BODY_LIMIT) {
@@ -276,6 +341,7 @@ export function ExcalidrawBoard({
             document: nextDocument,
             version: result.snapshot.version,
           }
+          writeLocalDraft(boardId, nextDocument)
           return result.snapshot.version
         } catch {
           return latestSnapshotRef.current.version
@@ -289,9 +355,18 @@ export function ExcalidrawBoard({
         document: nextDocument,
         version: nextVersion,
       }
+      writeLocalDraft(boardId, nextDocument)
+      broadcastSnapshotSavedRef.current?.({
+        type: "snapshot_saved",
+        boardId,
+        actorId: currentUser.id,
+        clientId: clientIdRef.current,
+        version: nextVersion,
+        sentAt: new Date().toISOString(),
+      })
       return nextVersion
     },
-    [boardId, onPersistSnapshot],
+    [boardId, currentUser.id, onPersistSnapshot],
   )
 
   useEffect(() => {
@@ -331,12 +406,29 @@ export function ExcalidrawBoard({
     [api],
   )
 
-  const { presences, broadcastShapeEvent, updatePresence } = useWhiteboardRealtime({
+  const handleRemoteSnapshotSaved = useCallback((event: WhiteboardSnapshotSavedEvent) => {
+    if (event.version <= latestSnapshotRef.current.version) {
+      return
+    }
+
+    loadedVersionRef.current = event.version
+    latestSnapshotRef.current = {
+      ...latestSnapshotRef.current,
+      version: event.version,
+    }
+  }, [])
+
+  const { presences, broadcastShapeEvent, broadcastSnapshotSaved, updatePresence } = useWhiteboardRealtime({
     boardId,
     clientId: clientIdRef.current,
     currentUser,
     onRemoteShapeEvent: handleRemoteShapeEvent,
+    onRemoteSnapshotSaved: handleRemoteSnapshotSaved,
   })
+
+  useEffect(() => {
+    broadcastSnapshotSavedRef.current = broadcastSnapshotSaved
+  }, [broadcastSnapshotSaved])
 
   useEffect(() => {
     onPresencesChange?.(presences)
@@ -428,6 +520,7 @@ export function ExcalidrawBoard({
     (elements: readonly OrderedExcalidrawElement[], appState: AppState, files: BinaryFiles) => {
       const allElements = api?.getSceneElementsIncludingDeleted() ?? elements
       latestSceneRef.current = { elements: allElements, appState, files }
+      writeLocalDraft(boardId, buildDocument(allElements, appState, files))
 
       updatePresence({
         camera: {
