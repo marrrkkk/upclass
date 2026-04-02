@@ -1,6 +1,7 @@
 "use client"
 
 import dynamic from "next/dynamic"
+import { useQueryClient } from "@tanstack/react-query"
 import { useState, useTransition, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -35,6 +36,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { updateResource, deleteResource } from "@/app/actions/resources"
+import { invalidateResourceCollections } from "@/lib/query-invalidation"
 
 const AIChatDialog = dynamic(
   () => import("@/components/resources/ai-chat-dialog").then((mod) => mod.AIChatDialog),
@@ -103,6 +105,7 @@ const canPreview = (fileType: string) => {
 
 export function ResourceDetailClient({ resource, isOwner }: ResourceDetailClientProps) {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const setPageTitle = usePageHeaderStore((state) => state.setPageTitle)
   const [editOpen, setEditOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -155,6 +158,7 @@ export function ResourceDetailClient({ resource, isOwner }: ResourceDetailClient
       const res = await updateResource(formData)
       if (res.success) {
         setEditOpen(false)
+        await invalidateResourceCollections(queryClient, resource.owner.id)
         router.refresh()
       } else {
         setError(res.error)
@@ -171,6 +175,7 @@ export function ResourceDetailClient({ resource, isOwner }: ResourceDetailClient
       const res = await deleteResource(resource.id)
       if (res.success) {
         setDeleteDialogOpen(false)
+        await invalidateResourceCollections(queryClient, resource.owner.id)
         router.push("/resources")
       } else {
         setError(res.error)

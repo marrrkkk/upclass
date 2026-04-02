@@ -1,5 +1,6 @@
 "use client"
 
+import { useQueryClient } from "@tanstack/react-query"
 import { useEffect, useTransition } from "react"
 import Link from "next/link"
 import { Check, CheckCheck, BellOff, MessageSquare, BookOpen } from "lucide-react"
@@ -12,6 +13,11 @@ import { formatDistanceToNow } from "date-fns"
 import { useNotificationsStore } from "@/stores/notifications-store"
 import { useCacheData, useOfflineCollectionCache } from "@/lib/cache-hooks"
 import { BackgroundCache } from "@/lib/background-cache"
+import {
+  invalidateNotificationsCollections,
+  patchNotificationsQuery,
+} from "@/lib/query-invalidation"
+import { NotificationsContentSkeleton } from "@/components/skeletons"
 
 type NotificationData = {
   id: string
@@ -29,13 +35,16 @@ type NotificationsClientProps = {
   notifications: NotificationData[]
   userId: string
   showHeader?: boolean
+  isLoading?: boolean
 }
 
 export function NotificationsClient({
   notifications: initialNotifications,
   userId,
   showHeader = true,
+  isLoading = false,
 }: NotificationsClientProps) {
+  const queryClient = useQueryClient()
   const { setNotifications, setUserId, notifications: storeNotifications, addNotification, updateNotification, markAsRead, markAllAsRead, unreadCount } = useNotificationsStore()
   const [pending, startTransition] = useTransition()
   
@@ -118,9 +127,30 @@ export function NotificationsClient({
               createdAt: newNotif.created_at,
               className: null, // Will be fetched if needed
             })
+            patchNotificationsQuery(queryClient, userId, (current) => [
+              {
+                id: newNotif.id,
+                type: newNotif.type,
+                title: newNotif.title,
+                message: newNotif.message,
+                classId: newNotif.class_id,
+                relatedId: newNotif.related_id,
+                read: newNotif.read,
+                createdAt: newNotif.created_at,
+                className: null,
+              },
+              ...current.filter((notification) => notification.id !== newNotif.id),
+            ])
           } else if (payload.eventType === "UPDATE") {
             const updatedNotif = payload.new as { id: string; read: boolean }
             updateNotification(updatedNotif.id, { read: updatedNotif.read })
+            patchNotificationsQuery(queryClient, userId, (current) =>
+              current.map((notification) =>
+                notification.id === updatedNotif.id
+                  ? { ...notification, read: updatedNotif.read }
+                  : notification,
+              ),
+            )
           }
         },
       )
@@ -129,12 +159,20 @@ export function NotificationsClient({
     return () => {
       supabase?.removeChannel(channel)
     }
-  }, [userId])
+  }, [addNotification, queryClient, updateNotification, userId])
 
   const handleMarkAsRead = (notificationId: string) => {
     startTransition(async () => {
       await markNotificationAsRead(notificationId)
       markAsRead(notificationId)
+      patchNotificationsQuery(queryClient, userId, (current) =>
+        current.map((notification) =>
+          notification.id === notificationId
+            ? { ...notification, read: true }
+            : notification,
+        ),
+      )
+      await invalidateNotificationsCollections(queryClient, userId)
     })
   }
 
@@ -142,6 +180,10 @@ export function NotificationsClient({
     startTransition(async () => {
       await markAllNotificationsAsRead()
       markAllAsRead()
+      patchNotificationsQuery(queryClient, userId, (current) =>
+        current.map((notification) => ({ ...notification, read: true })),
+      )
+      await invalidateNotificationsCollections(queryClient, userId)
     })
   }
 
@@ -201,7 +243,9 @@ export function NotificationsClient({
         </div>
       ) : null}
 
-      {storeNotifications.length === 0 ? (
+      {isLoading ? (
+        <NotificationsContentSkeleton />
+      ) : storeNotifications.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center animate-in fade-in zoom-in-50 duration-500">
           <div className="rounded-full bg-muted/50 p-6 mb-6">
             <BellOff className="h-10 w-10 text-muted-foreground/50" />

@@ -26,6 +26,7 @@ import { useResourcesStore } from "@/stores/resources-store"
 import { useCacheData, useOfflineCollectionCache } from "@/lib/cache-hooks"
 import { BackgroundCache } from "@/lib/background-cache"
 import { BackgroundSync } from "@/lib/background-sync"
+import { ResourceCardSkeleton } from "@/components/skeletons"
 
 type ResourceCardData = {
   id: string
@@ -44,6 +45,7 @@ type ResourceCardData = {
 type ResourcesClientProps = {
   resources: ResourceCardData[]
   isAuthenticated?: boolean
+  isLoading?: boolean
 }
 
 const fileTypeFilters = [
@@ -74,7 +76,11 @@ const formatFileSize = (size: string | null) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-export function ResourcesClient({ resources, isAuthenticated = false }: ResourcesClientProps) {
+export function ResourcesClient({
+  resources,
+  isAuthenticated = false,
+  isLoading = false,
+}: ResourcesClientProps) {
   const { setResources, setIsAuthenticated, resources: storeResources } = useResourcesStore()
   
   useEffect(() => {
@@ -215,7 +221,13 @@ export function ResourcesClient({ resources, isAuthenticated = false }: Resource
       </div>
 
       {/* Resources Grid */}
-      {filteredResources.length === 0 ? (
+      {isLoading ? (
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <ResourceCardSkeleton key={index} />
+          ))}
+        </div>
+      ) : filteredResources.length === 0 ? (
         <Empty className="border border-dashed">
           <EmptyHeader>
             <EmptyMedia variant="icon" className="bg-blue-50 text-blue-600">

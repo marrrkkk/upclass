@@ -2,14 +2,18 @@ import Link from "next/link"
 
 import { BackgroundRefreshClient } from "@/components/layouts/background-refresh-client"
 import { RouteContentTransition } from "@/components/layouts/route-content-transition"
+import { ShellRoutePrefetch } from "@/components/layouts/shell-route-prefetch"
 import { HomeShellSidebarDrawer } from "@/components/layouts/home-shell-sidebar-drawer"
 import { HomeShellSidebarToggle } from "@/components/layouts/home-shell-sidebar-toggle"
 import { PageHeader } from "@/components/page-header"
+import { MainShellStateProvider } from "@/components/providers/main-shell-state-provider"
 import { Button } from "@/components/ui/button"
 
 type HomeShellProps = {
   children: React.ReactNode
+  hasRole?: boolean
   isAuthenticated: boolean
+  isShellResolved?: boolean
   recentClasses?: Array<{
     id: string
     title: string
@@ -21,52 +25,78 @@ type HomeShellProps = {
     image: string | null
   } | null
   userId?: string
+  userRole?: "teacher" | "student" | null
 }
 
-export function HomeShell({ children, isAuthenticated, recentClasses, userInfo, userId }: HomeShellProps) {
+export function HomeShell({
+  children,
+  hasRole = false,
+  isAuthenticated,
+  isShellResolved = true,
+  recentClasses,
+  userInfo,
+  userId,
+  userRole = null,
+}: HomeShellProps) {
   return (
-    <div className="min-h-screen bg-background">
-      <BackgroundRefreshClient />
+    <MainShellStateProvider
+      value={{
+        hasRole,
+        isAuthenticated,
+        isShellResolved,
+        userId,
+        userInfo,
+        userRole,
+      }}
+    >
+      <div className="min-h-screen bg-background">
+        <BackgroundRefreshClient />
+        <ShellRoutePrefetch
+          isAuthenticated={isAuthenticated}
+          recentClasses={recentClasses}
+          userId={userId}
+        />
 
-      <div className="flex">
-        <HomeShellSidebarDrawer recentClasses={recentClasses} userId={userId} userInfo={userInfo} />
+        <div className="flex">
+          <HomeShellSidebarDrawer recentClasses={recentClasses} userId={userId} userInfo={userInfo} />
 
-        <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-          <div className="sticky top-0 z-30 border-b bg-background">
-            <div className="flex h-14 items-center gap-3 px-4 sm:h-16 sm:px-6 md:px-8">
-              <div className="flex min-w-0 items-center gap-3">
-                <HomeShellSidebarToggle />
-              </div>
+          <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+            <div className="sticky top-0 z-30 border-b bg-background">
+              <div className="flex h-14 items-center gap-3 px-4 sm:h-16 sm:px-6 md:px-8">
+                <div className="flex min-w-0 items-center gap-3">
+                  <HomeShellSidebarToggle />
+                </div>
 
-              <div className="flex min-w-0 flex-1 items-center justify-end">
-                {isAuthenticated && userInfo ? (
-                  <div className="w-full">
-                    <PageHeader user={userInfo} userId={userId} />
-                  </div>
-                ) : (
-                  <div className="flex w-full items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">Welcome to UpClass</span>
+                <div className="flex min-w-0 flex-1 items-center justify-end">
+                  {isAuthenticated && userInfo ? (
+                    <div className="w-full">
+                      <PageHeader user={userInfo} userId={userId} />
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href="/sign-in">Sign In</Link>
-                      </Button>
-                      <Button size="sm" asChild>
-                        <Link href="/sign-in">Get Started</Link>
-                      </Button>
+                  ) : (
+                    <div className="flex w-full items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">Welcome to UpClass</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" asChild>
+                          <Link href="/sign-in">Sign In</Link>
+                        </Button>
+                        <Button size="sm" asChild>
+                          <Link href="/sign-in">Get Started</Link>
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="flex-1 px-4 py-6 sm:px-6 md:px-8">
-            <RouteContentTransition>{children}</RouteContentTransition>
+            <div className="flex-1 px-4 py-6 sm:px-6 md:px-8">
+              <RouteContentTransition>{children}</RouteContentTransition>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </MainShellStateProvider>
   )
 }

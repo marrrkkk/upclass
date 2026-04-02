@@ -12,8 +12,7 @@ export function usePrefetch() {
 
   const prefetch = (href: string) => {
     if (prefetchedRef.current.has(href)) return
-    
-    // Prefetch the route
+
     router.prefetch(href)
     prefetchedRef.current.add(href)
   }
@@ -44,9 +43,11 @@ export function usePrefetch() {
 
   // Cleanup on unmount
   useEffect(() => {
+    const hoverTimeouts = hoverTimeoutRef.current
+
     return () => {
-      hoverTimeoutRef.current.forEach((timeout) => clearTimeout(timeout))
-      hoverTimeoutRef.current.clear()
+      hoverTimeouts.forEach((timeout) => clearTimeout(timeout))
+      hoverTimeouts.clear()
     }
   }, [])
 

@@ -1,9 +1,11 @@
 "use client"
 
+import { useQueryClient } from "@tanstack/react-query"
 import { useState, useTransition, useRef } from "react"
 import { Plus, Upload, X } from "lucide-react"
 
 import { createResource } from "@/app/actions/resources"
+import { useMainShellState } from "@/components/providers/main-shell-state-provider"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -17,6 +19,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { invalidateResourceCollections } from "@/lib/query-invalidation"
 import { useUploadThing } from "@/lib/uploadthing"
 import { cn } from "@/lib/utils"
 import { executeWithOfflineHandling } from "@/lib/offline-action-handler"
@@ -26,6 +29,8 @@ type CreateResourceButtonProps = {
 }
 
 export function CreateResourceButton({ iconOnly = false }: CreateResourceButtonProps) {
+  const queryClient = useQueryClient()
+  const { userId } = useMainShellState()
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
@@ -117,6 +122,7 @@ export function CreateResourceButton({ iconOnly = false }: CreateResourceButtonP
         if (fileInputRef.current) {
           fileInputRef.current.value = ""
         }
+        await invalidateResourceCollections(queryClient, userId)
       } catch (err) {
         if (!navigator.onLine) {
           setError("You're offline. Please check your internet connection and try again.")

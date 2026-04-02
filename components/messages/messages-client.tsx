@@ -1,16 +1,18 @@
 "use client"
 
+import { useQueryClient } from "@tanstack/react-query"
 import dynamic from "next/dynamic"
 import { useEffect, useMemo, useState, useTransition } from "react"
-import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Search, Users } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 
 import { searchMessages } from "@/app/actions/messages"
+import { invalidateMessagesCollections } from "@/lib/query-invalidation"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { Skeleton } from "@/components/ui/skeleton"
 import { supabase } from "@/lib/supabase-client"
 import { cn } from "@/lib/utils"
 
@@ -60,6 +62,7 @@ type MessagesClientProps = {
   channels: ChannelThread[]
   userId: string
   showHeader?: boolean
+  isLoading?: boolean
 }
 
 export function MessagesClient({
@@ -67,8 +70,9 @@ export function MessagesClient({
   channels,
   userId,
   showHeader = true,
+  isLoading = false,
 }: MessagesClientProps) {
-  const router = useRouter()
+  const queryClient = useQueryClient()
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [searchPending, startSearchTransition] = useTransition()
@@ -87,7 +91,7 @@ export function MessagesClient({
           filter: `receiver_id=eq.${userId}`,
         },
         () => {
-          router.refresh()
+          void invalidateMessagesCollections(queryClient, userId)
         },
       )
       .subscribe()
@@ -102,7 +106,7 @@ export function MessagesClient({
           table: "channel_messages",
         },
         () => {
-          router.refresh()
+          void invalidateMessagesCollections(queryClient, userId)
         },
       )
       .subscribe()
@@ -111,9 +115,13 @@ export function MessagesClient({
       supabase?.removeChannel(directChannel)
       supabase?.removeChannel(classChannel)
     }
-  }, [router, userId])
+  }, [queryClient, userId])
 
   useEffect(() => {
+    if (isLoading) {
+      return
+    }
+
     if (!searchQuery.trim()) {
       return
     }
@@ -124,7 +132,7 @@ export function MessagesClient({
         setSearchResults(result.results)
       }
     })
-  }, [searchQuery])
+  }, [isLoading, searchQuery])
 
   const filteredThreads = useMemo(() => {
     if (searchQuery.trim()) return []
@@ -188,7 +196,25 @@ export function MessagesClient({
         </div>
 
         <div className="flex-1 overflow-y-auto pr-1">
-          {searchQuery.trim() ? (
+          {isLoading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 8 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="flex items-center gap-4 rounded-xl border border-transparent bg-card/40 p-4"
+                >
+                  <Skeleton className="h-12 w-12 rounded-full border border-border/50" />
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <Skeleton className="h-5 w-32" />
+                      <Skeleton className="h-3 w-16" />
+                    </div>
+                    <Skeleton className="h-4 w-1/2" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : searchQuery.trim() ? (
             searchResults.length === 0 && !searchPending ? (
               <EmptyState title="No results found" description={`Nothing matched "${searchQuery}".`} />
             ) : (

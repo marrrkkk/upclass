@@ -15,18 +15,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Skeleton } from "@/components/ui/skeleton"
 import { type ActivityCategory, activityFilters, type ActivityLogItem } from "@/lib/activity-ui"
 
 type ActivityPageClientProps = {
   activeFilter: ActivityCategory
   items: ActivityLogItem[]
   nextCursor: string | null
+  isLoading?: boolean
 }
 
 export function ActivityPageClient({
   activeFilter,
   items,
   nextCursor,
+  isLoading = false,
 }: ActivityPageClientProps) {
   const router = useRouter()
   const pathname = usePathname()
@@ -94,13 +97,29 @@ export function ActivityPageClient({
         </CardHeader>
 
         <CardContent className="flex flex-col gap-4 pt-4">
-          <ActivityLogList
-            items={items}
-            emptyTitle="No matching activity"
-            emptyDescription="Try another filter, or keep using UpClass and your actions will appear here."
-          />
+          {isLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <div key={index} className="rounded-xl border bg-card p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <Skeleton className="h-5 w-40" />
+                      <Skeleton className="h-4 w-3/4" />
+                    </div>
+                    <Skeleton className="h-4 w-20" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <ActivityLogList
+              items={items}
+              emptyTitle="No matching activity"
+              emptyDescription="Try another filter, or keep using UpClass and your actions will appear here."
+            />
+          )}
 
-          {nextCursor ? (
+          {nextCursor && !isLoading ? (
             <div className="flex justify-center pt-2">
               <Button variant="outline" asChild>
                 <Link href={buildHref(activeFilter, nextCursor)}>

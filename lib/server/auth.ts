@@ -32,6 +32,7 @@ export const getMainShellState = cache(async () => {
       isAuthenticated: false,
       userId: undefined,
       userInfo: null,
+      userRole: null,
     }
   }
 
@@ -50,5 +51,6 @@ export const getMainShellState = cache(async () => {
       email: session.user.email,
       image: session.user.image ?? null,
     },
+    userRole: userData?.role ?? null,
   }
 })
