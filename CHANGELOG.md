@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Changelog entries will be tracked here before the next tagged release.
+- Classes now present role-specific actions on the Classes page, recent class lists prioritize the most recently opened class on the current device, and teacher quiz cards no longer show the student-only `Missing` badge.
+- Reworked the authenticated app shell and main route data flow so Home, Classes, Class detail, Resources, Messages, Notifications, and Activity render immediately with section-level skeletons backed by session-scoped client caching instead of route-wide loading transitions.
 - Rebuilt the app SEO configuration around the production domain `https://upclass.xyz` with richer metadata, structured data, sitemap and robots support, social preview images, and `noindex` protection for authenticated app routes.
 - Deploy builds now gate on lint, type-check, and test before migrations and the production build.
 - Deploy builds now skip `db:migrate` when `DATABASE_URL` is missing instead of failing before the application build starts.
@@ -25,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Transactional email delivery now runs through Resend using React Email templates and a dedicated authenticated test endpoint.
 
 ### Removed
+- The top-route navigation progress layer and session-warm navigation hack were removed in favor of instant route shells plus section-level cached data loading.
 - The favorites feature, `/favorites` route, favorite toggles, and supporting saved-item schema/helpers were removed in favor of a simpler recent-classes sidebar flow.
 
 ## [0.1.0] - 2026-03-21
