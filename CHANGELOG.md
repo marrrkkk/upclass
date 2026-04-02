@@ -12,12 +12,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Draft/resubmission assignment workflow support with multiple submission attachments, revision history, grading history, and richer classwork review dialogs.
 - Teacher analytics on Home covering overdue work, a global review queue, unread student questions, low-participation alerts, and weekly summary cards.
 - Class `general` channels, unified messaging search, and offline queue support for direct and channel message sends.
+- Class-scoped resource management with a dedicated Resources tab on class detail pages, teacher-only uploads tied to a class, and authenticated file delivery from a private Supabase bucket.
+- A full RAG-based resource assistant that extracts PDF, DOCX, and TXT content, stores pgvector embeddings in Supabase Postgres, retrieves class-authorized chunks, and persists per-user resource AI chat sessions with citations.
+- Automated Supabase Realtime setup scripts so new projects publish the app's required Postgres tables and apply replica identity settings during `db:migrate`.
+- A `db:push` bootstrap script that applies the current schema to a fresh database and then configures Supabase Realtime automatically.
 
 ### Changed
 - Changelog entries will be tracked here before the next tagged release.
+- README migration guidance now recommends `db:push` for fresh empty Supabase projects and `db:migrate` for ongoing shared or production schema changes.
 - Classes now present role-specific actions on the Classes page, recent class lists prioritize the most recently opened class on the current device, and teacher quiz cards no longer show the student-only `Missing` badge.
 - Reworked the authenticated app shell and main route data flow so Home, Classes, Class detail, Resources, Messages, Notifications, and Activity render immediately with section-level skeletons backed by session-scoped client caching instead of route-wide loading transitions.
 - File uploads, media attachments, submission files, and profile/cover images now use Supabase Storage signed uploads and managed bucket/path metadata instead of UploadThing.
+- Resource uploads now require teacher membership in a target class, store files under class-scoped storage paths, and synchronously ingest supported documents so AI state is available on the resource detail view.
+- The Resources page and resource detail flow now enforce Better Auth session checks plus class membership authorization instead of the previous owner-only/personal resource model.
 - Rebuilt the app SEO configuration around the production domain `https://upclass.xyz` with richer metadata, structured data, sitemap and robots support, social preview images, and `noindex` protection for authenticated app routes.
 - Deploy builds now gate on lint, type-check, and test before migrations and the production build.
 - Deploy builds now skip `db:migrate` when `DATABASE_URL` is missing instead of failing before the application build starts.
@@ -31,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The top-route navigation progress layer and session-warm navigation hack were removed in favor of instant route shells plus section-level cached data loading.
 - The favorites feature, `/favorites` route, favorite toggles, and supporting saved-item schema/helpers were removed in favor of a simpler recent-classes sidebar flow.
 - UploadThing routes, helpers, styles, and environment requirements were removed from the application.
+- The legacy Gemini-based resource metadata chat flow was removed in favor of class-scoped OpenRouter retrieval over uploaded document content.
 
 ## [0.1.0] - 2026-03-21
 
