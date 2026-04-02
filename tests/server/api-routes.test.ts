@@ -2,21 +2,12 @@
 
 import { beforeEach, describe, expect, test, vi } from "vitest"
 
-const generateContentMock = vi.fn()
 const getSessionMock = vi.fn()
 const headersMock = vi.fn()
 const selectLimitMock = vi.fn()
 const selectWhereMock = vi.fn(() => ({ limit: selectLimitMock }))
 const selectFromMock = vi.fn(() => ({ where: selectWhereMock, limit: selectLimitMock }))
 const selectMock = vi.fn(() => ({ from: selectFromMock }))
-
-vi.mock("@google/generative-ai", () => ({
-  GoogleGenerativeAI: vi.fn().mockImplementation(() => ({
-    getGenerativeModel: vi.fn(() => ({
-      generateContent: generateContentMock,
-    })),
-  })),
-}))
 
 vi.mock("next/headers", () => ({
   headers: headersMock,
@@ -36,6 +27,14 @@ vi.mock("@/db", () => ({
   },
 }))
 
+vi.mock("@/lib/resources/chat", () => ({
+  askResourceQuestion: vi.fn(),
+  getLatestResourceChatSession: vi.fn().mockResolvedValue({
+    sessionId: null,
+    messages: [],
+  }),
+}))
+
 describe("API routes", () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -43,6 +42,12 @@ describe("API routes", () => {
   })
 
   test("ai chat rejects invalid bodies", async () => {
+    getSessionMock.mockResolvedValueOnce({
+      user: {
+        id: "user-1",
+      },
+    })
+
     const { POST } = await import("@/app/api/ai/chat/route")
 
     const response = await POST(
@@ -54,7 +59,7 @@ describe("API routes", () => {
 
     expect(response.status).toBe(400)
     await expect(response.json()).resolves.toEqual({
-      error: "Message is required",
+      error: "Class ID is required",
     })
   })
 

@@ -29,10 +29,10 @@ export const joinClassSchema = z.object({
 export const updateClassSchema = createClassSchema
 
 export const createResourceSchema = z.object({
+  classId: requiredTrimmedString("Class ID"),
   title: requiredTrimmedString("Title"),
   description: optionalTrimmedString.optional(),
   category: optionalTrimmedString.default("General"),
-  fileUrl: requiredTrimmedString("File URL"),
   fileName: requiredTrimmedString("File name"),
   fileType: requiredTrimmedString("File type"),
   mimeType: requiredTrimmedString("MIME type"),
@@ -110,24 +110,16 @@ export const markConversationAsReadSchema = z.object({
   otherUserId: requiredTrimmedString("User"),
 })
 
-export const aiChatSchema = z.object({
+export const resourceAiChatSchema = z.object({
+  classId: requiredTrimmedString("Class ID"),
+  resourceId: optionalTrimmedString.nullish(),
+  sessionId: optionalTrimmedString.nullish(),
   message: requiredTrimmedString("Message"),
-  resourceContext: z.object({
-    title: requiredTrimmedString("Resource title"),
-    description: optionalTrimmedString.nullish(),
-    category: optionalTrimmedString.nullish(),
-    fileType: requiredTrimmedString("File type"),
-    fileName: requiredTrimmedString("File name"),
-  }),
-  conversationHistory: z
-    .array(
-      z.object({
-        role: z.enum(["user", "assistant"]),
-        content: requiredTrimmedString("Message"),
-      }),
-    )
-    .optional()
-    .default([]),
+})
+
+export const resourceAiChatSessionQuerySchema = z.object({
+  classId: requiredTrimmedString("Class ID"),
+  resourceId: optionalTrimmedString.nullish(),
 })
 
 export type CreateClassInput = z.infer<typeof createClassSchema>
@@ -140,4 +132,4 @@ export type SendChannelMessageInput = z.infer<typeof sendChannelMessageSchema>
 export type UpsertSubmissionInput = z.infer<typeof upsertSubmissionSchema>
 export type GradeSubmissionInput = z.infer<typeof gradeSubmissionSchema>
 export type MessageSearchInput = z.infer<typeof messageSearchSchema>
-export type AIChatInput = z.infer<typeof aiChatSchema>
+export type ResourceAiChatInput = z.infer<typeof resourceAiChatSchema>

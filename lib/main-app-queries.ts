@@ -2,7 +2,16 @@ import type { ActivityGraphDay, ActivityLogItem, ActivityCategory } from "@/lib/
 import type { ClassDetailTab } from "@/lib/classes/class-detail-tabs"
 import { fetchJson } from "@/lib/fetch-json"
 import { mainQueryKeys } from "@/lib/query-keys"
-import type { ClassCardData, ClassData, AnnouncementData, ClassworkData, SubmissionData, QuizData, MemberData } from "@/types/classes"
+import type {
+  AnnouncementData,
+  ClassCardData,
+  ClassData,
+  ClassResourceData,
+  ClassworkData,
+  MemberData,
+  QuizData,
+  SubmissionData,
+} from "@/types/classes"
 
 export type ShellRecentClass = {
   id: string
@@ -97,6 +106,7 @@ export type ClassesPageResponse = {
 
 export type ResourceCardData = {
   id: string
+  classId: string
   title: string
   description: string | null
   category: string | null
@@ -105,12 +115,23 @@ export type ResourceCardData = {
   fileType: string
   fileSize: string | null
   createdAt: string
+  className: string
+  classColor: string
   authorName: string | null
   authorImage: string | null
+  aiStatus: "processing" | "ready" | "failed" | "unsupported"
+  aiChunkCount: number
+}
+
+export type ManagedClassOption = {
+  id: string
+  title: string
+  color: string
 }
 
 export type ResourcesPageResponse = {
   resources: ResourceCardData[]
+  managedClasses: ManagedClassOption[]
 }
 
 export type NotificationItem = {
@@ -177,6 +198,7 @@ export type ClassDetailTabResponse = {
   announcements: AnnouncementData[]
   classwork: ClassworkData[]
   submissions: SubmissionData[]
+  resources: ClassResourceData[]
   quizzes: QuizData[]
   members: MemberData[]
 }

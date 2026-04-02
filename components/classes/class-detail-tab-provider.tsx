@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -13,7 +14,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { ClassDetailTabSkeleton } from "@/components/skeletons"
 import { type ClassDetailTab } from "@/lib/classes/class-detail-tabs"
 
-const ALL_TABS: ClassDetailTab[] = ["stream", "classwork", "quizzes", "people"]
+const ALL_TABS: ClassDetailTab[] = ["stream", "classwork", "resources", "quizzes", "people"]
 
 type ClassDetailTabContextValue = {
   activeTab: ClassDetailTab
@@ -64,12 +65,12 @@ export function ClassDetailTabProvider({
     })
   }, [classId, router])
 
-  const prefetchTab = (tab: ClassDetailTab) => {
+  const prefetchTab = useCallback((tab: ClassDetailTab) => {
     const href = tab === "stream" ? `/classes/${classId}` : `/classes/${classId}?tab=${tab}`
     router.prefetch(href)
-  }
+  }, [classId, router])
 
-  const navigateToTab = (tab: ClassDetailTab) => {
+  const navigateToTab = useCallback((tab: ClassDetailTab) => {
     if (tab === optimisticTab && !isPending) return
 
     setOptimisticTab(tab)
@@ -85,7 +86,7 @@ export function ClassDetailTabProvider({
       const query = params.toString()
       router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
     })
-  }
+  }, [isPending, optimisticTab, pathname, router, searchParams])
 
   const value = useMemo(
     () => ({
@@ -96,7 +97,7 @@ export function ClassDetailTabProvider({
       navigateToTab,
       prefetchTab,
     }),
-    [activeTab, cachedTabs, isPending, optimisticTab],
+    [activeTab, cachedTabs, isPending, navigateToTab, optimisticTab, prefetchTab],
   )
 
   return (

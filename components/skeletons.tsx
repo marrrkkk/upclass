@@ -323,6 +323,22 @@ export function QuizTabSkeleton() {
     )
 }
 
+export function ResourcesTabSkeleton() {
+    return (
+        <div className="max-w-4xl mx-auto w-full space-y-6 px-1">
+            <div className="flex items-center justify-between">
+                <Skeleton className="h-7 w-32" />
+                <Skeleton className="h-9 w-32 rounded-md" />
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                    <ResourceCardSkeleton key={i} />
+                ))}
+            </div>
+        </div>
+    )
+}
+
 export function PeopleTabSkeleton() {
     return (
         <div className="max-w-4xl mx-auto flex flex-col gap-8 px-1">
@@ -352,9 +368,10 @@ export function PeopleTabSkeleton() {
 export function ClassDetailTabSkeleton({
     activeTab,
 }: {
-    activeTab: "stream" | "classwork" | "quizzes" | "people"
+    activeTab: "stream" | "classwork" | "resources" | "quizzes" | "people"
 }) {
     if (activeTab === "classwork") return <ClassworkTabSkeleton />
+    if (activeTab === "resources") return <ResourcesTabSkeleton />
     if (activeTab === "quizzes") return <QuizTabSkeleton />
     if (activeTab === "people") return <PeopleTabSkeleton />
     return <StreamTabSkeleton />

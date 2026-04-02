@@ -137,6 +137,13 @@ export async function joinClass(formData: FormData): Promise<ActionResponse> {
     return { success: false, error: "Unauthorized" }
   }
 
+  const parsed = parseFormData(joinClassSchema, formData)
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message || "Invalid class code" }
+  }
+
+  const { code } = parsed.data
+
   const userData = await db
     .select({ role: user.role })
     .from(user)
@@ -146,13 +153,6 @@ export async function joinClass(formData: FormData): Promise<ActionResponse> {
   if (userData.length === 0 || userData[0].role !== "student") {
     return { success: false, error: "Only students can join classes" }
   }
-
-  const parsed = parseFormData(joinClassSchema, formData)
-  if (!parsed.success) {
-    return { success: false, error: parsed.error.issues[0]?.message || "Invalid class code" }
-  }
-
-  const { code } = parsed.data
 
   try {
     // Find class by code

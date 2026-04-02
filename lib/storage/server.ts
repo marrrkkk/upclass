@@ -29,6 +29,40 @@ export function getPublicStorageUrl(bucket: string, path: string) {
   return data.publicUrl
 }
 
+export async function createSignedStorageDownloadUrl(
+  bucket: string,
+  path: string,
+  expiresInSeconds = 60,
+) {
+  if (!supabaseStorageAdmin) {
+    throw new Error("Supabase storage admin client is not configured")
+  }
+
+  const { data, error } = await supabaseStorageAdmin.storage
+    .from(bucket)
+    .createSignedUrl(path, expiresInSeconds)
+
+  if (error || !data?.signedUrl) {
+    throw error || new Error("Failed to create a signed download URL")
+  }
+
+  return data.signedUrl
+}
+
+export async function downloadStorageObject(bucket: string, path: string) {
+  if (!supabaseStorageAdmin) {
+    throw new Error("Supabase storage admin client is not configured")
+  }
+
+  const { data, error } = await supabaseStorageAdmin.storage.from(bucket).download(path)
+
+  if (error || !data) {
+    throw error || new Error("Failed to download storage object")
+  }
+
+  return await data.arrayBuffer()
+}
+
 export async function createSignedStorageUpload(bucket: string, path: string) {
   if (!supabaseStorageAdmin) {
     throw new Error("Supabase storage admin client is not configured")

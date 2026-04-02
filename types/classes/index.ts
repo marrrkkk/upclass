@@ -83,6 +83,25 @@ export type SubmissionAttachmentData = {
   createdAt: string
 }
 
+export type ClassResourceData = {
+  id: string
+  classId: string
+  title: string
+  description: string | null
+  category: string | null
+  fileUrl: string
+  fileName: string
+  fileType: string
+  fileSize: string | null
+  createdAt: string
+  updatedAt: string
+  authorName: string | null
+  authorImage: string | null
+  aiStatus: "processing" | "ready" | "failed" | "unsupported"
+  aiChunkCount: number
+  aiLastError: string | null
+}
+
 export type SubmissionRevisionData = {
   id: string
   submissionId: string

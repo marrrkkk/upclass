@@ -27,6 +27,7 @@ export type UploadPurpose =
   | "submission-attachment"
 
 export type UploadContext = {
+  classId?: string
   channelId?: string
   classworkId?: string
 }
@@ -158,7 +159,8 @@ const PURPOSE_CONFIG: Record<UploadPurpose, UploadPurposeConfig> = {
   "resource-file": {
     bucket: STORAGE_BUCKETS.resourceFiles,
     maxFileCount: 1,
-    pathPrefix: (userId, file) => `users/${userId}/resources/${buildFileName(file.name)}`,
+    pathPrefix: (_userId, file, context) =>
+      `classes/${sanitizeSegment(context?.classId || "unknown")}/resources/${buildFileName(file.name)}`,
     rules: [...RESOURCE_DOC_RULES],
   },
   "message-media": {

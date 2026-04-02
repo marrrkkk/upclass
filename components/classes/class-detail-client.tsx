@@ -5,6 +5,7 @@ import { getVisibleClassTab } from "@/lib/classes/class-detail-tabs"
 import type {
   AnnouncementData,
   ClassData,
+  ClassResourceData,
   ClassworkData,
   MemberData,
   QuizData,
@@ -13,12 +14,13 @@ import type {
 
 type ClassDetailClientProps = {
   classData: ClassData
-  activeTab: "stream" | "classwork" | "quizzes" | "people"
+  activeTab: "stream" | "classwork" | "resources" | "quizzes" | "people"
   userId?: string
   userRole: "teacher" | "student" | null
   announcements: AnnouncementData[]
   classwork: ClassworkData[]
   submissions: SubmissionData[]
+  resources: ClassResourceData[]
   quizzes: QuizData[]
   members: MemberData[]
 }
@@ -31,6 +33,7 @@ export function ClassDetailClient({
   announcements,
   classwork,
   submissions,
+  resources,
   quizzes,
   members,
 }: ClassDetailClientProps) {
@@ -49,6 +52,7 @@ export function ClassDetailClient({
         announcements={announcements}
         classwork={classwork}
         submissions={submissions}
+        resources={resources}
         quizzes={quizzes}
         members={members}
       />

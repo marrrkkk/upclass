@@ -1,18 +1,6 @@
 import { create } from "zustand"
 
-type ResourceCardData = {
-  id: string
-  title: string
-  description: string | null
-  category: string | null
-  fileUrl: string
-  fileName: string
-  fileType: string
-  fileSize: string | null
-  createdAt: string
-  authorName: string | null
-  authorImage: string | null
-}
+import type { ResourceCardData } from "@/lib/main-app-queries"
 
 type ResourcesState = {
   resources: ResourceCardData[]
@@ -36,13 +24,13 @@ export const useResourcesStore = create<ResourcesState>((set) => ({
     })),
   updateResource: (resourceId, updates) =>
     set((state) => ({
-      resources: state.resources.map((r) =>
-        r.id === resourceId ? { ...r, ...updates } : r,
+      resources: state.resources.map((resource) =>
+        resource.id === resourceId ? { ...resource, ...updates } : resource,
       ),
     })),
   removeResource: (resourceId) =>
     set((state) => ({
-      resources: state.resources.filter((r) => r.id !== resourceId),
+      resources: state.resources.filter((resource) => resource.id !== resourceId),
     })),
   clearResources: () =>
     set({

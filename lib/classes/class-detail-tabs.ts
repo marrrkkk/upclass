@@ -1,4 +1,4 @@
-export type ClassDetailTab = "stream" | "classwork" | "quizzes" | "people"
+export type ClassDetailTab = "stream" | "classwork" | "resources" | "quizzes" | "people"
 
 export function getVisibleClassTab(
   requestedTab: string | null,
@@ -7,6 +7,7 @@ export function getVisibleClassTab(
   if (
     requestedTab === "stream" ||
     requestedTab === "classwork" ||
+    requestedTab === "resources" ||
     requestedTab === "quizzes" ||
     requestedTab === "people"
   ) {

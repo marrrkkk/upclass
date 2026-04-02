@@ -17,7 +17,6 @@ import {
   quizOptions,
   quizQuestions,
   quizzes,
-  resources,
   submissionAttachments,
   submissionRevisions,
   submissions,
@@ -26,6 +25,7 @@ import {
 import { getActivityGraphData, getActivityLog } from "@/lib/activity"
 import type { ActivityCategory } from "@/lib/activity-ui"
 import { type ClassDetailTab } from "@/lib/classes/class-detail-tabs"
+import { getAccessibleResourcesPageData, getClassResourcesTabData } from "@/lib/server/resource-data"
 import { getChannelSummaries, getConversationSummaries } from "@/lib/server/messages"
 import type { ClassData } from "@/types/classes"
 
@@ -631,33 +631,8 @@ export async function getClassesPageData(userId?: string) {
   }
 }
 
-export async function getResourcesPageData() {
-  const resourcesList = await db
-    .select({
-      id: resources.id,
-      title: resources.title,
-      description: resources.description,
-      category: resources.category,
-      fileUrl: resources.fileUrl,
-      fileName: resources.fileName,
-      fileType: resources.fileType,
-      fileSize: resources.fileSize,
-      createdAt: resources.createdAt,
-      authorName: user.name,
-      authorImage: user.image,
-    })
-    .from(resources)
-    .innerJoin(user, eq(resources.ownerId, user.id))
-    .orderBy(resources.createdAt)
-
-  return {
-    resources: resourcesList.map((resource) => ({
-      ...resource,
-      createdAt: resource.createdAt?.toISOString() ?? "",
-      authorName: resource.authorName,
-      authorImage: resource.authorImage,
-    })),
-  }
+export async function getResourcesPageData(userId: string) {
+  return await getAccessibleResourcesPageData(userId)
 }
 
 export async function getNotificationsPageData(userId: string) {
@@ -802,6 +777,24 @@ export async function getClassDetailTabData(
     image: string | null
     role: "teacher" | "student"
   }> = []
+  let resourcesData: Array<{
+    id: string
+    classId: string
+    title: string
+    description: string | null
+    category: string | null
+    fileUrl: string
+    fileName: string
+    fileType: string
+    fileSize: string | null
+    createdAt: string
+    updatedAt: string
+    authorName: string | null
+    authorImage: string | null
+    aiStatus: "processing" | "ready" | "failed" | "unsupported"
+    aiChunkCount: number
+    aiLastError: string | null
+  }> = []
   let quizzesData: Array<(typeof quizzes.$inferSelect)> = []
   let quizQuestionsData: Array<(typeof quizQuestions.$inferSelect)> = []
   let quizOptionsData: Array<(typeof quizOptions.$inferSelect)> = []
@@ -939,6 +932,10 @@ export async function getClassDetailTabData(
       .orderBy(asc(classMembership.role), asc(user.name))
   }
 
+  if (activeTab === "resources") {
+    resourcesData = await getClassResourcesTabData(classId)
+  }
+
   if (activeTab === "quizzes") {
     quizzesData = await db
       .select()
@@ -1072,5 +1069,6 @@ export async function getClassDetailTabData(
       }
     }),
     members: membersData,
+    resources: resourcesData,
   }
 }

@@ -80,6 +80,7 @@ export function ClassDetailRouteClient({ classId }: { classId: string }) {
             announcements={tabQuery.data.announcements}
             classwork={tabQuery.data.classwork}
             submissions={tabQuery.data.submissions}
+            resources={tabQuery.data.resources}
             quizzes={tabQuery.data.quizzes}
             members={tabQuery.data.members}
           />

@@ -21,22 +21,27 @@ const buckets = [
   {
     name: process.env.NEXT_PUBLIC_SUPABASE_PROFILE_MEDIA_BUCKET || "profile-media",
     fileSizeLimit: "4MB",
+    public: true,
   },
   {
     name: process.env.NEXT_PUBLIC_SUPABASE_RESOURCE_FILES_BUCKET || "resource-files",
     fileSizeLimit: "16MB",
+    public: false,
   },
   {
     name: process.env.NEXT_PUBLIC_SUPABASE_MESSAGE_MEDIA_BUCKET || "message-media",
     fileSizeLimit: "50MB",
+    public: true,
   },
   {
     name: process.env.NEXT_PUBLIC_SUPABASE_SUBMISSION_ATTACHMENTS_BUCKET || "submission-attachments",
     fileSizeLimit: "16MB",
+    public: true,
   },
   {
     name: process.env.NEXT_PUBLIC_SUPABASE_WHITEBOARD_BUCKET || "whiteboard-assets",
     fileSizeLimit: "16MB",
+    public: true,
   },
 ]
 
@@ -49,7 +54,7 @@ async function ensureBucket(bucket) {
   const existing = existingBuckets.find((entry) => entry.name === bucket.name)
   if (existing) {
     const { error } = await supabase.storage.updateBucket(bucket.name, {
-      public: true,
+      public: bucket.public,
       fileSizeLimit: bucket.fileSizeLimit,
     })
     if (error) {
@@ -60,7 +65,7 @@ async function ensureBucket(bucket) {
   }
 
   const { error } = await supabase.storage.createBucket(bucket.name, {
-    public: true,
+    public: bucket.public,
     fileSizeLimit: bucket.fileSizeLimit,
   })
   if (error) {

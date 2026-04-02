@@ -57,6 +57,13 @@
       "when": 1775119209301,
       "tag": "0007_known_stryfe",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1775404800000,
+      "tag": "0008_resource_rag_rebuild",
+      "breakpoints": true
     }
   ]
 }

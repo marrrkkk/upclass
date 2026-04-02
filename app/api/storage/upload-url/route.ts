@@ -41,6 +41,7 @@ const requestSchema = z.object({
     .min(1, "At least one file is required"),
   context: z
     .object({
+      classId: z.string().trim().optional(),
       channelId: z.string().trim().optional(),
       classworkId: z.string().trim().optional(),
     })
@@ -48,6 +49,28 @@ const requestSchema = z.object({
 })
 
 async function requireUploadAccess(userId: string, purpose: UploadPurpose, context?: UploadContext) {
+  if (purpose === "resource-file") {
+    if (!context?.classId) {
+      throw new Error("Class ID is required")
+    }
+
+    const membership = await db
+      .select({ id: classMembership.id })
+      .from(classMembership)
+      .where(
+        and(
+          eq(classMembership.classId, context.classId),
+          eq(classMembership.userId, userId),
+          eq(classMembership.role, "teacher"),
+        ),
+      )
+      .limit(1)
+
+    if (membership.length === 0) {
+      throw new Error("Only teachers can upload class resources")
+    }
+  }
+
   if (purpose === "channel-message-media") {
     if (!context?.channelId) {
       throw new Error("Channel ID is required")
@@ -146,7 +169,8 @@ export async function POST(request: Request) {
         const bucket = getBucketForPurpose(payload.purpose)
         const path = buildUploadPath(payload.purpose, session.user.id, file, payload.context)
         const token = await createSignedStorageUpload(bucket, path)
-        const publicUrl = getPublicStorageUrl(bucket, path)
+        const publicUrl =
+          payload.purpose === "resource-file" ? "" : getPublicStorageUrl(bucket, path)
 
         return {
           bucket,

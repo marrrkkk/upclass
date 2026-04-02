@@ -1,12 +1,10 @@
 import type { Metadata } from "next"
 import { headers } from "next/headers"
-import { notFound } from "next/navigation"
-import { eq } from "drizzle-orm"
+import { notFound, redirect } from "next/navigation"
 
-import { auth } from "@/lib/auth"
-import { db } from "@/db"
-import { resources, user } from "@/db/schema"
 import { ResourceDetailClient } from "@/components/resources/resource-detail-client"
+import { auth } from "@/lib/auth"
+import { getAuthorizedResourceForUser } from "@/lib/resources/auth"
 
 export function generateMetadata(): Metadata {
   return {
@@ -24,40 +22,15 @@ export default async function ResourceDetailPage({
     headers: await headers(),
   })
 
-  const isAuthenticated = !!session?.user?.id
-
-  // Get resource with owner info - allow public viewing
-  const resourceData = await db
-    .select({
-      id: resources.id,
-      title: resources.title,
-      description: resources.description,
-      category: resources.category,
-      fileUrl: resources.fileUrl,
-      fileName: resources.fileName,
-      fileType: resources.fileType,
-      fileSize: resources.fileSize,
-      ownerId: resources.ownerId,
-      createdAt: resources.createdAt,
-      updatedAt: resources.updatedAt,
-      owner: {
-        id: user.id,
-        name: user.name,
-        image: user.image,
-        email: user.email,
-      },
-    })
-    .from(resources)
-    .innerJoin(user, eq(resources.ownerId, user.id))
-    .where(eq(resources.id, id))
-    .limit(1)
-
-  if (resourceData.length === 0) {
-    notFound()
+  if (!session?.user?.id) {
+    redirect("/sign-in")
   }
 
-  const resource = resourceData[0]
-  const isOwner = isAuthenticated && resource.ownerId === session.user.id
+  const resource = await getAuthorizedResourceForUser(id, session.user.id)
+
+  if (!resource) {
+    notFound()
+  }
 
   return (
     <ResourceDetailClient
@@ -65,8 +38,11 @@ export default async function ResourceDetailPage({
         ...resource,
         createdAt: resource.createdAt?.toISOString() ?? "",
         updatedAt: resource.updatedAt?.toISOString() ?? "",
+        aiUpdatedAt: resource.aiUpdatedAt?.toISOString() ?? null,
+        aiStatus: resource.aiStatus ?? "processing",
+        aiChunkCount: resource.aiChunkCount ?? 0,
       }}
-      isOwner={isOwner}
+      canManageResource={resource.membershipRole === "teacher"}
     />
   )
 }

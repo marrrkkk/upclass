@@ -1,30 +1,29 @@
 "use client"
 
 import dynamic from "next/dynamic"
-import { useQueryClient } from "@tanstack/react-query"
-import { useState, useTransition, useEffect } from "react"
-import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { useEffect, useState, useTransition } from "react"
 import {
   ArrowLeft,
+  Bot,
+  Calendar,
   Download,
   Edit,
-  FileText,
-  Calendar,
-  Bot,
-  FileSpreadsheet,
-  Presentation,
   FileIcon as FileIconLucide,
+  FileSpreadsheet,
+  FileText,
   FileType,
-  Trash2
+  Presentation,
+  RefreshCw,
+  Trash2,
 } from "lucide-react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
-import { usePageHeaderStore } from "@/stores/page-header-store"
 
+import { deleteResource, reingestResource, updateResource } from "@/app/actions/resources"
+import { useMainShellState } from "@/components/providers/main-shell-state-provider"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -33,10 +32,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Card, CardContent } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { invalidateClassDetailCollections, invalidateResourceCollections } from "@/lib/query-invalidation"
+import { getResourceAiStatusMeta } from "@/lib/resources/status"
 import { cn } from "@/lib/utils"
-import { updateResource, deleteResource } from "@/app/actions/resources"
-import { invalidateResourceCollections } from "@/lib/query-invalidation"
 
 const AIChatDialog = dynamic(
   () => import("@/components/resources/ai-chat-dialog").then((mod) => mod.AIChatDialog),
@@ -45,109 +46,118 @@ const AIChatDialog = dynamic(
   },
 )
 
-type ResourceData = {
+type ResourceDetailData = {
   id: string
+  classId: string
   title: string
   description: string | null
   category: string | null
   fileUrl: string
   fileName: string
   fileType: string
+  mimeType: string | null
   fileSize: string | null
   ownerId: string
   createdAt: string
   updatedAt: string
+  class: {
+    id: string
+    title: string
+    color: string | null
+  }
   owner: {
     id: string
     name: string
     image: string | null
     email: string
   }
+  aiStatus: "processing" | "ready" | "failed" | "unsupported"
+  aiLastError: string | null
+  aiChunkCount: number
+  aiUpdatedAt: string | null
 }
 
 type ResourceDetailClientProps = {
-  resource: ResourceData
-  isOwner: boolean
+  resource: ResourceDetailData
+  canManageResource: boolean
 }
 
 const getFileTypeInfo = (type: string) => {
   const t = type.toLowerCase()
-  if (t === 'pdf') return { icon: FileText, bgColor: 'bg-red-50', textColor: 'text-red-600' }
-  if (t === 'doc' || t === 'docx') return { icon: FileText, bgColor: 'bg-blue-50', textColor: 'text-blue-600' }
-  if (t === 'xls' || t === 'xlsx' || t === 'csv') return { icon: FileSpreadsheet, bgColor: 'bg-green-50', textColor: 'text-green-600' }
-  if (t === 'ppt' || t === 'pptx') return { icon: Presentation, bgColor: 'bg-orange-50', textColor: 'text-orange-600' }
-  if (t === 'txt') return { icon: FileType, bgColor: 'bg-gray-50', textColor: 'text-gray-600' }
-  return { icon: FileIconLucide, bgColor: 'bg-gray-50', textColor: 'text-gray-600' }
+  if (t === "pdf") return { icon: FileText, bgColor: "bg-red-50", textColor: "text-red-600" }
+  if (t === "doc" || t === "docx") {
+    return { icon: FileText, bgColor: "bg-blue-50", textColor: "text-blue-600" }
+  }
+  if (t === "xls" || t === "xlsx" || t === "csv") {
+    return { icon: FileSpreadsheet, bgColor: "bg-green-50", textColor: "text-green-600" }
+  }
+  if (t === "ppt" || t === "pptx") {
+    return { icon: Presentation, bgColor: "bg-orange-50", textColor: "text-orange-600" }
+  }
+  if (t === "txt") return { icon: FileType, bgColor: "bg-gray-50", textColor: "text-gray-600" }
+  return { icon: FileIconLucide, bgColor: "bg-gray-50", textColor: "text-gray-600" }
 }
 
 const formatFileSize = (size: string | null) => {
   if (!size) return "Unknown size"
-  const bytes = parseInt(size)
+  const bytes = Number.parseInt(size, 10)
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
 }
 
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString)
-  return date.toLocaleDateString("en-US", {
+const formatDate = (value: string | null) => {
+  if (!value) return "Not available"
+  return new Date(value).toLocaleString("en-US", {
     year: "numeric",
     month: "long",
     day: "numeric",
-    hour: "2-digit",
+    hour: "numeric",
     minute: "2-digit",
   })
 }
 
-const canPreview = (fileType: string) => {
-  return fileType === "pdf" || fileType === "txt"
-}
+const canPreview = (fileType: string) => fileType === "pdf" || fileType === "txt"
 
-export function ResourceDetailClient({ resource, isOwner }: ResourceDetailClientProps) {
+export function ResourceDetailClient({
+  resource,
+  canManageResource,
+}: ResourceDetailClientProps) {
   const router = useRouter()
   const queryClient = useQueryClient()
-  const setPageTitle = usePageHeaderStore((state) => state.setPageTitle)
+  const { userId } = useMainShellState()
   const [editOpen, setEditOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [aiChatOpen, setAiChatOpen] = useState(false)
   const [title, setTitle] = useState(resource.title)
   const [description, setDescription] = useState(resource.description || "")
   const [category, setCategory] = useState(resource.category || "General")
+  const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
   const [deletePending, startDeleteTransition] = useTransition()
-  const [error, setError] = useState<string | null>(null)
-
-  // Determine styles based on file type
-  const fileInfo = getFileTypeInfo(resource.fileType)
-
-  // Set page title for breadcrumbs
-  useEffect(() => {
-    setPageTitle(resource.title)
-    return () => setPageTitle(null)
-  }, [resource.title, setPageTitle])
+  const [reingestPending, startReingestTransition] = useTransition()
 
   useEffect(() => {
     document.title = `${resource.title} | UpClass`
   }, [resource.title])
 
-  const handleOpenEdit = () => {
-    setTitle(resource.title)
-    setDescription(resource.description || "")
-    setCategory(resource.category || "General")
-    setError(null)
-    setEditOpen(true)
-  }
+  const fileInfo = getFileTypeInfo(resource.fileType)
+  const aiStatus = getResourceAiStatusMeta(resource.aiStatus)
+  const aiCanAnswer = resource.aiStatus === "ready"
 
-  const handleCloseEdit = () => {
-    setEditOpen(false)
-    setTitle(resource.title)
-    setDescription(resource.description || "")
-    setCategory(resource.category || "General")
-    setError(null)
+  const invalidateQueries = async () => {
+    await invalidateResourceCollections(queryClient, userId)
+    if (userId) {
+      await invalidateClassDetailCollections(queryClient, {
+        classId: resource.class.id,
+        userId,
+      })
+    }
   }
 
   const handleSave = async () => {
     setError(null)
+
     startTransition(async () => {
       const formData = new FormData()
       formData.append("id", resource.id)
@@ -155,370 +165,313 @@ export function ResourceDetailClient({ resource, isOwner }: ResourceDetailClient
       formData.append("description", description)
       formData.append("category", category)
 
-      const res = await updateResource(formData)
-      if (res.success) {
-        setEditOpen(false)
-        await invalidateResourceCollections(queryClient, resource.owner.id)
-        router.refresh()
-      } else {
-        setError(res.error)
+      const result = await updateResource(formData)
+      if (!result.success) {
+        setError(result.error)
+        return
       }
-    })
-  }
 
-  const handleDownload = () => {
-    window.open(resource.fileUrl, "_blank")
+      setEditOpen(false)
+      await invalidateQueries()
+      router.refresh()
+    })
   }
 
   const handleDelete = () => {
     startDeleteTransition(async () => {
-      const res = await deleteResource(resource.id)
-      if (res.success) {
-        setDeleteDialogOpen(false)
-        await invalidateResourceCollections(queryClient, resource.owner.id)
-        router.push("/resources")
-      } else {
-        setError(res.error)
-        setDeleteDialogOpen(false)
+      const result = await deleteResource(resource.id)
+      if (!result.success) {
+        setError(result.error)
+        return
       }
+
+      await invalidateQueries()
+      router.push(`/classes/${resource.class.id}?tab=resources`)
     })
   }
 
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2)
+  const handleReingest = () => {
+    setError(null)
+    startReingestTransition(async () => {
+      const result = await reingestResource(resource.id)
+      if (!result.success) {
+        setError(result.error)
+        return
+      }
+
+      await invalidateQueries()
+      router.refresh()
+    })
   }
 
   return (
-    <div className="flex flex-col gap-8 max-w-7xl mx-auto">
-      {/* Header Back Link */}
-      <div>
-        <Link
-          href="/resources"
-          className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          Back to resources
-        </Link>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Preview & File Visual */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className={cn("relative overflow-hidden rounded-2xl border bg-card shadow-sm group", fileInfo.bgColor)}>
-            {/* Background Pattern */}
-            <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_1px_1px,currentColor_1px,transparent_0)] [background-size:24px_24px] [color:inherit]" />
-
-            {/* Preview Content */}
-            <div className="relative z-10 p-1">
-              {canPreview(resource.fileType) ? (
-                <div className="aspect-[4/3] w-full rounded-xl bg-background shadow-inner overflow-hidden border">
-                  <iframe
-                    src={resource.fileUrl}
-                    className="w-full h-full"
-                    title={resource.fileName}
-                  />
-                </div>
-              ) : (
-                <div className="aspect-[4/3] w-full flex flex-col items-center justify-center text-center p-12">
-                  <div className={cn("p-8 rounded-3xl bg-white/30 backdrop-blur-md shadow-lg mb-6 transform transition-transform group-hover:scale-105", fileInfo.textColor)}>
-                    <fileInfo.icon className="h-24 w-24" />
-                  </div>
-                  <h3 className="text-xl font-semibold opacity-90 mb-2">
-                    Preview not available
-                  </h3>
-                  <p className="text-muted-foreground max-w-xs mx-auto mb-8">
-                    This file type ({resource.fileType.toUpperCase()}) cannot be previewed in the browser.
-                  </p>
-                  <Button
-                    onClick={handleDownload}
-                    size="lg"
-                    className="rounded-full shadow-lg hover:shadow-xl transition-all"
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Download File
-                  </Button>
-                </div>
-              )}
-            </div>
+    <div className="mx-auto flex max-w-6xl flex-col gap-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="space-y-2">
+          <Link
+            href={`/classes/${resource.class.id}?tab=resources`}
+            className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+          >
+            <ArrowLeft className="mr-1 h-4 w-4" />
+            Back to {resource.class.title}
+          </Link>
+          <div>
+            <p className="text-sm text-muted-foreground">{resource.class.title}</p>
+            <h1 className="text-3xl font-bold">{resource.title}</h1>
           </div>
         </div>
 
-        {/* Right Column: Details & Actions */}
-        <div className="space-y-6">
-          {/* Header Info */}
-          <div className="space-y-4">
-            <div className="flex items-start justify-between gap-4">
-              <h1 className="text-3xl font-bold leading-tight decoration-clone bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
-                {resource.title}
-              </h1>
-              {isOwner && (
-                <div className="flex gap-2 shrink-0">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={handleOpenEdit}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => setDeleteDialogOpen(true)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <span
-                className={cn("px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider", fileInfo.bgColor, fileInfo.textColor)}
+        {canManageResource ? (
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setEditOpen(true)}>
+              <Edit className="mr-2 h-4 w-4" />
+              Edit
+            </Button>
+            {resource.aiStatus === "failed" ? (
+              <Button
+                variant="outline"
+                onClick={handleReingest}
+                isLoading={reingestPending}
               >
-                {resource.fileType}
-              </span>
-              <span className="px-3 py-1 rounded-full text-xs font-medium bg-secondary text-secondary-foreground">
-                {formatFileSize(resource.fileSize)}
-              </span>
-              <span className="px-3 py-1 rounded-full text-xs font-medium bg-secondary text-secondary-foreground border border-border">
-                {resource.category || "General"}
-              </span>
-            </div>
+                {reingestPending ? null : <RefreshCw className="mr-2 h-4 w-4" />}
+                Retry AI
+              </Button>
+            ) : null}
+            <Button
+              variant="outline"
+              className="text-destructive hover:text-destructive"
+              onClick={() => setDeleteDialogOpen(true)}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete
+            </Button>
           </div>
+        ) : null}
+      </div>
 
-          {/* Description */}
-          <div className="prose prose-sm text-muted-foreground max-w-none">
-            <p className="whitespace-pre-wrap leading-relaxed">
-              {resource.description || "No description provided for this resource."}
-            </p>
-          </div>
-
-          {/* Actions */}
-          <Card className="overflow-hidden border-none shadow-lg bg-gradient-to-br from-card to-secondary/20">
-            <CardContent className="p-0">
-              <div className="flex flex-col">
-                <button
-                  onClick={() => setAiChatOpen(true)}
-                  className="flex items-center gap-4 p-4 hover:bg-muted/50 transition-colors text-left group border-b border-border/50"
-                >
-                  <div className="h-10 w-10 rounded-full bg-violet-100 flex items-center justify-center text-violet-600 group-hover:scale-110 transition-transform">
-                    <Bot className="h-5 w-5" />
-                  </div>
-                  <div className="flex-1">
-                    <span className="font-semibold block text-base group-hover:text-primary transition-colors">Ask AI Assistant</span>
-                    <span className="text-xs text-muted-foreground">Summarize, question, or analyze this file</span>
-                  </div>
-                  <ArrowLeft className="h-4 w-4 rotate-180 text-muted-foreground group-hover:translate-x-1 transition-transform" />
-                </button>
-
-                <button
-                  onClick={handleDownload}
-                  className="flex items-center gap-4 p-4 hover:bg-muted/50 transition-colors text-left group"
-                >
-                  <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
-                    <Download className="h-5 w-5" />
-                  </div>
-                  <div className="flex-1">
-                    <span className="font-semibold block text-base group-hover:text-primary transition-colors">Download File</span>
-                    <span className="text-xs text-muted-foreground">Save to your device</span>
-                  </div>
-                  <ArrowLeft className="h-4 w-4 rotate-180 text-muted-foreground group-hover:translate-x-1 transition-transform" />
-                </button>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
+        <Card className="overflow-hidden">
+          <CardContent className={cn("p-3", fileInfo.bgColor)}>
+            {canPreview(resource.fileType) ? (
+              <div className="aspect-[4/3] overflow-hidden rounded-xl border bg-background">
+                <iframe
+                  src={resource.fileUrl}
+                  title={resource.fileName}
+                  className="h-full w-full"
+                />
               </div>
+            ) : (
+              <div className="flex aspect-[4/3] flex-col items-center justify-center gap-4 rounded-xl border bg-background/80 p-8 text-center">
+                <div className={cn("rounded-3xl bg-white p-6 shadow-sm", fileInfo.textColor)}>
+                  <fileInfo.icon className="h-16 w-16" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold">Preview not available</h2>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Download the file to view this format.
+                  </p>
+                </div>
+                <Button asChild>
+                  <a href={resource.fileUrl} target="_blank" rel="noopener noreferrer">
+                    <Download className="mr-2 h-4 w-4" />
+                    Download file
+                  </a>
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <div className="space-y-6">
+          <Card>
+            <CardHeader className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <CardTitle>AI assistant</CardTitle>
+                <span
+                  className={cn(
+                    "rounded-full border px-2.5 py-1 text-[11px] font-medium",
+                    aiStatus.className,
+                  )}
+                >
+                  {aiStatus.label}
+                </span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {aiCanAnswer
+                  ? "Ask questions grounded in this uploaded document."
+                  : resource.aiStatus === "processing"
+                    ? "The document is still being processed for AI retrieval."
+                    : resource.aiStatus === "unsupported"
+                      ? "This file type is uploaded successfully, but AI support is not available yet."
+                      : "AI ingestion failed for this file."}
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="rounded-xl bg-muted/40 p-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Chunks</p>
+                  <p className="mt-1 font-semibold">{resource.aiChunkCount}</p>
+                </div>
+                <div className="rounded-xl bg-muted/40 p-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Updated</p>
+                  <p className="mt-1 font-semibold text-xs">{formatDate(resource.aiUpdatedAt)}</p>
+                </div>
+              </div>
+
+              {resource.aiLastError ? (
+                <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                  {resource.aiLastError}
+                </div>
+              ) : null}
+
+              <Button
+                className="w-full"
+                onClick={() => setAiChatOpen(true)}
+                disabled={!aiCanAnswer}
+              >
+                <Bot className="mr-2 h-4 w-4" />
+                Ask AI
+              </Button>
             </CardContent>
           </Card>
 
-          {/* Metadata */}
-          <div className="rounded-xl bg-muted/30 p-4 space-y-4 border border-border/50">
-            <Link
-              href={`/profile/${resource.owner.id}`}
-              className="flex items-center gap-3 group hover:bg-muted/50 rounded-lg p-2 -m-2 transition-colors"
-            >
-              <Avatar className="h-10 w-10 border border-background shadow-sm group-hover:ring-2 group-hover:ring-primary/20 transition-all">
-                <AvatarImage src={resource.owner.image || undefined} alt={resource.owner.name} />
-                <AvatarFallback>{getInitials(resource.owner.name)}</AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">{resource.owner.name}</p>
-                <p className="text-xs text-muted-foreground truncate">{resource.owner.email}</p>
-              </div>
-            </Link>
-
-            <div className="h-px bg-border/50" />
-
-            <div className="grid grid-cols-2 gap-4 text-xs">
+          <Card>
+            <CardHeader>
+              <CardTitle>Details</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm">
               <div>
-                <p className="text-muted-foreground mb-1">Created</p>
-                <p className="font-medium flex items-center gap-1.5">
-                  <Calendar className="h-3.5 w-3.5" />
-                  {formatDate(resource.createdAt)}
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Description</p>
+                <p className="mt-1 text-muted-foreground">
+                  {resource.description || "No description provided."}
                 </p>
               </div>
-              <div>
-                <p className="text-muted-foreground mb-1">Updated</p>
-                <p className="font-medium flex items-center gap-1.5">
-                  <Calendar className="h-3.5 w-3.5" />
-                  {formatDate(resource.updatedAt)}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">File</p>
+                  <p className="mt-1 font-medium">{resource.fileName}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Type</p>
+                  <p className="mt-1 font-medium">{resource.fileType.toUpperCase()}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Size</p>
+                  <p className="mt-1 font-medium">{formatFileSize(resource.fileSize)}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Category</p>
+                  <p className="mt-1 font-medium">{resource.category || "General"}</p>
+                </div>
+              </div>
+              <div className="space-y-2 border-t pt-4 text-muted-foreground">
+                <p className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Uploaded {formatDate(resource.createdAt)}
+                </p>
+                <p className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Last updated {formatDate(resource.updatedAt)}
                 </p>
               </div>
-            </div>
-          </div>
-
+              <Button variant="outline" asChild className="w-full">
+                <a href={resource.fileUrl} target="_blank" rel="noopener noreferrer">
+                  <Download className="mr-2 h-4 w-4" />
+                  Download file
+                </a>
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
-      {/* Edit Dialog - Kept similar functional logic but ensured improved visuals */}
-      {/* Edit Dialog - Premium UI */}
+      {error ? (
+        <div className="rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {error}
+        </div>
+      ) : null}
+
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="sm:max-w-[550px] gap-0 p-0 overflow-y-auto border-0 shadow-2xl max-h-[calc(100vh-2rem)] flex flex-col">
-          <DialogHeader className="p-6 pb-2 bg-gradient-to-r from-muted/50 to-muted/10 border-b border-border/50">
-            <DialogTitle className="text-xl font-semibold tracking-tight">Edit Resource</DialogTitle>
-            <DialogDescription className="text-muted-foreground">
-              Update the resource details, then click save when you are finished.
+        <DialogContent className="sm:max-w-[560px]">
+          <DialogHeader>
+            <DialogTitle>Edit resource</DialogTitle>
+            <DialogDescription>
+              Update the resource metadata shown to your class.
             </DialogDescription>
           </DialogHeader>
-
-          {error && (
-            <div className="px-6 pt-4">
-              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive font-medium border border-destructive/20 animate-in fade-in slide-in-from-bottom-2">
-                {error}
-              </div>
-            </div>
-          )}
-
-          <div className="space-y-5 p-6">
+          <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="edit-title" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Title</Label>
+              <Label htmlFor="resource-title">Title</Label>
               <Input
-                id="edit-title"
+                id="resource-title"
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Resource title"
-                className="h-11 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors text-base"
+                onChange={(event) => setTitle(event.target.value)}
               />
             </div>
-
             <div className="space-y-2">
-              <Label htmlFor="edit-description" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Description</Label>
-              <Textarea
-                id="edit-description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Add a description..."
-                rows={6}
-                className="resize-none bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-category" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Category</Label>
+              <Label htmlFor="resource-category">Category</Label>
               <Input
-                id="edit-category"
+                id="resource-category"
                 value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                placeholder="e.g. Lecture Notes, Assignments"
-                className="h-10 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors"
+                onChange={(event) => setCategory(event.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="resource-description">Description</Label>
+              <Textarea
+                id="resource-description"
+                rows={5}
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
               />
             </div>
           </div>
-
-          <DialogFooter className="px-6 py-4 bg-muted/30 border-t backdrop-blur-sm">
-            <Button
-              variant="ghost"
-              onClick={handleCloseEdit}
-              disabled={pending}
-              className="text-muted-foreground hover:text-foreground"
-            >
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditOpen(false)} disabled={pending}>
               Cancel
             </Button>
-            <Button
-              onClick={handleSave}
-              disabled={pending || !title.trim()}
-              className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg transition-all px-6"
-            >
-              {pending ? "Saving..." : "Save Changes"}
+            <Button onClick={handleSave} disabled={pending || !title.trim()}>
+              {pending ? "Saving..." : "Save changes"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* AI Chat Dialog */}
-      {aiChatOpen ? (
-        <AIChatDialog
-          open={aiChatOpen}
-          onOpenChange={setAiChatOpen}
-          resourceContext={{
-            title: resource.title,
-            description: resource.description,
-            category: resource.category,
-            fileType: resource.fileType,
-            fileName: resource.fileName,
-          }}
-        />
-      ) : null}
-
-      {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-[420px] gap-0 p-0 overflow-y-auto border-0 shadow-2xl max-h-[calc(100vh-2rem)]">
-          <DialogHeader className="p-6 pb-4 bg-gradient-to-r from-destructive/10 to-destructive/5 border-b border-destructive/20">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center">
-                <Trash2 className="h-5 w-5 text-destructive" />
-              </div>
-              <div>
-                <DialogTitle className="text-lg font-semibold">Delete Resource</DialogTitle>
-                <DialogDescription className="text-sm text-muted-foreground">
-                  This action cannot be undone
-                </DialogDescription>
-              </div>
-            </div>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Delete resource</DialogTitle>
+            <DialogDescription>
+              This removes the file, its AI embeddings, and its chat history.
+            </DialogDescription>
           </DialogHeader>
-
-          <div className="p-6 text-center space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Are you sure you want to permanently delete
-            </p>
-            <p className="text-lg font-semibold text-foreground truncate">
-              {resource.title}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              The file and all associated data will be permanently removed.
-            </p>
-          </div>
-
-          <div className="px-6 py-4 bg-muted/30 border-t flex items-center justify-center gap-3">
+          <p className="text-sm text-muted-foreground">
+            Delete <span className="font-medium text-foreground">{resource.title}</span> permanently?
+          </p>
+          <DialogFooter>
             <Button
               variant="outline"
               onClick={() => setDeleteDialogOpen(false)}
               disabled={deletePending}
-              className="min-w-[100px]"
             >
               Cancel
             </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={deletePending}
-              className="min-w-[120px] gap-2"
-            >
-              {deletePending ? (
-                "Deleting..."
-              ) : (
-                <>
-                  <Trash2 className="h-4 w-4" />
-                  Delete
-                </>
-              )}
+            <Button variant="destructive" onClick={handleDelete} disabled={deletePending}>
+              {deletePending ? "Deleting..." : "Delete resource"}
             </Button>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {aiChatOpen ? (
+        <AIChatDialog
+          open={aiChatOpen}
+          onOpenChange={setAiChatOpen}
+          classId={resource.class.id}
+          resourceId={resource.id}
+          resourceTitle={resource.title}
+        />
+      ) : null}
     </div>
   )
 }

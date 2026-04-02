@@ -1,4 +1,4 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   pgEnum,
   pgTable,
@@ -9,6 +9,7 @@ import {
   index,
   uniqueIndex,
   jsonb,
+  vector,
 } from "drizzle-orm/pg-core";
 
 export const userRole = pgEnum("user_role", ["teacher", "student"]);
@@ -175,6 +176,7 @@ export const classMembership = pgTable(
 
 export const classRelations = relations(classes, ({ many, one }) => ({
   memberships: many(classMembership),
+  resources: many(resources),
   owner: one(user, {
     fields: [classes.ownerId],
     references: [user.id],
@@ -211,6 +213,9 @@ export const resources = pgTable(
   "resources",
   {
     id: text("id").primaryKey(),
+    classId: text("class_id")
+      .notNull()
+      .references(() => classes.id, { onDelete: "cascade" }),
     title: text("title").notNull(),
     description: text("description"),
     category: text("category").default("General"),
@@ -230,13 +235,213 @@ export const resources = pgTable(
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
   },
-  (table) => [index("resources_owner_idx").on(table.ownerId)],
+  (table) => [
+    index("resources_owner_idx").on(table.ownerId),
+    index("resources_class_idx").on(table.classId),
+  ],
 );
 
-export const resourceRelations = relations(resources, ({ one }) => ({
+export const resourceRelations = relations(resources, ({ one, many }) => ({
+  class: one(classes, {
+    fields: [resources.classId],
+    references: [classes.id],
+  }),
   owner: one(user, {
     fields: [resources.ownerId],
     references: [user.id],
+  }),
+  document: one(resourceDocuments, {
+    fields: [resources.id],
+    references: [resourceDocuments.resourceId],
+  }),
+  aiChatSessions: many(resourceAiChatSessions),
+}));
+
+export const resourceDocumentStatus = pgEnum("resource_document_status", [
+  "processing",
+  "ready",
+  "failed",
+  "unsupported",
+]);
+
+export const resourceDocuments = pgTable(
+  "resource_documents",
+  {
+    id: text("id").primaryKey(),
+    classId: text("class_id")
+      .notNull()
+      .references(() => classes.id, { onDelete: "cascade" }),
+    resourceId: text("resource_id")
+      .notNull()
+      .references(() => resources.id, { onDelete: "cascade" }),
+    status: resourceDocumentStatus("status").notNull().default("processing"),
+    parser: text("parser"),
+    embeddingModel: text("embedding_model"),
+    embeddingDimensions: integer("embedding_dimensions"),
+    checksum: text("checksum"),
+    extractedText: text("extracted_text"),
+    chunkCount: integer("chunk_count").notNull().default(0),
+    pageCount: integer("page_count").notNull().default(0),
+    lastError: text("last_error"),
+    ingestedAt: timestamp("ingested_at"),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("resource_documents_class_status_idx").on(table.classId, table.status),
+    uniqueIndex("resource_documents_resource_unique").on(table.resourceId),
+  ],
+);
+
+export const resourceDocumentChunks = pgTable(
+  "resource_document_chunks",
+  {
+    id: text("id").primaryKey(),
+    documentId: text("document_id")
+      .notNull()
+      .references(() => resourceDocuments.id, { onDelete: "cascade" }),
+    classId: text("class_id")
+      .notNull()
+      .references(() => classes.id, { onDelete: "cascade" }),
+    resourceId: text("resource_id")
+      .notNull()
+      .references(() => resources.id, { onDelete: "cascade" }),
+    chunkText: text("chunk_text").notNull(),
+    chunkIndex: integer("chunk_index").notNull(),
+    pageNumber: integer("page_number"),
+    sectionLabel: text("section_label"),
+    tokenCount: integer("token_count").notNull().default(0),
+    embedding: vector("embedding", { dimensions: 2048 }).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("resource_document_chunks_class_idx").on(table.classId),
+    index("resource_document_chunks_resource_idx").on(table.resourceId),
+    index("resource_document_chunks_document_idx").on(table.documentId),
+    uniqueIndex("resource_document_chunks_document_chunk_unique").on(
+      table.documentId,
+      table.chunkIndex,
+    ),
+  ],
+);
+
+export const resourceAiChatRole = pgEnum("resource_ai_chat_role", ["user", "assistant"]);
+
+export const resourceAiChatSessions = pgTable(
+  "resource_ai_chat_sessions",
+  {
+    id: text("id").primaryKey(),
+    classId: text("class_id")
+      .notNull()
+      .references(() => classes.id, { onDelete: "cascade" }),
+    resourceId: text("resource_id").references(() => resources.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    title: text("title"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+    lastMessageAt: timestamp("last_message_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("resource_ai_chat_sessions_user_scope_idx").on(
+      table.userId,
+      table.classId,
+      table.resourceId,
+      table.updatedAt,
+    ),
+  ],
+);
+
+export const resourceAiChatMessages = pgTable(
+  "resource_ai_chat_messages",
+  {
+    id: text("id").primaryKey(),
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => resourceAiChatSessions.id, { onDelete: "cascade" }),
+    role: resourceAiChatRole("role").notNull(),
+    content: text("content").notNull(),
+    citations: jsonb("citations")
+      .$type<
+        Array<{
+          chunkId: string;
+          fileName: string;
+          pageNumber: number | null;
+          chunkIndex: number;
+          sectionLabel: string | null;
+        }>
+      >()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("resource_ai_chat_messages_session_idx").on(table.sessionId, table.createdAt)],
+);
+
+export const resourceDocumentRelations = relations(resourceDocuments, ({ one, many }) => ({
+  class: one(classes, {
+    fields: [resourceDocuments.classId],
+    references: [classes.id],
+  }),
+  resource: one(resources, {
+    fields: [resourceDocuments.resourceId],
+    references: [resources.id],
+  }),
+  creator: one(user, {
+    fields: [resourceDocuments.createdBy],
+    references: [user.id],
+  }),
+  chunks: many(resourceDocumentChunks),
+}));
+
+export const resourceDocumentChunkRelations = relations(resourceDocumentChunks, ({ one }) => ({
+  document: one(resourceDocuments, {
+    fields: [resourceDocumentChunks.documentId],
+    references: [resourceDocuments.id],
+  }),
+  class: one(classes, {
+    fields: [resourceDocumentChunks.classId],
+    references: [classes.id],
+  }),
+  resource: one(resources, {
+    fields: [resourceDocumentChunks.resourceId],
+    references: [resources.id],
+  }),
+}));
+
+export const resourceAiChatSessionRelations = relations(
+  resourceAiChatSessions,
+  ({ one, many }) => ({
+    class: one(classes, {
+      fields: [resourceAiChatSessions.classId],
+      references: [classes.id],
+    }),
+    resource: one(resources, {
+      fields: [resourceAiChatSessions.resourceId],
+      references: [resources.id],
+    }),
+    user: one(user, {
+      fields: [resourceAiChatSessions.userId],
+      references: [user.id],
+    }),
+    messages: many(resourceAiChatMessages),
+  }),
+);
+
+export const resourceAiChatMessageRelations = relations(resourceAiChatMessages, ({ one }) => ({
+  session: one(resourceAiChatSessions, {
+    fields: [resourceAiChatMessages.sessionId],
+    references: [resourceAiChatSessions.id],
   }),
 }));
 

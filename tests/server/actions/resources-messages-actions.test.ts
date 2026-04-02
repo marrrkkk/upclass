@@ -6,15 +6,18 @@ const getSessionMock = vi.fn()
 const headersMock = vi.fn()
 const revalidatePathMock = vi.fn()
 const logActivityMock = vi.fn()
-const selectLimitMock = vi.fn()
-const selectWhereMock = vi.fn(() => ({ limit: selectLimitMock }))
-const selectFromMock = vi.fn(() => ({ where: selectWhereMock, limit: selectLimitMock }))
-const selectMock = vi.fn(() => ({ from: selectFromMock }))
 const insertValuesMock = vi.fn()
 const insertMock = vi.fn(() => ({ values: insertValuesMock }))
 const updateWhereMock = vi.fn().mockResolvedValue(undefined)
 const updateSetMock = vi.fn(() => ({ where: updateWhereMock }))
 const updateMock = vi.fn(() => ({ set: updateSetMock }))
+const selectLimitMock = vi.fn()
+const selectWhereMock = vi.fn(() => ({ limit: selectLimitMock }))
+const selectFromMock = vi.fn(() => ({ where: selectWhereMock }))
+const selectMock = vi.fn(() => ({ from: selectFromMock }))
+
+const getClassMembershipForUserMock = vi.fn()
+const ingestResourceDocumentMock = vi.fn()
 
 vi.mock("next/headers", () => ({
   headers: headersMock,
@@ -44,6 +47,15 @@ vi.mock("@/lib/activity", () => ({
   logActivity: logActivityMock,
 }))
 
+vi.mock("@/lib/resources/auth", () => ({
+  getClassMembershipForUser: getClassMembershipForUserMock,
+  getAuthorizedResourceForUser: vi.fn(),
+}))
+
+vi.mock("@/lib/resources/ingest", () => ({
+  ingestResourceDocument: ingestResourceDocumentMock,
+}))
+
 describe("resources and messages actions", () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -54,32 +66,45 @@ describe("resources and messages actions", () => {
       },
     })
     insertValuesMock.mockResolvedValue(undefined)
+    getClassMembershipForUserMock.mockResolvedValue({
+      classId: "class-1",
+      role: "teacher",
+    })
+    ingestResourceDocumentMock.mockResolvedValue({ status: "ready" })
   })
 
-  test("createResource validates required file metadata", async () => {
+  test("createResource validates required class scope", async () => {
     const { createResource } = await import("@/app/actions/resources")
     const formData = new FormData()
     formData.append("title", "Notes")
 
     await expect(createResource(formData)).resolves.toEqual({
       success: false,
-      error: "File URL is required",
+      error: "Class ID is required",
     })
   })
 
-  test("createResource persists valid resources", async () => {
+  test("createResource persists valid class resources", async () => {
     const { createResource } = await import("@/app/actions/resources")
     const formData = new FormData()
+    formData.append("classId", "class-1")
     formData.append("title", "Notes")
-    formData.append("fileUrl", "https://files.test/notes.pdf")
     formData.append("fileName", "notes.pdf")
     formData.append("fileType", "pdf")
+    formData.append("mimeType", "application/pdf")
+    formData.append("storageBucket", "resource-files")
+    formData.append("storagePath", "classes/class-1/resources/notes.pdf")
 
     await expect(createResource(formData)).resolves.toEqual({
       success: true,
+      resourceId: expect.any(String),
+      ingestionStatus: "ready",
+      warning: undefined,
     })
+
     expect(insertMock).toHaveBeenCalledTimes(1)
-    expect(revalidatePathMock).toHaveBeenCalledWith("/resources")
+    expect(getClassMembershipForUserMock).toHaveBeenCalledWith("user-1", "class-1")
+    expect(ingestResourceDocumentMock).toHaveBeenCalledTimes(1)
     expect(logActivityMock).toHaveBeenCalledTimes(1)
   })
 

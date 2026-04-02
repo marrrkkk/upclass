@@ -10,6 +10,7 @@ import { usePageHeaderStore } from "@/stores/page-header-store"
 import type {
   AnnouncementData,
   ClassData,
+  ClassResourceData,
   ClassworkData,
   MemberData,
   QuizData,
@@ -19,10 +20,11 @@ import {
   ClassworkTabSkeleton,
   PeopleTabSkeleton,
   QuizTabSkeleton,
+  ResourcesTabSkeleton,
   StreamTabSkeleton,
 } from "@/components/skeletons"
 
-type ClassDetailTab = "stream" | "classwork" | "quizzes" | "people"
+type ClassDetailTab = "stream" | "classwork" | "resources" | "quizzes" | "people"
 
 type ClassDetailContentClientProps = {
   activeTab: ClassDetailTab
@@ -32,6 +34,7 @@ type ClassDetailContentClientProps = {
   announcements: AnnouncementData[]
   classwork: ClassworkData[]
   submissions: SubmissionData[]
+  resources: ClassResourceData[]
   quizzes: QuizData[]
   members: MemberData[]
 }
@@ -42,6 +45,12 @@ const StreamTab = dynamic(() => import("@/components/classes/stream-tab").then((
 const ClassworkTab = dynamic(() => import("@/components/classes/classwork-tab").then((mod) => mod.ClassworkTab), {
   loading: () => <ClassworkTabSkeleton />,
 })
+const ResourcesTab = dynamic(
+  () => import("@/components/classes/resources-tab").then((mod) => mod.ResourcesTab),
+  {
+    loading: () => <ResourcesTabSkeleton />,
+  },
+)
 const QuizTab = dynamic(() => import("@/components/classes/quiz-tab").then((mod) => mod.QuizTab), {
   loading: () => <QuizTabSkeleton />,
 })
@@ -57,6 +66,7 @@ export function ClassDetailContentClient({
   announcements,
   classwork,
   submissions,
+  resources,
   quizzes,
   members,
 }: ClassDetailContentClientProps) {
@@ -66,6 +76,7 @@ export function ClassDetailContentClient({
     announcements: AnnouncementData[]
     classwork: ClassworkData[]
     submissions: SubmissionData[]
+    resources: ClassResourceData[]
     quizzes: QuizData[]
     members: MemberData[]
     userId?: string
@@ -100,6 +111,7 @@ export function ClassDetailContentClient({
   const effectiveAnnouncements = cachedDetail?.announcements ?? announcements
   const effectiveClasswork = cachedDetail?.classwork ?? classwork
   const effectiveSubmissions = cachedDetail?.submissions ?? submissions
+  const effectiveResources = cachedDetail?.resources ?? resources
   const effectiveQuizzes = cachedDetail?.quizzes ?? quizzes
   const effectiveMembers = cachedDetail?.members ?? members
   const effectiveUserId = cachedDetail?.userId ?? userId
@@ -124,6 +136,7 @@ export function ClassDetailContentClient({
     announcements: effectiveAnnouncements,
     classwork: effectiveClasswork,
     submissions: effectiveSubmissions,
+    resources: effectiveResources,
     quizzes: effectiveQuizzes,
     members: effectiveMembers,
     userId: effectiveUserId,
@@ -158,6 +171,14 @@ export function ClassDetailContentClient({
           userRole={effectiveUserRole}
           quizzes={effectiveQuizzes}
           classColor={classColor}
+        />
+      ) : null}
+      {activeTab === "resources" ? (
+        <ResourcesTab
+          classId={effectiveClassData.id}
+          userId={effectiveUserId}
+          userRole={effectiveUserRole}
+          resources={effectiveResources}
         />
       ) : null}
       {activeTab === "people" ? (

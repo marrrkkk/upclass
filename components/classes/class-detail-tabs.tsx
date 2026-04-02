@@ -15,14 +15,13 @@ type ClassDetailTabsProps = {
 const TABS: Array<{ id: ClassDetailTab; label: string }> = [
   { id: "stream", label: "Stream" },
   { id: "classwork", label: "Classwork" },
+  { id: "resources", label: "Resources" },
   { id: "quizzes", label: "Quizzes" },
   { id: "people", label: "People" },
 ]
 
 export function ClassDetailTabs({
-  activeTab: _activeTab,
   classColor,
-  classId: _classId,
 }: ClassDetailTabsProps) {
   const { optimisticTab, isNavigating, navigateToTab, prefetchTab } = useClassDetailTabState()
   const currentTab = optimisticTab

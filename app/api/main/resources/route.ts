@@ -1,8 +1,15 @@
 import { NextResponse } from "next/server"
 
+import { getRequiredUserId, unauthorizedResponse } from "@/app/api/main/route-utils"
 import { getResourcesPageData } from "@/lib/server/main-route-data"
 
 export async function GET() {
-  const data = await getResourcesPageData()
+  const userId = await getRequiredUserId()
+
+  if (!userId) {
+    return unauthorizedResponse()
+  }
+
+  const data = await getResourcesPageData(userId)
   return NextResponse.json(data)
 }

@@ -8,6 +8,7 @@ import { BackgroundSync } from "@/lib/background-sync"
 import type {
   AnnouncementData,
   ClassData,
+  ClassResourceData,
   ClassworkData,
   MemberData,
   QuizData,
@@ -19,6 +20,7 @@ type UseClassDetailCacheArgs = {
   announcements: AnnouncementData[]
   classwork: ClassworkData[]
   submissions: SubmissionData[]
+  resources: ClassResourceData[]
   quizzes: QuizData[]
   members: MemberData[]
   userId?: string
@@ -30,6 +32,7 @@ export function useClassDetailCache({
   announcements,
   classwork,
   submissions,
+  resources,
   quizzes,
   members,
   userId,
@@ -48,6 +51,7 @@ export function useClassDetailCache({
           announcements,
           classwork,
           submissions,
+          resources,
           quizzes,
           members,
           userId,
@@ -62,5 +66,5 @@ export function useClassDetailCache({
 
     const timeout = setTimeout(cacheClassDetail, 2000)
     return () => clearTimeout(timeout)
-  }, [announcements, classData, classwork, members, quizzes, submissions, userId, userRole])
+  }, [announcements, classData, classwork, members, quizzes, resources, submissions, userId, userRole])
 }
