@@ -35,7 +35,10 @@ export const createResourceSchema = z.object({
   fileUrl: requiredTrimmedString("File URL"),
   fileName: requiredTrimmedString("File name"),
   fileType: requiredTrimmedString("File type"),
+  mimeType: requiredTrimmedString("MIME type"),
   fileSize: optionalTrimmedString.nullish(),
+  storageBucket: requiredTrimmedString("Storage bucket"),
+  storagePath: requiredTrimmedString("Storage path"),
 })
 
 export const updateResourceSchema = z.object({
@@ -73,6 +76,8 @@ export const submissionAttachmentSchema = z.object({
   fileName: requiredTrimmedString("Attachment name"),
   fileType: optionalTrimmedString.nullish(),
   fileSize: optionalTrimmedString.nullish(),
+  storageBucket: optionalTrimmedString.nullish(),
+  storagePath: optionalTrimmedString.nullish(),
 })
 
 export const upsertSubmissionSchema = z

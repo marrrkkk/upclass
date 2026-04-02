@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useUploadThing } from "@/lib/uploadthing"
+import { useStorageUpload } from "@/lib/storage/client"
 import { updateSettings, deleteAccount } from "@/app/actions/settings"
 import { cn } from "@/lib/utils"
 import { useSettingsStore } from "@/stores/settings-store"
@@ -168,7 +168,7 @@ export function SettingsClient({ userData }: SettingsClientProps) {
   const [imageUrl, setImageUrl] = useState(currentUserData.image || "")
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { startUpload, isUploading } = useUploadThing("imageUploader")
+  const { startUpload, isUploading } = useStorageUpload()
 
   // Cropping State
   const [cropModalOpen, setCropModalOpen] = useState(false)
@@ -251,9 +251,14 @@ export function SettingsClient({ userData }: SettingsClientProps) {
       // Upload image if selected
       if (selectedFile) {
         try {
-          const uploadResult = await startUpload([selectedFile])
+          const uploadResult = await startUpload({
+            purpose: "profile-avatar",
+            files: [selectedFile],
+          })
           if (uploadResult && uploadResult[0]) {
-            formData.append("image", uploadResult[0].ufsUrl || uploadResult[0].url || "")
+            formData.append("image", uploadResult[0].url || "")
+            formData.append("imageStorageBucket", uploadResult[0].bucket)
+            formData.append("imageStoragePath", uploadResult[0].path)
           }
         } catch {
           setError("Failed to upload image")

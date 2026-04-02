@@ -8,6 +8,8 @@ import { db } from "@/db"
 import { auth } from "@/lib/auth"
 import { classChannels, classes, classMembership, user } from "@/db/schema"
 import { logActivity } from "@/lib/activity"
+import { collectClassManagedStorageRefs } from "@/lib/storage/cleanup"
+import { removeStorageObjects } from "@/lib/storage/server"
 import {
   createClassSchema,
   joinClassSchema,
@@ -290,8 +292,9 @@ export async function deleteClass(classId: string): Promise<ActionResponse> {
   }
 
   try {
-    // Delete the class (cascade will handle related data like memberships, announcements, etc.)
+    const staleFiles = await collectClassManagedStorageRefs(classId)
     await db.delete(classes).where(eq(classes.id, classId))
+    await removeStorageObjects(staleFiles)
 
     revalidatePath("/classes")
     revalidatePath("/home")

@@ -9,7 +9,7 @@ import { markChannelAsRead, sendChannelMessage } from "@/app/actions/messages"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { useUploadThing } from "@/lib/uploadthing"
+import { useStorageUpload } from "@/lib/storage/client"
 import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase-client"
 import { executeWithOfflineHandling } from "@/lib/offline-action-handler"
@@ -19,6 +19,8 @@ type MediaFile = {
   type: string
   name: string
   size?: string | null
+  bucket?: string | null
+  path?: string | null
 }
 
 type ChannelMessage = {
@@ -55,7 +57,7 @@ export function ClassChannelChatClient({
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
-  const { startUpload, isUploading } = useUploadThing("submissionAttachmentUploader")
+  const { startUpload, isUploading } = useStorageUpload()
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -102,18 +104,31 @@ export function ClassChannelChatClient({
 
     let uploadedMedia: MediaFile[] = []
     if (selectedFiles.length > 0) {
-      const uploads = await startUpload(selectedFiles)
-      if (!uploads) {
-        setError("Failed to upload attachments")
+      try {
+        const uploads = await startUpload({
+          purpose: "channel-message-media",
+          files: selectedFiles,
+          context: {
+            channelId,
+          },
+        })
+        if (!uploads) {
+          setError("Failed to upload attachments")
+          return
+        }
+
+        uploadedMedia = uploads.map((file) => ({
+          url: file.url || "",
+          type: file.type || "application/octet-stream",
+          name: file.name || "Attachment",
+          size: file.size?.toString() || null,
+          bucket: file.bucket || null,
+          path: file.path || null,
+        }))
+      } catch (error) {
+        setError(error instanceof Error ? error.message : "Failed to upload attachments")
         return
       }
-
-      uploadedMedia = uploads.map((file) => ({
-        url: file.ufsUrl || file.url || "",
-        type: file.type || "application/octet-stream",
-        name: file.name || "Attachment",
-        size: file.size?.toString() || null,
-      }))
     }
 
     startTransition(async () => {

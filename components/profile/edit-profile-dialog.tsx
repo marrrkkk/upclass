@@ -3,9 +3,9 @@
 import dynamic from "next/dynamic"
 import { useState, useTransition, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Upload, Palette, Image as ImageIcon, X, Crop, Pencil, Check } from "lucide-react"
+import { Upload, Palette, Image as ImageIcon, X, Pencil, Check } from "lucide-react"
 import { updateProfile } from "@/app/actions/profile"
-import { Button, buttonVariants } from "@/components/ui/button"
+import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -19,7 +19,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { useUploadThing } from "@/lib/uploadthing"
+import { useStorageUpload } from "@/lib/storage/client"
 import { cn } from "@/lib/utils"
 
 const CoverCropper = dynamic(
@@ -84,7 +84,7 @@ export function EditProfileDialog({ user }: EditProfileDialogProps) {
   const [coverCropOpen, setCoverCropOpen] = useState(false)
   const [coverCropSrc, setCoverCropSrc] = useState<string | null>(null)
 
-  const { startUpload, isUploading } = useUploadThing("imageUploader")
+  const { startUpload, isUploading } = useStorageUpload()
 
   const handleSubmit = async (formData: FormData) => {
     setError(null)
@@ -92,11 +92,16 @@ export function EditProfileDialog({ user }: EditProfileDialogProps) {
     // Upload avatar if selected
     if (selectedFile) {
       try {
-        const uploadResult = await startUpload([selectedFile])
+        const uploadResult = await startUpload({
+          purpose: "profile-avatar",
+          files: [selectedFile],
+        })
         if (uploadResult && uploadResult[0]) {
-          formData.append("image", uploadResult[0].ufsUrl || uploadResult[0].url || "")
+          formData.append("image", uploadResult[0].url || "")
+          formData.append("imageStorageBucket", uploadResult[0].bucket)
+          formData.append("imageStoragePath", uploadResult[0].path)
         }
-      } catch (err) {
+      } catch {
         setError("Failed to upload avatar image")
         return
       }
@@ -107,11 +112,16 @@ export function EditProfileDialog({ user }: EditProfileDialogProps) {
     // Upload cover image if selected
     if (coverFile) {
       try {
-        const uploadResult = await startUpload([coverFile])
+        const uploadResult = await startUpload({
+          purpose: "profile-cover",
+          files: [coverFile],
+        })
         if (uploadResult && uploadResult[0]) {
-          formData.append("cover", uploadResult[0].ufsUrl || uploadResult[0].url || "")
+          formData.append("cover", uploadResult[0].url || "")
+          formData.append("coverStorageBucket", uploadResult[0].bucket)
+          formData.append("coverStoragePath", uploadResult[0].path)
         }
-      } catch (err) {
+      } catch {
         setError("Failed to upload cover image")
         return
       }

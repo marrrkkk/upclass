@@ -41,7 +41,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { useUploadThing } from "@/lib/uploadthing"
+import { useStorageUpload } from "@/lib/storage/client"
 import { cn } from "@/lib/utils"
 import type { ClassworkData, SubmissionData } from "@/types/classes"
 
@@ -65,6 +65,8 @@ type PendingAttachment = {
   fileName: string
   fileType?: string | null
   fileSize?: string | null
+  storageBucket?: string | null
+  storagePath?: string | null
 }
 
 function formatDate(dateString: string | null) {
@@ -113,7 +115,7 @@ export function ClassworkCard({
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [localError, setLocalError] = useState<string | null>(null)
   const [submitMode, setSubmitMode] = useState<"draft" | "submit">("submit")
-  const { startUpload, isUploading } = useUploadThing("submissionAttachmentUploader")
+  const { startUpload, isUploading } = useStorageUpload()
 
   const isDueSoon =
     item.dueDate &&
@@ -296,25 +298,44 @@ export function ClassworkCard({
                             fileName: linkName.trim(),
                             fileType: null,
                             fileSize: null,
+                            storageBucket: null,
+                            storagePath: null,
                           })
                         }
 
                         if (selectedFiles.length > 0) {
-                          const uploads = await startUpload(selectedFiles)
-                          if (!uploads) {
-                            setLocalError("Failed to upload attachments")
+                          try {
+                            const uploads = await startUpload({
+                              purpose: "submission-attachment",
+                              files: selectedFiles,
+                              context: {
+                                classworkId: item.id,
+                              },
+                            })
+                            if (!uploads) {
+                              setLocalError("Failed to upload attachments")
+                              return
+                            }
+
+                            nextAttachments = nextAttachments.concat(
+                              uploads.map((file) => ({
+                                fileUrl: file.url || "",
+                                fileName: file.name || "Attachment",
+                                fileType: file.type || null,
+                                fileSize: file.size?.toString() || null,
+                                storageBucket: file.bucket || null,
+                                storagePath: file.path || null,
+                              })),
+                            )
+                            setSelectedFiles([])
+                          } catch (uploadError) {
+                            setLocalError(
+                              uploadError instanceof Error
+                                ? uploadError.message
+                                : "Failed to upload attachments",
+                            )
                             return
                           }
-
-                          nextAttachments = nextAttachments.concat(
-                            uploads.map((file) => ({
-                              fileUrl: file.ufsUrl || file.url || "",
-                              fileName: file.name || "Attachment",
-                              fileType: file.type || null,
-                              fileSize: file.size?.toString() || null,
-                            })),
-                          )
-                          setSelectedFiles([])
                         }
 
                         nextAttachments = nextAttachments.concat(manualAttachments)
@@ -431,6 +452,8 @@ export function ClassworkCard({
                                   {
                                     fileUrl: linkUrl.trim(),
                                     fileName: linkName.trim(),
+                                    storageBucket: null,
+                                    storagePath: null,
                                   },
                                 ])
                                 setLinkUrl("")

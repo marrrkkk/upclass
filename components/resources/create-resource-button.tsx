@@ -20,7 +20,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { invalidateResourceCollections } from "@/lib/query-invalidation"
-import { useUploadThing } from "@/lib/uploadthing"
+import { useStorageUpload } from "@/lib/storage/client"
+import { getResourceFileType } from "@/lib/storage/shared"
 import { cn } from "@/lib/utils"
 import { executeWithOfflineHandling } from "@/lib/offline-action-handler"
 
@@ -36,7 +37,7 @@ export function CreateResourceButton({ iconOnly = false }: CreateResourceButtonP
   const [pending, startTransition] = useTransition()
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { startUpload, isUploading } = useUploadThing("resourceUploader")
+  const { startUpload, isUploading } = useStorageUpload()
 
   const handleCreate = async (formData: FormData) => {
     setError(null)
@@ -54,8 +55,10 @@ export function CreateResourceButton({ iconOnly = false }: CreateResourceButtonP
 
     startTransition(async () => {
       try {
-        // Upload file first
-        const uploadResult = await startUpload([selectedFile])
+        const uploadResult = await startUpload({
+          purpose: "resource-file",
+          files: [selectedFile],
+        })
 
         if (!uploadResult || !uploadResult[0]) {
           setError("Failed to upload file. Please check your connection and try again.")
@@ -64,26 +67,15 @@ export function CreateResourceButton({ iconOnly = false }: CreateResourceButtonP
 
         const uploadedFile = uploadResult[0]
         const fileName = uploadedFile.name || selectedFile.name
-        const fileExt = fileName.split(".").pop()?.toLowerCase() || ""
-
-        // Map extension to file type
-        const getFileType = (ext: string): string => {
-          if (ext === "pdf") return "pdf"
-          if (ext === "ppt") return "ppt"
-          if (ext === "pptx") return "pptx"
-          if (ext === "doc") return "doc"
-          if (ext === "docx") return "docx"
-          if (ext === "xls") return "xls"
-          if (ext === "xlsx") return "xlsx"
-          if (ext === "txt") return "txt"
-          return "other"
-        }
 
         // Append file data to form
-        formData.append("fileUrl", uploadedFile.ufsUrl || uploadedFile.url || "")
+        formData.append("fileUrl", uploadedFile.url || "")
         formData.append("fileName", fileName)
         formData.append("fileSize", uploadedFile.size?.toString() || selectedFile.size.toString())
-        formData.append("fileType", getFileType(fileExt))
+        formData.append("fileType", getResourceFileType(fileName))
+        formData.append("mimeType", uploadedFile.type || selectedFile.type || "application/octet-stream")
+        formData.append("storageBucket", uploadedFile.bucket)
+        formData.append("storagePath", uploadedFile.path)
 
         // Create resource with offline handling
         const res = await executeWithOfflineHandling(
@@ -96,7 +88,10 @@ export function CreateResourceButton({ iconOnly = false }: CreateResourceButtonP
             fileUrl: String(formData.get("fileUrl") || ""),
             fileName: String(formData.get("fileName") || ""),
             fileType: String(formData.get("fileType") || ""),
+            mimeType: String(formData.get("mimeType") || ""),
             fileSize: String(formData.get("fileSize") || ""),
+            storageBucket: String(formData.get("storageBucket") || ""),
+            storagePath: String(formData.get("storagePath") || ""),
           },
         )
 

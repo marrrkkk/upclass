@@ -31,6 +31,8 @@ const submitClassworkPayloadSchema = z
           fileName: z.string().trim().min(1, "Attachment name is required"),
           fileType: z.string().trim().optional(),
           fileSize: z.string().trim().optional(),
+          storageBucket: z.string().trim().optional(),
+          storagePath: z.string().trim().optional(),
         }),
       )
       .default([]),

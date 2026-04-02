@@ -19,7 +19,11 @@ export const user = pgTable("user", {
   email: text("email").notNull().unique(),
   emailVerified: boolean("email_verified").default(false).notNull(),
   image: text("image"),
+  imageStorageBucket: text("image_storage_bucket"),
+  imageStoragePath: text("image_storage_path"),
   cover: text("cover"), // Cover image URL
+  coverStorageBucket: text("cover_storage_bucket"),
+  coverStoragePath: text("cover_storage_path"),
   coverColor: text("cover_color").default("#3b82f6"), // Default cover color (primary blue)
   bio: text("bio"),
   role: userRole("role"),
@@ -213,7 +217,10 @@ export const resources = pgTable(
     fileUrl: text("file_url").notNull(),
     fileName: text("file_name").notNull(),
     fileType: resourceFileType("file_type").notNull(),
+    mimeType: text("mime_type"),
     fileSize: text("file_size"),
+    storageBucket: text("storage_bucket"),
+    storagePath: text("storage_path"),
     ownerId: text("owner_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
@@ -331,6 +338,8 @@ export const submissionAttachments = pgTable(
     fileName: text("file_name").notNull(),
     fileType: text("file_type"),
     fileSize: text("file_size"),
+    storageBucket: text("storage_bucket"),
+    storagePath: text("storage_path"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [index("submission_attachments_submission_idx").on(table.submissionId)],

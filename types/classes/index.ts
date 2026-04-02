@@ -78,6 +78,8 @@ export type SubmissionAttachmentData = {
   fileName: string
   fileType: string | null
   fileSize: string | null
+  storageBucket?: string | null
+  storagePath?: string | null
   createdAt: string
 }
 

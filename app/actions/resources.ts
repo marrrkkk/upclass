@@ -8,6 +8,8 @@ import { db } from "@/db"
 import { auth } from "@/lib/auth"
 import { resources } from "@/db/schema"
 import { logActivity } from "@/lib/activity"
+import { getResourceFileType } from "@/lib/storage/shared"
+import { removeStorageObjects } from "@/lib/storage/server"
 import {
   createResourceSchema,
   updateResourceSchema,
@@ -32,21 +34,7 @@ export async function createResource(formData: FormData): Promise<ActionResponse
     return { success: false, error: parsed.error.issues[0]?.message || "Invalid resource data" }
   }
 
-  const { title, description, category, fileUrl, fileName, fileSize } = parsed.data
-
-  // Map file extension to enum type
-  const getFileType = (fileName: string): "pdf" | "ppt" | "pptx" | "doc" | "docx" | "xls" | "xlsx" | "txt" | "other" => {
-    const ext = fileName.split(".").pop()?.toLowerCase()
-    if (ext === "pdf") return "pdf"
-    if (ext === "ppt") return "ppt"
-    if (ext === "pptx") return "pptx"
-    if (ext === "doc") return "doc"
-    if (ext === "docx") return "docx"
-    if (ext === "xls") return "xls"
-    if (ext === "xlsx") return "xlsx"
-    if (ext === "txt") return "txt"
-    return "other"
-  }
+  const { title, description, category, fileUrl, fileName, fileSize, mimeType, storageBucket, storagePath } = parsed.data
 
   const resourceId = crypto.randomUUID()
 
@@ -58,8 +46,11 @@ export async function createResource(formData: FormData): Promise<ActionResponse
       category,
       fileUrl,
       fileName,
-      fileType: getFileType(fileName),
+      fileType: getResourceFileType(fileName),
+      mimeType,
       fileSize,
+      storageBucket,
+      storagePath,
       ownerId: session.user.id,
     })
 
@@ -160,7 +151,14 @@ export async function deleteResource(resourceId: string): Promise<ActionResponse
       return { success: false, error: "Unauthorized: You can only delete your own resources" }
     }
 
+    const resourceToDelete = existingResource[0]
     await db.delete(resources).where(eq(resources.id, resourceId))
+    await removeStorageObjects([
+      {
+        bucket: resourceToDelete.storageBucket,
+        path: resourceToDelete.storagePath,
+      },
+    ])
 
     revalidatePath("/resources")
     revalidatePath("/home")

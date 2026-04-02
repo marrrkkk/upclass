@@ -5,15 +5,14 @@ import dynamic from "next/dynamic"
 import { useState, useEffect, useRef, useTransition } from "react"
 import { Send, ArrowLeft, MoreVertical, Phone, Video } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Card, CardContent } from "@/components/ui/card"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { sendMessage, markConversationAsRead } from "@/app/actions/messages"
 import { supabase } from "@/lib/supabase-client"
-import { useUploadThing } from "@/lib/uploadthing"
+import { useStorageUpload } from "@/lib/storage/client"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
-import { Paperclip, X, Music, Image as ImageIcon } from "lucide-react"
+import { Paperclip, X } from "lucide-react"
 import { UrlLinkify } from "@/components/messages/url-linkify"
 import { formatDistanceToNow, isSameDay, format } from "date-fns"
 import { useMessagesStore } from "@/stores/messages-store"
@@ -34,6 +33,8 @@ type MediaFile = {
   type: string
   name: string
   size?: string
+  bucket?: string | null
+  path?: string | null
 }
 
 type MessageData = {
@@ -88,7 +89,7 @@ export function ChatClient({ messages: initialMessages, currentUserId, otherUser
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { startUpload, isUploading } = useUploadThing("messageMediaUploader")
+  const { startUpload, isUploading } = useStorageUpload()
   const presenceChannelRef = useRef<any>(null)
 
   // Store optimistic timestamps to preserve them
@@ -176,13 +177,13 @@ export function ChatClient({ messages: initialMessages, currentUserId, otherUser
             setOtherUserPresence((prev) => ({ isOnline, lastSeen: isOnline ? null : prev.lastSeen }))
             setUserPresence(otherUser.id, isOnline, isOnline ? null : null)
           })
-          .on("presence", { event: "join" }, ({ key, newPresences }) => {
+          .on("presence", { event: "join" }, ({ key }) => {
             if (key === otherUser.id) {
               setOtherUserPresence({ isOnline: true, lastSeen: null })
               setUserPresence(otherUser.id, true)
             }
           })
-          .on("presence", { event: "leave" }, ({ key, leftPresences }) => {
+          .on("presence", { event: "leave" }, ({ key }) => {
             if (key === otherUser.id) {
               const lastSeen = new Date().toISOString()
               setOtherUserPresence({ isOnline: false, lastSeen })
@@ -331,7 +332,7 @@ export function ChatClient({ messages: initialMessages, currentUserId, otherUser
     return () => {
       supabase?.removeChannel(channel)
     }
-  }, [currentUserId, otherUser.id])
+  }, [addMessage, currentUserId, otherUser.id, updateMessage])
 
   useEffect(() => {
     // Scroll to bottom when new messages arrive
@@ -376,13 +377,18 @@ export function ChatClient({ messages: initialMessages, currentUserId, otherUser
     let mediaFiles: MediaFile[] = []
     if (selectedFiles.length > 0) {
       try {
-        const uploadResults = await startUpload(selectedFiles)
+        const uploadResults = await startUpload({
+          purpose: "message-media",
+          files: selectedFiles,
+        })
         if (uploadResults) {
           mediaFiles = uploadResults.map((file) => ({
-            url: file.ufsUrl || file.url || "",
+            url: file.url || "",
             type: file.type || "image",
             name: file.name || "file",
             size: file.size?.toString() || "0",
+            bucket: file.bucket || null,
+            path: file.path || null,
           }))
         }
       } catch (err) {

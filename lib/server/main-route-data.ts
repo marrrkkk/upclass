@@ -69,6 +69,8 @@ type SubmissionRow = {
     fileName: string
     fileType: string | null
     fileSize: string | null
+    storageBucket: string | null
+    storagePath: string | null
     createdAt: Date
   }>
   revisions: Array<{

@@ -2,12 +2,12 @@
 
 import { useState, useTransition, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Upload, User as UserIcon, GraduationCap, BookOpen, X, ChevronRight, ChevronLeft, Check, Sparkles, School } from "lucide-react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
-import { Button, buttonVariants } from "@/components/ui/button"
+import { Upload, User as UserIcon, GraduationCap, ChevronRight, ChevronLeft, Check, Sparkles, School } from "lucide-react"
+import { Card } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { updateProfile } from "@/app/actions/profile"
-import { useUploadThing } from "@/lib/uploadthing"
+import { useStorageUpload } from "@/lib/storage/client"
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -42,7 +42,7 @@ export function OnboardClient({ initialData }: OnboardClientProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { startUpload, isUploading } = useUploadThing("imageUploader")
+  const { startUpload, isUploading } = useStorageUpload()
 
   const handleNext = () => {
     if (step === 1 && !selectedRole) {
@@ -80,11 +80,16 @@ export function OnboardClient({ initialData }: OnboardClientProps) {
       // Upload image if selected
       if (selectedFile) {
         try {
-          const uploadResult = await startUpload([selectedFile])
+          const uploadResult = await startUpload({
+            purpose: "profile-avatar",
+            files: [selectedFile],
+          })
           if (uploadResult && uploadResult[0]) {
-            formData.append("image", uploadResult[0].ufsUrl || uploadResult[0].url || "")
+            formData.append("image", uploadResult[0].url || "")
+            formData.append("imageStorageBucket", uploadResult[0].bucket)
+            formData.append("imageStoragePath", uploadResult[0].path)
           }
-        } catch (err) {
+        } catch {
           setError("Failed to upload image")
           return
         }

@@ -1,11 +1,10 @@
 "use client"
 
 import { supabase } from "@/lib/supabase-client"
-
-const DEFAULT_BUCKET = "whiteboard-assets"
+import { buildWhiteboardAssetPath, STORAGE_BUCKETS } from "@/lib/storage/shared"
 
 export function getWhiteboardBucket() {
-  return process.env.NEXT_PUBLIC_SUPABASE_WHITEBOARD_BUCKET || DEFAULT_BUCKET
+  return STORAGE_BUCKETS.whiteboardAssets
 }
 
 export async function uploadWhiteboardImage(boardId: string, file: File) {
@@ -14,8 +13,7 @@ export async function uploadWhiteboardImage(boardId: string, file: File) {
   }
 
   const bucket = getWhiteboardBucket()
-  const extension = file.name.split(".").pop() || "png"
-  const path = `${boardId}/${crypto.randomUUID()}.${extension}`
+  const path = buildWhiteboardAssetPath(boardId, file.name)
 
   const { error } = await supabase.storage.from(bucket).upload(path, file, {
     cacheControl: "3600",

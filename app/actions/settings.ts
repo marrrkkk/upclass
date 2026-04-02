@@ -8,6 +8,9 @@ import { eq } from "drizzle-orm"
 import { db } from "@/db"
 import { auth } from "@/lib/auth"
 import { user } from "@/db/schema"
+import { collectUserManagedStorageRefs } from "@/lib/storage/cleanup"
+import { didManagedStorageChange, readManagedStorageFields } from "@/lib/storage/managed-files"
+import { removeStorageObjects } from "@/lib/storage/server"
 
 type ActionResponse =
   | { success: true }
@@ -27,19 +30,61 @@ export async function updateSettings(
 
   try {
     const updateData: any = {}
+    const staleFiles: Array<{ bucket?: string | null; path?: string | null }> = []
 
     if (section === "profile") {
       const name = (formData.get("name") as string | null)?.trim()
       const bio = (formData.get("bio") as string | null)?.trim()
-      const image = (formData.get("image") as string | null)?.trim()
 
       if (!name) {
         return { success: false, error: "Name is required" }
       }
 
+      const existingUser = await db
+        .select({
+          image: user.image,
+          imageStorageBucket: user.imageStorageBucket,
+          imageStoragePath: user.imageStoragePath,
+        })
+        .from(user)
+        .where(eq(user.id, session.user.id))
+        .limit(1)
+
+      if (existingUser.length === 0) {
+        return { success: false, error: "User not found" }
+      }
+
+      const currentUser = existingUser[0]
+      const hasImageField = formData.has("image")
+      const nextImage = readManagedStorageFields(formData, "image")
+      const resolvedImageUrl = hasImageField ? nextImage.url : currentUser.image
+      const resolvedImageBucket = hasImageField ? nextImage.bucket : currentUser.imageStorageBucket
+      const resolvedImagePath = hasImageField ? nextImage.path : currentUser.imageStoragePath
+
       updateData.name = name
       updateData.bio = bio || null
-      updateData.image = image || null
+      updateData.image = resolvedImageUrl || null
+      updateData.imageStorageBucket = resolvedImageBucket || null
+      updateData.imageStoragePath = resolvedImagePath || null
+
+      if (
+        hasImageField &&
+        didManagedStorageChange(
+          {
+            bucket: currentUser.imageStorageBucket,
+            path: currentUser.imageStoragePath,
+          },
+          {
+            bucket: resolvedImageBucket,
+            path: resolvedImagePath,
+          },
+        )
+      ) {
+        staleFiles.push({
+          bucket: currentUser.imageStorageBucket,
+          path: currentUser.imageStoragePath,
+        })
+      }
     } else if (section === "notifications") {
       updateData.emailNotifications = formData.get("emailNotifications") === "true"
       updateData.pushNotifications = formData.get("pushNotifications") === "true"
@@ -59,6 +104,8 @@ export async function updateSettings(
       .update(user)
       .set(updateData)
       .where(eq(user.id, session.user.id))
+
+    await removeStorageObjects(staleFiles)
 
     revalidatePath("/settings")
     revalidatePath("/user")
@@ -87,10 +134,11 @@ export async function deleteAccount(formData: FormData): Promise<ActionResponse>
   }
 
   try {
-    // Delete user (cascade will handle related data)
+    const staleFiles = await collectUserManagedStorageRefs(session.user.id)
     await db
       .delete(user)
       .where(eq(user.id, session.user.id))
+    await removeStorageObjects(staleFiles)
 
     return { success: true }
   } catch (error) {

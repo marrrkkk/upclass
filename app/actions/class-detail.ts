@@ -18,7 +18,9 @@ import {
 } from "@/db/schema"
 import { createNotificationsForClass } from "@/app/actions/notifications"
 import { logActivity } from "@/lib/activity"
-import { gradeSubmissionSchema } from "@/lib/validation/actions"
+import { collectClassworkManagedStorageRefs } from "@/lib/storage/cleanup"
+import { removeStorageObjects } from "@/lib/storage/server"
+import { gradeSubmissionSchema, upsertSubmissionSchema } from "@/lib/validation/actions"
 
 type ActionResponse =
   | { success: true }
@@ -29,6 +31,8 @@ type SubmissionAttachmentInput = {
   fileName: string
   fileType?: string | null
   fileSize?: string | null
+  storageBucket?: string | null
+  storagePath?: string | null
 }
 
 function parseSubmissionAttachments(formData: FormData) {
@@ -44,6 +48,8 @@ function parseSubmissionAttachments(formData: FormData) {
           fileName: entry.fileName.trim(),
           fileType: entry.fileType?.trim() || null,
           fileSize: entry.fileSize?.trim() || null,
+          storageBucket: entry.storageBucket?.trim() || null,
+          storagePath: entry.storagePath?.trim() || null,
         }))
     } catch (error) {
       console.warn("Failed to parse submission attachments", error)
@@ -55,7 +61,7 @@ function parseSubmissionAttachments(formData: FormData) {
 
   if (!fileUrl || !fileName) return []
 
-  return [{ fileUrl, fileName, fileType: null, fileSize: null }]
+  return [{ fileUrl, fileName, fileType: null, fileSize: null, storageBucket: null, storagePath: null }]
 }
 
 export async function createAnnouncement(
@@ -236,13 +242,18 @@ export async function submitClasswork(
     return { success: false, error: "Unauthorized" }
   }
 
-  const content = (formData.get("content") as string | null)?.trim() || ""
-  const mode = (formData.get("mode") as string | null) === "draft" ? "draft" : "submit"
-  const attachments = parseSubmissionAttachments(formData)
+  const parsedSubmission = upsertSubmissionSchema.safeParse({
+    classworkId,
+    content: formData.get("content"),
+    attachments: parseSubmissionAttachments(formData),
+    mode: formData.get("mode"),
+  })
 
-  if (!content && attachments.length === 0) {
-    return { success: false, error: "Content or file is required" }
+  if (!parsedSubmission.success) {
+    return { success: false, error: parsedSubmission.error.issues[0]?.message || "Invalid submission" }
   }
+
+  const { content, mode, attachments } = parsedSubmission.data
 
   // Get classwork to find classId
   const classworkData = await db
@@ -275,6 +286,7 @@ export async function submitClasswork(
   try {
     let submissionEvent: "draft_saved" | "assignment_submitted" | "assignment_resubmitted" =
       mode === "draft" ? "draft_saved" : "assignment_submitted"
+    const staleManagedAttachments: Array<{ bucket?: string | null; path?: string | null }> = []
 
     const savedSubmissionId = await db.transaction(async (tx) => {
       const existing = await tx
@@ -292,6 +304,15 @@ export async function submitClasswork(
       const previousSubmission = existing[0]
       const nextStatus = mode === "draft" ? "draft" : "submitted"
       const submissionId = previousSubmission?.id ?? crypto.randomUUID()
+      const previousAttachments = previousSubmission
+        ? await tx
+            .select({
+              storageBucket: submissionAttachments.storageBucket,
+              storagePath: submissionAttachments.storagePath,
+            })
+            .from(submissionAttachments)
+            .where(eq(submissionAttachments.submissionId, submissionId))
+        : []
       const isResubmission =
         mode === "submit" &&
         (previousSubmission?.status === "submitted" || previousSubmission?.status === "graded")
@@ -336,9 +357,29 @@ export async function submitClasswork(
             fileName: attachment.fileName,
             fileType: attachment.fileType ?? null,
             fileSize: attachment.fileSize ?? null,
+            storageBucket: attachment.storageBucket ?? null,
+            storagePath: attachment.storagePath ?? null,
           })),
         )
       }
+
+      const nextAttachmentKeys = new Set(
+        attachments
+          .filter((attachment) => attachment.storageBucket && attachment.storagePath)
+          .map((attachment) => `${attachment.storageBucket}:${attachment.storagePath}`),
+      )
+
+      staleManagedAttachments.push(
+        ...previousAttachments
+          .filter((attachment) => {
+            if (!attachment.storageBucket || !attachment.storagePath) return false
+            return !nextAttachmentKeys.has(`${attachment.storageBucket}:${attachment.storagePath}`)
+          })
+          .map((attachment) => ({
+            bucket: attachment.storageBucket,
+            path: attachment.storagePath,
+          })),
+      )
 
       const revisionCount = await tx
         .select()
@@ -367,6 +408,8 @@ export async function submitClasswork(
     revalidatePath(`/classes/${classworkData[0].classId}`)
     revalidatePath("/home")
     revalidatePath("/activity")
+
+    await removeStorageObjects(staleManagedAttachments)
 
     await logActivity({
       actorId: session.user.id,
@@ -773,7 +816,9 @@ export async function deleteClasswork(
   }
 
   try {
+    const staleFiles = await collectClassworkManagedStorageRefs(classworkId)
     await db.delete(classwork).where(eq(classwork.id, classworkId))
+    await removeStorageObjects(staleFiles)
 
     revalidatePath(`/classes/${classworkData[0].classId}`)
     return { success: true }

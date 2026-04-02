@@ -66,7 +66,7 @@ function isImageRequest(request, url) {
 }
 
 function shouldHandleCrossOriginImage(url) {
-  return url.hostname.includes("uploadthing.com") || url.hostname.includes("supabase.co");
+  return url.hostname.includes("supabase.co");
 }
 
 function buildOfflinePage(pathname = "/") {

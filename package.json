@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "db:migrate": "drizzle-kit migrate --config drizzle.config.ts",
+    "storage:setup": "node scripts/setup-supabase-storage.mjs",
     "build": "next build --webpack",
     "build:vercel": "npm run lint && npm run type-check && npm run test && if [ -n \"$DATABASE_URL\" ]; then npm run db:migrate; else echo 'Skipping db:migrate because DATABASE_URL is not set'; fi && next build --webpack",
     "start": "next start",
@@ -33,7 +34,6 @@
     "@react-email/components": "^1.0.10",
     "@supabase/supabase-js": "^2.87.1",
     "@tanstack/react-query": "^5.91.0",
-    "@uploadthing/react": "^7.3.3",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "better-auth": "^1.4.5",
@@ -53,7 +53,6 @@
     "react-easy-crop": "^5.5.6",
     "resend": "^6.9.4",
     "tailwind-merge": "^3.4.0",
-    "uploadthing": "^7.7.4",
     "zod": "^4.3.6",
     "zustand": "^5.0.9"
   },
