@@ -11,8 +11,9 @@ export function useCacheData<T>(
   enabled: boolean = true
 ) {
   useEffect(() => {
-    if (!enabled || !data || data.length === 0) return
+    if (!enabled || !data) return
     if (!navigator.onLine) return // Don't cache when offline
+    if (type === "messages" && data.length === 0) return
 
     // Use a ref to store timeout per hook instance
     let cacheTimeout: NodeJS.Timeout | null = null
@@ -123,10 +124,10 @@ export function useOfflineCollectionCache<T>({
 
   useEffect(() => {
     if (!enabled || typeof window === "undefined") return
-    if (!isOffline && onlineData.length > 0) {
+    if (!isOffline) {
       return
     }
-    if (isOffline && hydratedRef.current) {
+    if (hydratedRef.current) {
       return
     }
 

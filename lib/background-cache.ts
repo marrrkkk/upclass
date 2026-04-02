@@ -101,12 +101,17 @@ export class BackgroundCache {
 
   // Cache classes - optimized with batching
   async cacheClasses(classes: any[]): Promise<void> {
-    if (!classes || classes.length === 0) return
-    
     try {
       const db = await this.ensureDB()
       const tx = db.transaction('classes', 'readwrite')
       const store = tx.objectStore('classes')
+      await new Promise<void>((resolve, reject) => {
+        const clearRequest = store.clear()
+        clearRequest.onsuccess = () => resolve()
+        clearRequest.onerror = () => reject(clearRequest.error)
+      })
+
+      if (!classes || classes.length === 0) return
       
       // Batch operations for better performance
       const batchSize = 50
@@ -134,12 +139,17 @@ export class BackgroundCache {
 
   // Cache resources - optimized with batching
   async cacheResources(resources: any[]): Promise<void> {
-    if (!resources || resources.length === 0) return
-    
     try {
       const db = await this.ensureDB()
       const tx = db.transaction('resources', 'readwrite')
       const store = tx.objectStore('resources')
+      await new Promise<void>((resolve, reject) => {
+        const clearRequest = store.clear()
+        clearRequest.onsuccess = () => resolve()
+        clearRequest.onerror = () => reject(clearRequest.error)
+      })
+
+      if (!resources || resources.length === 0) return
       
       // Batch operations for better performance
       const batchSize = 50
@@ -257,12 +267,17 @@ export class BackgroundCache {
 
   // Cache notifications - optimized with batching
   async cacheNotifications(notifications: any[]): Promise<void> {
-    if (!notifications || notifications.length === 0) return
-    
     try {
       const db = await this.ensureDB()
       const tx = db.transaction('notifications', 'readwrite')
       const store = tx.objectStore('notifications')
+      await new Promise<void>((resolve, reject) => {
+        const clearRequest = store.clear()
+        clearRequest.onsuccess = () => resolve()
+        clearRequest.onerror = () => reject(clearRequest.error)
+      })
+
+      if (!notifications || notifications.length === 0) return
       
       // Batch operations for better performance
       const batchSize = 50
