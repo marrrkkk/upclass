@@ -54,6 +54,6 @@ Recent history uses scoped Conventional Commits such as `feat(classes,tabs): opt
 PRs should explain user-visible changes, note schema or env updates, mention testing performed, and include screenshots or recordings for UI changes. When practical, keep documentation-only release bookkeeping separate from product code changes.
 
 ## Security & Configuration Tips
-Required secrets include `DATABASE_URL`, Better Auth settings, Google OAuth credentials, Supabase realtime keys, UploadThing credentials, the Gemini API key, and Resend mail settings (`RESEND_API_KEY`, `EMAIL_FROM`) when transactional email is enabled. Never hardcode secrets or bypass session and role checks in server actions or API routes.
+Required secrets include `DATABASE_URL`, Better Auth settings, Google OAuth credentials, Supabase realtime/storage keys (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`), the Gemini API key, and Resend mail settings (`RESEND_API_KEY`, `EMAIL_FROM`) when transactional email is enabled. Never hardcode secrets or bypass session and role checks in server actions or API routes.
 
 Deploy builds on Vercel use `npm run build:vercel`, which now gates deploys on `lint`, `type-check`, and `test` before migrations and the production build. Ensure database changes, migration files in `db/migrations/`, and environment requirements stay consistent. When changing uploads, realtime, offline, or whiteboard flows, verify that auth checks and server-dependent constraints still hold.

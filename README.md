@@ -23,8 +23,7 @@ UpClass is a classroom and learning-management web app built for teachers and st
 - Tailwind CSS 4
 - Drizzle ORM + PostgreSQL
 - Better Auth
-- Supabase Realtime
-- UploadThing
+- Supabase Realtime + Storage
 - Excalidraw
 - Zustand
 - Zod
@@ -69,7 +68,12 @@ GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
-UPLOADTHING_TOKEN=
+SUPABASE_SERVICE_ROLE_KEY=
+NEXT_PUBLIC_SUPABASE_PROFILE_MEDIA_BUCKET=
+NEXT_PUBLIC_SUPABASE_RESOURCE_FILES_BUCKET=
+NEXT_PUBLIC_SUPABASE_MESSAGE_MEDIA_BUCKET=
+NEXT_PUBLIC_SUPABASE_SUBMISSION_ATTACHMENTS_BUCKET=
+NEXT_PUBLIC_SUPABASE_WHITEBOARD_BUCKET=
 GEMINI_API_KEY=
 RESEND_API_KEY=
 EMAIL_FROM="UpClass <notifications@your-domain.com>"
@@ -86,7 +90,15 @@ EMAIL_FROM="UpClass <notifications@your-domain.com>"
 npm run db:migrate
 ```
 
-### 4. Start the app
+### 4. Configure Supabase storage buckets
+
+```bash
+npm run storage:setup
+```
+
+This creates or updates the public buckets used for avatars, covers, resources, message media, submission attachments, and whiteboard assets.
+
+### 5. Start the app
 
 ```bash
 npm run dev
@@ -99,6 +111,7 @@ Open `http://localhost:3000`.
 ```bash
 npm run dev           # start the local dev server
 npm run db:migrate    # apply Drizzle migrations
+npm run storage:setup # create/update Supabase storage buckets
 npm run build         # create a production webpack build
 npm run build:vercel  # lint, type-check, test, optionally migrate, then webpack build
 npm run start         # serve the production build
@@ -117,7 +130,7 @@ npm run test:coverage # run Vitest with coverage
 - Better Auth for authentication
 - Google OAuth for social sign-in
 - Supabase Realtime for live messaging and collaboration updates
-- UploadThing for media and resource uploads
+- Supabase Storage for media, resources, submissions, and whiteboard assets
 - Gemini API for the resource AI assistant
 
 ### Important runtime notes
@@ -125,7 +138,7 @@ npm run test:coverage # run Vitest with coverage
 - Deploy builds on Vercel use `npm run build:vercel`, which gates deploys on `lint`, `type-check`, and `test` before migrations and the production build.
 - `build:vercel` only runs `db:migrate` when `DATABASE_URL` is available in the environment; otherwise it skips migrations and continues to the build.
 - The target database must already exist and be reachable before deployment builds run.
-- Upload routes enforce authenticated uploads.
+- Upload URL issuance enforces authenticated uploads and validated upload context.
 - Missing Supabase client env vars will degrade realtime behavior.
 
 ## Offline, PWA, and Realtime
