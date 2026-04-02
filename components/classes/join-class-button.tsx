@@ -1,10 +1,12 @@
 "use client"
 
+import { useQueryClient } from "@tanstack/react-query"
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { UserPlus } from "lucide-react"
 import { joinClass } from "@/app/actions/classes"
 import { Button } from "@/components/ui/button"
+import { useMainShellState } from "@/components/providers/main-shell-state-provider"
 import { executeWithOfflineHandling } from "@/lib/offline-action-handler"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -17,6 +19,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { invalidateClassCollections, invalidateClassDetailCollections } from "@/lib/query-invalidation"
 import { cn } from "@/lib/utils"
 
 type JoinClassButtonProps = {
@@ -25,6 +28,8 @@ type JoinClassButtonProps = {
 
 export function JoinClassButton({ iconOnly = false }: JoinClassButtonProps) {
   const router = useRouter()
+  const queryClient = useQueryClient()
+  const { userId } = useMainShellState()
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
@@ -51,9 +56,19 @@ export function JoinClassButton({ iconOnly = false }: JoinClassButtonProps) {
       }
 
       setOpen(false)
+      await invalidateClassCollections(queryClient, userId)
       // Redirect to the class page
-      if ("classId" in joinResult && joinResult.classId) {
-        router.push(`/classes/${joinResult.classId}`)
+      const joinedClassId =
+        "classId" in joinResult && typeof joinResult.classId === "string"
+          ? joinResult.classId
+          : null
+
+      if (joinedClassId) {
+        await invalidateClassDetailCollections(queryClient, {
+          classId: joinedClassId,
+          userId,
+        })
+        router.push(`/classes/${joinedClassId}`)
       }
     })
   }

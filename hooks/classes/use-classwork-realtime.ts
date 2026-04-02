@@ -10,7 +10,8 @@ import type { ClassworkData } from "@/types/classes"
 type UseClassworkRealtimeParams = {
   classId: string
   classwork: ClassworkData[]
-  router: AppRouterInstance
+  onUnhandledChange?: () => void
+  router?: AppRouterInstance
   userId?: string
   userRole: "teacher" | "student" | null
   onClassworkPayload?: (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => boolean
@@ -20,6 +21,7 @@ type UseClassworkRealtimeParams = {
 export function useClassworkRealtime({
   classId,
   classwork,
+  onUnhandledChange,
   router,
   userId,
   userRole,
@@ -42,7 +44,11 @@ export function useClassworkRealtime({
         (payload) => {
           const handled = onClassworkPayload?.(payload)
           if (handled) return
-          router.refresh()
+          if (onUnhandledChange) {
+            onUnhandledChange()
+            return
+          }
+          router?.refresh()
         },
       )
       .subscribe()
@@ -69,12 +75,20 @@ export function useClassworkRealtime({
             const submissionClassworkId = newRecord?.classwork_id || oldRecord?.classwork_id
 
             if (submissionClassworkId && classworkIds.has(submissionClassworkId)) {
-              router.refresh()
+              if (onUnhandledChange) {
+                onUnhandledChange()
+                return
+              }
+              router?.refresh()
             }
             return
           }
 
-          router.refresh()
+          if (onUnhandledChange) {
+            onUnhandledChange()
+            return
+          }
+          router?.refresh()
         },
       )
       .subscribe()
@@ -83,5 +97,5 @@ export function useClassworkRealtime({
       supabase?.removeChannel(classworkChannel)
       supabase?.removeChannel(submissionsChannel)
     }
-  }, [classId, classwork, onClassworkPayload, onSubmissionPayload, router, userId, userRole])
+  }, [classId, classwork, onClassworkPayload, onSubmissionPayload, onUnhandledChange, router, userId, userRole])
 }

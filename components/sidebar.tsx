@@ -2,7 +2,8 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useEffect, useRef, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
+import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 
 import {
   Activity,
@@ -20,6 +21,14 @@ import { MessagesSection } from "@/components/sidebar/messages-section"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Logo } from "@/components/logo"
+import { mainAppQueries } from "@/lib/main-app-queries"
+import {
+  parseRecentClassVisitsSnapshot,
+  getRecentClassVisitsServerSnapshot,
+  getRecentClassVisitsSnapshot,
+  sortItemsByRecentClassVisitSnapshot,
+  subscribeToRecentClassVisits,
+} from "@/lib/recent-class-visits"
 
 const navItems = [
   { label: "Home", href: "/home", icon: Home },
@@ -61,6 +70,22 @@ export function Sidebar({
   const currentUserId = userId
   const [isScrolling, setIsScrolling] = useState(false)
   const scrollTimeoutRef = useRef<number | null>(null)
+  const recentVisitsSnapshot = useSyncExternalStore(
+    subscribeToRecentClassVisits,
+    getRecentClassVisitsSnapshot,
+    getRecentClassVisitsServerSnapshot,
+  )
+  const recentClassesQuery = useQuery({
+    ...mainAppQueries.recentClasses(currentUserId ?? "guest"),
+    enabled: Boolean(currentUserId),
+    initialData: recentClasses,
+  })
+  const recentVisits = parseRecentClassVisitsSnapshot(recentVisitsSnapshot)
+  const orderedRecentClasses = sortItemsByRecentClassVisitSnapshot(
+    recentClassesQuery.data ?? recentClasses ?? [],
+    recentVisits,
+    (item) => item.id,
+  )
 
   useEffect(() => {
     return () => {
@@ -152,7 +177,7 @@ export function Sidebar({
           </nav>
         </div>
 
-        {recentClasses && recentClasses.length > 0 ? (
+        {orderedRecentClasses.length > 0 ? (
           <div className="space-y-1">
             <h3 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Recent Classes
@@ -166,7 +191,7 @@ export function Sidebar({
                 <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
               </summary>
               <div className="mt-3 space-y-1">
-                {recentClasses.map((item) => {
+                {orderedRecentClasses.map((item) => {
                   const href = `/classes/${item.id}`
                   const isActive = currentPath === href
 

@@ -1,15 +1,18 @@
 "use client"
 
+import { useQueryClient } from "@tanstack/react-query"
 import { useEffect, useEffectEvent, useMemo, useRef, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, ArrowRight, CheckCircle2, Clock, FileQuestion, Timer, XCircle } from "lucide-react"
 
 import { submitQuiz } from "@/app/actions/quizzes"
 import { OfflineRouteGuard } from "@/components/offline-route-guard"
+import { useMainShellState } from "@/components/providers/main-shell-state-provider"
 import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
+import { invalidateClassDetailCollections } from "@/lib/query-invalidation"
 import { cn } from "@/lib/utils"
 
 type QuizTakingPageProps = {
@@ -51,6 +54,8 @@ function formatTimer(seconds: number) {
 
 export function QuizTakingPage({ classId, classTitle, classColor, quiz }: QuizTakingPageProps) {
   const router = useRouter()
+  const queryClient = useQueryClient()
+  const { userId } = useMainShellState()
   const [currentIndex, setCurrentIndex] = useState(0)
   const [answers, setAnswers] = useState<Record<string, { selected?: string[]; text?: string }>>({})
   const [error, setError] = useState<string | null>(null)
@@ -120,8 +125,8 @@ export function QuizTakingPage({ classId, classTitle, classColor, quiz }: QuizTa
         return
       }
 
+      await invalidateClassDetailCollections(queryClient, { classId, userId })
       router.push(`/classes/${classId}?tab=quizzes`)
-      router.refresh()
     })
   }
 

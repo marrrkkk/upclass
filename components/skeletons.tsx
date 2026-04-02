@@ -170,12 +170,9 @@ export function ClassCardSkeleton() {
 export function ClassesPageSkeleton() {
     return (
         <div className="flex flex-col gap-8">
-            <div className="flex flex-row gap-4 justify-start items-center">
-                <div className="inline-flex p-1 bg-muted/40 rounded-xl border">
-                    <Skeleton className="h-9 w-24 rounded-lg" />
-                    <Skeleton className="h-9 w-24 rounded-lg" />
-                </div>
-                <Skeleton className="h-10 w-72 rounded-xl" />
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <Skeleton className="h-10 w-full rounded-xl sm:w-72" />
+                <Skeleton className="h-9 w-28 rounded-md" />
             </div>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {Array.from({ length: 8 }).map((_, i) => (

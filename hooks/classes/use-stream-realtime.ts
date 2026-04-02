@@ -19,13 +19,15 @@ type ReactionRecord = {
 
 type UseStreamRealtimeParams = {
   classId: string
-  router: AppRouterInstance
+  onUnhandledChange?: () => void
+  router?: AppRouterInstance
   onAnnouncementPayload?: (payload: RealtimePostgresChangesPayload<AnnouncementRecord>) => boolean
   onReactionPayload?: (payload: RealtimePostgresChangesPayload<ReactionRecord>) => boolean
 }
 
 export function useStreamRealtime({
   classId,
+  onUnhandledChange,
   router,
   onAnnouncementPayload,
   onReactionPayload,
@@ -46,7 +48,11 @@ export function useStreamRealtime({
         (payload) => {
           const handled = onAnnouncementPayload?.(payload)
           if (handled) return
-          router.refresh()
+          if (onUnhandledChange) {
+            onUnhandledChange()
+            return
+          }
+          router?.refresh()
         },
       )
       .on(
@@ -59,7 +65,11 @@ export function useStreamRealtime({
         (payload) => {
           const handled = onReactionPayload?.(payload)
           if (handled) return
-          router.refresh()
+          if (onUnhandledChange) {
+            onUnhandledChange()
+            return
+          }
+          router?.refresh()
         },
       )
       .subscribe()
@@ -67,5 +77,5 @@ export function useStreamRealtime({
     return () => {
       supabase?.removeChannel(channel)
     }
-  }, [classId, onAnnouncementPayload, onReactionPayload, router])
+  }, [classId, onAnnouncementPayload, onReactionPayload, onUnhandledChange, router])
 }

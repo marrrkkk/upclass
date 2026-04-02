@@ -7,7 +7,7 @@ import { ClassCard } from "@/components/classes/class-card"
 import type { ClassCardData } from "@/types/classes"
 
 type ClassesGridProps = {
-  activeTab: "teaching" | "enrolled"
+  userRole: "teacher" | "student" | null
   searchQuery: string
   classes: ClassCardData[]
   onHoverStart: (href: string) => void
@@ -15,7 +15,7 @@ type ClassesGridProps = {
 }
 
 export function ClassesGrid({
-  activeTab,
+  userRole,
   searchQuery,
   classes,
   onHoverStart,
@@ -30,16 +30,20 @@ export function ClassesGrid({
         <h3 className="mt-4 text-lg font-semibold text-gray-900">
           {searchQuery
             ? "No classes found"
-            : activeTab === "teaching"
+            : userRole === "teacher"
               ? "Start your teaching journey"
-              : "Start learning today"}
+              : userRole === "student"
+                ? "Start learning today"
+                : "No classes available"}
         </h3>
         <p className="mt-2 text-sm text-muted-foreground max-w-sm mx-auto">
           {searchQuery
             ? "We couldn't find any classes matching your search. Try adjusting the keywords."
-            : activeTab === "teaching"
+            : userRole === "teacher"
               ? "Create your first class to start sharing knowledge with students."
-              : "Join a class to start learning new skills and connecting with teachers."}
+              : userRole === "student"
+                ? "Join a class to start learning new skills and connecting with teachers."
+                : "Sign in to create or join classes."}
         </p>
       </div>
     )

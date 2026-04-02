@@ -1,13 +1,12 @@
 "use client"
 
-import { useState, memo } from "react"
+import { useMemo, useState, useSyncExternalStore, memo } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePrefetch } from "@/hooks/use-prefetch"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Empty, EmptyMedia, EmptyTitle, EmptyDescription, EmptyContent } from "@/components/ui/empty"
 import {
     ArrowRight,
     Users,
@@ -15,7 +14,6 @@ import {
     Plus,
     BookOpen
 } from "lucide-react"
-import { cn } from "@/lib/utils"
 import {
     Dialog,
     DialogContent,
@@ -23,6 +21,13 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
+import {
+    parseRecentClassVisitsSnapshot,
+    getRecentClassVisitsServerSnapshot,
+    getRecentClassVisitsSnapshot,
+    sortItemsByRecentClassVisitSnapshot,
+    subscribeToRecentClassVisits,
+} from "@/lib/recent-class-visits"
 
 export type ClassItem = {
     id: string
@@ -163,11 +168,24 @@ function AllClassesDialog({ classes, userRole, open, onOpenChange }: {
 
 export function RecentClasses({ classes, userRole }: RecentClassesProps) {
     const [open, setOpen] = useState(false)
+    const recentVisitsSnapshot = useSyncExternalStore(
+        subscribeToRecentClassVisits,
+        getRecentClassVisitsSnapshot,
+        getRecentClassVisitsServerSnapshot,
+    )
+    const orderedClasses = useMemo(
+        () => sortItemsByRecentClassVisitSnapshot(
+            classes,
+            parseRecentClassVisitsSnapshot(recentVisitsSnapshot),
+            (classItem) => classItem.id,
+        ),
+        [classes, recentVisitsSnapshot],
+    )
 
     return (
         <>
             <AllClassesDialog
-                classes={classes}
+                classes={orderedClasses}
                 userRole={userRole}
                 open={open}
                 onOpenChange={setOpen}
@@ -194,7 +212,7 @@ export function RecentClasses({ classes, userRole }: RecentClassesProps) {
                 </CardHeader>
 
                 <CardContent className="p-6">
-                    {classes.length === 0 ? (
+                    {orderedClasses.length === 0 ? (
                         <div className="py-12 flex flex-col items-center justify-center text-center">
                             <div className="h-24 w-24 rounded-full bg-muted/50 flex items-center justify-center mb-6 animate-in zoom-in-50 duration-500">
                                 <GraduationCap className="h-10 w-10 text-muted-foreground opacity-50" />
@@ -214,7 +232,7 @@ export function RecentClasses({ classes, userRole }: RecentClassesProps) {
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {classes.slice(0, 6).map((classItem) => (
+                            {orderedClasses.slice(0, 6).map((classItem) => (
                                 <ClassCard key={classItem.id} classItem={classItem} />
                             ))}
                         </div>

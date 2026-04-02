@@ -1,7 +1,7 @@
 "use client"
 
+import { useQueryClient } from "@tanstack/react-query"
 import { useMemo, useOptimistic, useState, useTransition } from "react"
-import { useRouter } from "next/navigation"
 import { Edit, MoreVertical, SmilePlus, Trash2 } from "lucide-react"
 
 import { deleteAnnouncement, toggleReaction, updateAnnouncement } from "@/app/actions/class-detail"
@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
+import { invalidateClassDetailCollections } from "@/lib/query-invalidation"
 
 import type { AnnouncementData } from "@/types/classes"
 
@@ -55,16 +56,18 @@ function formatAnnouncementDate(dateString: string) {
 
 export function AnnouncementCard({
   announcement,
+  classId,
   userId,
   userRole,
   classColor,
 }: {
   announcement: AnnouncementData
+  classId: string
   userId?: string
   userRole: "teacher" | "student" | null
   classColor: string
 }) {
-  const router = useRouter()
+  const queryClient = useQueryClient()
   const reactionState = useMemo(() => {
     const userReaction = userId
       ? announcement.reactions.find((reaction) => reaction.userId === userId)?.reaction ?? null
@@ -110,6 +113,7 @@ export function AnnouncementCard({
 
     try {
       await toggleReaction(announcement.id, reactionType)
+      await invalidateClassDetailCollections(queryClient, { classId, userId })
     } catch (error) {
       console.error("Failed to toggle reaction", error)
     }
@@ -120,7 +124,7 @@ export function AnnouncementCard({
       const result = await updateAnnouncement(announcement.id, editContent)
       if (result.success) {
         setEditOpen(false)
-        router.refresh()
+        await invalidateClassDetailCollections(queryClient, { classId, userId })
       }
     })
   }
@@ -130,7 +134,7 @@ export function AnnouncementCard({
     startDeleteTransition(async () => {
       const result = await deleteAnnouncement(announcement.id)
       if (result.success) {
-        router.refresh()
+        await invalidateClassDetailCollections(queryClient, { classId, userId })
       } else {
         console.error("Failed to delete")
       }

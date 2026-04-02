@@ -1,11 +1,12 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 
 import { BackgroundCache } from "@/lib/background-cache"
 import { ClassesGrid } from "@/components/classes/classes-grid"
 import { ClassesSearchControls } from "@/components/classes/classes-search-controls"
-import { useClassesData } from "@/hooks/classes/use-classes-data"
+import { ClassCardSkeleton } from "@/components/skeletons"
+import { usePrefetch } from "@/hooks/use-prefetch"
 import { useClassesStore } from "@/stores/classes-store"
 
 import type { ClassCardData } from "@/types/classes"
@@ -13,26 +14,45 @@ import type { ClassCardData } from "@/types/classes"
 type ClassesClientProps = {
   teachingClasses: ClassCardData[]
   enrolledClasses: ClassCardData[]
+  userRole: "teacher" | "student" | null
   isAuthenticated?: boolean
+  isLoading?: boolean
 }
 
 export function ClassesClient({
   teachingClasses,
   enrolledClasses,
+  userRole,
   isAuthenticated = false,
+  isLoading = false,
 }: ClassesClientProps) {
   const setTeachingClasses = useClassesStore((state) => state.setTeachingClasses)
   const setEnrolledClasses = useClassesStore((state) => state.setEnrolledClasses)
   const setStoreIsAuthenticated = useClassesStore((state) => state.setIsAuthenticated)
-  const [activeTab, setActiveTab] = useState<"teaching" | "enrolled">("teaching")
+  const storeTeachingClasses = useClassesStore((state) => state.teachingClasses)
+  const storeEnrolledClasses = useClassesStore((state) => state.enrolledClasses)
   const [searchQuery, setSearchQuery] = useState("")
-  const { filteredClasses, prefetchOnHover, cancelPrefetch } = useClassesData({
-    teachingClasses,
+  const { prefetchOnHover, cancelPrefetch } = usePrefetch()
+
+  useEffect(() => {
+    const hasServerClasses = teachingClasses.length > 0 || enrolledClasses.length > 0
+    const isOffline = typeof window !== "undefined" && !navigator.onLine
+
+    if (isOffline && !hasServerClasses) {
+      return
+    }
+
+    setTeachingClasses(teachingClasses)
+    setEnrolledClasses(enrolledClasses)
+    setStoreIsAuthenticated(isAuthenticated)
+  }, [
     enrolledClasses,
     isAuthenticated,
-    activeTab,
-    searchQuery,
-  })
+    setEnrolledClasses,
+    setStoreIsAuthenticated,
+    setTeachingClasses,
+    teachingClasses,
+  ])
 
   useEffect(() => {
     if (typeof window === "undefined" || navigator.onLine) return
@@ -49,10 +69,6 @@ export function ClassesClient({
       setTeachingClasses(teaching)
       setEnrolledClasses(enrolled)
       setStoreIsAuthenticated(true)
-
-      if (teaching.length === 0 && enrolled.length > 0) {
-        setActiveTab("enrolled")
-      }
     }
 
     void hydrateOfflineClasses()
@@ -62,21 +78,52 @@ export function ClassesClient({
     }
   }, [setEnrolledClasses, setStoreIsAuthenticated, setTeachingClasses])
 
+  const visibleClasses = userRole === "student" ? storeEnrolledClasses : storeTeachingClasses
+
+  const filteredClasses = useMemo(() => {
+    if (!searchQuery.trim()) return visibleClasses
+
+    const queryWords = searchQuery.toLowerCase().trim().split(/\s+/)
+
+    return visibleClasses.filter((classItem) => {
+      const searchableText = [
+        classItem.title,
+        classItem.description,
+        classItem.category,
+        classItem.teacherName,
+        classItem.schedule,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+
+      return queryWords.every((word) => searchableText.includes(word))
+    })
+  }, [searchQuery, visibleClasses])
+
   return (
     <div className="flex flex-col gap-8">
       <ClassesSearchControls
-        activeTab={activeTab}
+        userRole={userRole}
+        isAuthenticated={isAuthenticated}
         searchQuery={searchQuery}
-        onTabChange={setActiveTab}
         onSearchChange={setSearchQuery}
       />
-      <ClassesGrid
-        activeTab={activeTab}
-        searchQuery={searchQuery}
-        classes={filteredClasses}
-        onHoverStart={prefetchOnHover}
-        onHoverEnd={cancelPrefetch}
-      />
+      {isLoading ? (
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <ClassCardSkeleton key={index} />
+          ))}
+        </div>
+      ) : (
+        <ClassesGrid
+          userRole={userRole}
+          searchQuery={searchQuery}
+          classes={filteredClasses}
+          onHoverStart={prefetchOnHover}
+          onHoverEnd={cancelPrefetch}
+        />
+      )}
     </div>
   )
 }

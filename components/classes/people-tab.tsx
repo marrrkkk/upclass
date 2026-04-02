@@ -1,9 +1,9 @@
 "use client"
 
+import { useQueryClient } from "@tanstack/react-query"
 import { useState, useTransition } from "react"
-import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Users, Trash2, MoreVertical, UserMinus } from "lucide-react"
+import { Users, MoreVertical, UserMinus } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent } from "@/components/ui/card"
 import { buttonVariants } from "@/components/ui/button"
@@ -23,6 +23,7 @@ import {
 import { cn } from "@/lib/utils"
 import { removeMember } from "@/app/actions/class-detail"
 import { MemberSkeleton } from "@/components/skeletons"
+import { invalidateClassDetailCollections } from "@/lib/query-invalidation"
 
 type MemberData = {
   id: string
@@ -40,7 +41,7 @@ type PeopleTabProps = {
 }
 
 export function PeopleTab({ classId, userId, userRole, members }: PeopleTabProps) {
-  const router = useRouter()
+  const queryClient = useQueryClient()
   const teachers = members.filter((m) => m.role === "teacher")
   const students = members.filter((m) => m.role === "student")
 
@@ -56,7 +57,7 @@ export function PeopleTab({ classId, userId, userRole, members }: PeopleTabProps
     startRemoveTransition(async () => {
       const res = await removeMember(classId, memberId)
       if (res.success) {
-        router.refresh()
+        await invalidateClassDetailCollections(queryClient, { classId, userId })
       }
       setRemovingId(null)
     })

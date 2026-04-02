@@ -1,7 +1,7 @@
 "use client"
 
+import { useQueryClient } from "@tanstack/react-query"
 import { useEffect, useState, useTransition } from "react"
-import { useRouter } from "next/navigation"
 import { MessageSquare } from "lucide-react"
 
 import { createAnnouncement } from "@/app/actions/class-detail"
@@ -9,6 +9,7 @@ import { AnnouncementCard } from "@/components/classes/announcement-card"
 import { AnnouncementComposer } from "@/components/classes/announcement-composer"
 import { useStreamRealtime } from "@/hooks/classes/use-stream-realtime"
 import { executeWithOfflineHandling } from "@/lib/offline-action-handler"
+import { invalidateClassDetailCollections } from "@/lib/query-invalidation"
 
 import type { AnnouncementData } from "@/types/classes"
 
@@ -21,7 +22,7 @@ type StreamTabProps = {
 }
 
 export function StreamTab({ classId, userId, userRole, announcements, classColor }: StreamTabProps) {
-  const router = useRouter()
+  const queryClient = useQueryClient()
   const [announcementItems, setAnnouncementItems] = useState(announcements)
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -33,7 +34,9 @@ export function StreamTab({ classId, userId, userRole, announcements, classColor
 
   useStreamRealtime({
     classId,
-    router,
+    onUnhandledChange: () => {
+      void invalidateClassDetailCollections(queryClient, { classId, userId })
+    },
     onAnnouncementPayload: (payload) => {
       const nextRecord = payload.new as { id?: string; content?: string } | null
       const prevRecord = payload.old as { id?: string } | null
@@ -121,6 +124,7 @@ export function StreamTab({ classId, userId, userRole, announcements, classColor
       }
 
       setOpen(false)
+      await invalidateClassDetailCollections(queryClient, { classId, userId })
     })
   }
 
@@ -158,6 +162,7 @@ export function StreamTab({ classId, userId, userRole, announcements, classColor
               <AnnouncementCard
                 key={announcement.id}
                 announcement={announcement}
+                classId={classId}
                 userId={userId}
                 classColor={classColor}
                 userRole={userRole}

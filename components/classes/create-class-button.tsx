@@ -1,9 +1,11 @@
 "use client"
 
+import { useQueryClient } from "@tanstack/react-query"
 import { useState, useTransition } from "react"
 import { Plus } from "lucide-react"
 
 import { createClass } from "@/app/actions/classes"
+import { useMainShellState } from "@/components/providers/main-shell-state-provider"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -18,6 +20,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { invalidateClassCollections } from "@/lib/query-invalidation"
 import { cn } from "@/lib/utils"
 
 type CreateClassButtonProps = {
@@ -25,6 +28,8 @@ type CreateClassButtonProps = {
 }
 
 export function CreateClassButton({ iconOnly = false }: CreateClassButtonProps) {
+  const queryClient = useQueryClient()
+  const { userId } = useMainShellState()
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
@@ -59,6 +64,7 @@ export function CreateClassButton({ iconOnly = false }: CreateClassButtonProps) 
       }
 
       setOpen(false)
+      await invalidateClassCollections(queryClient, userId)
     })
   }
 

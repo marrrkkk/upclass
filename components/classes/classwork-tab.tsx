@@ -1,7 +1,7 @@
 "use client"
 
+import { useQueryClient } from "@tanstack/react-query"
 import { useEffect, useState, useTransition } from "react"
-import { useRouter } from "next/navigation"
 import { BookOpen, Edit, Trash2 } from "lucide-react"
 
 import { createClasswork, deleteClasswork, gradeSubmission, submitClasswork, updateClasswork } from "@/app/actions/class-detail"
@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { executeWithOfflineHandling } from "@/lib/offline-action-handler"
+import { invalidateClassDetailCollections } from "@/lib/query-invalidation"
 import { cn } from "@/lib/utils"
 
 type ClassworkTabProps = {
@@ -35,7 +36,7 @@ type ClassworkTabProps = {
 }
 
 export function ClassworkTab({ classId, userId, userRole, classwork, submissions, classColor }: ClassworkTabProps) {
-  const router = useRouter()
+  const queryClient = useQueryClient()
   const [classworkItems, setClassworkItems] = useState(classwork)
   const [submissionItems, setSubmissionItems] = useState(submissions)
   const [createOpen, setCreateOpen] = useState(false)
@@ -58,7 +59,9 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
   useClassworkRealtime({
     classId,
     classwork,
-    router,
+    onUnhandledChange: () => {
+      void invalidateClassDetailCollections(queryClient, { classId, userId })
+    },
     userId,
     userRole,
     onClassworkPayload: (payload) => {
@@ -211,7 +214,7 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
         return
       }
 
-      router.refresh()
+      await invalidateClassDetailCollections(queryClient, { classId, userId })
     })
   }
 
@@ -224,7 +227,7 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
         return
       }
 
-      router.refresh()
+      await invalidateClassDetailCollections(queryClient, { classId, userId })
     })
   }
 
@@ -237,7 +240,7 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
       }
 
       setEditClassworkOpen(null)
-      router.refresh()
+      await invalidateClassDetailCollections(queryClient, { classId, userId })
     })
   }
 
@@ -252,7 +255,7 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
         return
       }
 
-      router.refresh()
+      await invalidateClassDetailCollections(queryClient, { classId, userId })
       setDeletingId(null)
     })
   }

@@ -4,6 +4,7 @@ import dynamic from "next/dynamic"
 import { useEffect, useState } from "react"
 
 import { BackgroundCache } from "@/lib/background-cache"
+import { recordRecentClassVisit } from "@/lib/recent-class-visits"
 import { useClassDetailCache } from "@/hooks/classes/use-class-detail-cache"
 import { usePageHeaderStore } from "@/stores/page-header-store"
 import type {
@@ -113,6 +114,10 @@ export function ClassDetailContentClient({
   useEffect(() => {
     document.title = `${effectiveClassData.title} | UpClass`
   }, [effectiveClassData.title])
+
+  useEffect(() => {
+    recordRecentClassVisit(effectiveClassData.id)
+  }, [effectiveClassData.id])
 
   useClassDetailCache({
     classData: effectiveClassData,

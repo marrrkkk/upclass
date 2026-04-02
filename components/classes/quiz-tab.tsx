@@ -1,5 +1,6 @@
 "use client"
 
+import { useQueryClient } from "@tanstack/react-query"
 import { useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import {
@@ -44,6 +45,7 @@ import {
 } from "@/components/classes/quiz-builder-utils"
 import { createQuiz, deleteQuiz, gradeQuizAttempt, updateQuiz } from "@/app/actions/quizzes"
 import { executeWithOfflineHandling } from "@/lib/offline-action-handler"
+import { invalidateClassDetailCollections } from "@/lib/query-invalidation"
 import type { QuizData } from "@/types/classes"
 
 type QuizTabProps = {
@@ -72,8 +74,9 @@ function formatDateTime(value: string | null) {
   return new Date(value).toLocaleString()
 }
 
-export function QuizTab({ classId, userRole, quizzes, classColor }: QuizTabProps) {
+export function QuizTab({ classId, userId, userRole, quizzes, classColor }: QuizTabProps) {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [createOpen, setCreateOpen] = useState(false)
   const [startQuizId, setStartQuizId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -240,7 +243,7 @@ export function QuizTab({ classId, userRole, quizzes, classColor }: QuizTabProps
       setDueDate(null)
       setTimeLimitSeconds("")
       setQuestions([createDraftQuestion()])
-      router.refresh()
+      await invalidateClassDetailCollections(queryClient, { classId, userId })
     })
   }
 
@@ -250,7 +253,7 @@ export function QuizTab({ classId, userRole, quizzes, classColor }: QuizTabProps
     startDeleteTransition(async () => {
       const res = await deleteQuiz(quizId)
       if (res.success) {
-        router.refresh()
+        await invalidateClassDetailCollections(queryClient, { classId, userId })
       } else {
         setError(res.error)
       }
@@ -313,7 +316,7 @@ export function QuizTab({ classId, userRole, quizzes, classColor }: QuizTabProps
         return
       }
       setEditQuizId(null)
-      router.refresh()
+      await invalidateClassDetailCollections(queryClient, { classId, userId })
     })
   }
 
@@ -447,7 +450,7 @@ export function QuizTab({ classId, userRole, quizzes, classColor }: QuizTabProps
       setReviewQuizId(null)
       setReviewAttemptId(null)
       setReviewGrades({})
-      router.refresh()
+      await invalidateClassDetailCollections(queryClient, { classId, userId })
     })
   }
 
@@ -532,7 +535,7 @@ export function QuizTab({ classId, userRole, quizzes, classColor }: QuizTabProps
 
             const hasAttempt = !!quiz.attempt
             const attemptPendingReview = quiz.attempt?.status === "pending_review"
-            const isDue = quiz.dueDate && new Date(quiz.dueDate) < new Date() && !hasAttempt
+            const isDue = userRole === "student" && quiz.dueDate && new Date(quiz.dueDate) < new Date() && !hasAttempt
             const pendingAttemptsCount = quiz.attempts.filter((attempt) => attempt.status === "pending_review").length
 
             return (
