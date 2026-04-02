@@ -31,6 +31,8 @@ vi.mock("next/link", () => ({
     React.createElement("a", { href, ...props }, children),
 }))
 
+vi.mock("server-only", () => ({}))
+
 if (typeof window !== "undefined") {
   Object.defineProperty(window, "matchMedia", {
     writable: true,
