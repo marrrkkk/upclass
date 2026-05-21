@@ -6,7 +6,7 @@ import { eq, and } from "drizzle-orm"
 
 import { db } from "@/db"
 import { auth } from "@/lib/auth"
-import { classChannels, classes, classMembership, user } from "@/db/schema"
+import { classChannels, classes, classMembership, organization, orgMembership, user } from "@/db/schema"
 import { logActivity } from "@/lib/activity"
 import {
   createClassSchema,
@@ -14,6 +14,7 @@ import {
   updateClassSchema,
 } from "@/lib/validation/actions"
 import { parseFormData } from "@/lib/validation/form-data"
+import { getActiveOrgSlug } from "@/lib/org-context"
 
 type ActionResponse =
   | { success: true; classId?: string }
@@ -28,7 +29,7 @@ export async function createClass(formData: FormData): Promise<ActionResponse> {
     return { success: false, error: "Unauthorized" }
   }
 
-  // Check if user is a teacher
+  // Check if user is a teacher (global role check for non-org context)
   const userData = await db
     .select({ role: user.role })
     .from(user)
@@ -45,6 +46,51 @@ export async function createClass(formData: FormData): Promise<ActionResponse> {
   }
 
   const { title, description, category, color, schedule } = parsed.data
+
+  // Resolve organization context:
+  // 1. Explicit organizationId from form data takes priority
+  // 2. Fall back to active org slug from middleware cookie
+  let organizationId: string | null = null
+  const explicitOrgId = formData.get("organizationId")
+
+  if (explicitOrgId && typeof explicitOrgId === "string" && explicitOrgId.trim()) {
+    organizationId = explicitOrgId.trim()
+  } else {
+    // Try to resolve from active org context
+    const activeSlug = await getActiveOrgSlug()
+    if (activeSlug) {
+      const org = await db
+        .select({ id: organization.id })
+        .from(organization)
+        .where(eq(organization.slug, activeSlug))
+        .limit(1)
+      if (org.length > 0) {
+        organizationId = org[0].id
+      }
+    }
+  }
+
+  // If creating within an org, verify user has teacher/admin role in that org
+  if (organizationId) {
+    const membership = await db
+      .select({ role: orgMembership.role })
+      .from(orgMembership)
+      .where(
+        and(
+          eq(orgMembership.organizationId, organizationId),
+          eq(orgMembership.userId, session.user.id)
+        )
+      )
+      .limit(1)
+
+    if (membership.length === 0) {
+      return { success: false, error: "You are not a member of this organization" }
+    }
+
+    if (membership[0].role === "student") {
+      return { success: false, error: "Only teachers and admins can create classes in an organization" }
+    }
+  }
 
   const classId = crypto.randomUUID()
 
@@ -86,6 +132,7 @@ export async function createClass(formData: FormData): Promise<ActionResponse> {
         color,
         schedule,
         ownerId: session.user.id,
+        organizationId,
       })
 
       await tx.insert(classMembership).values({
@@ -106,7 +153,7 @@ export async function createClass(formData: FormData): Promise<ActionResponse> {
     })
 
     revalidatePath("/classes")
-    revalidatePath("/home")
+    revalidatePath("/")
     revalidatePath("/activity")
 
     await logActivity({
@@ -181,7 +228,7 @@ export async function joinClass(formData: FormData): Promise<ActionResponse> {
     })
 
     revalidatePath("/classes")
-    revalidatePath("/home")
+    revalidatePath("/")
     revalidatePath("/activity")
 
     await logActivity({
@@ -246,7 +293,7 @@ export async function updateClass(classId: string, formData: FormData): Promise<
 
     revalidatePath(`/classes/${classId}`)
     revalidatePath("/classes")
-    revalidatePath("/home")
+    revalidatePath("/")
 
     return { success: true }
   } catch (error) {
@@ -284,7 +331,7 @@ export async function deleteClass(classId: string): Promise<ActionResponse> {
     await db.delete(classes).where(eq(classes.id, classId))
 
     revalidatePath("/classes")
-    revalidatePath("/home")
+    revalidatePath("/")
 
     return { success: true }
   } catch (error) {

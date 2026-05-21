@@ -62,7 +62,7 @@ export async function updateSettings(
 
     revalidatePath("/settings")
     revalidatePath("/user")
-    revalidatePath("/home")
+    revalidatePath("/")
 
     return { success: true }
   } catch (error) {

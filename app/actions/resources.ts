@@ -64,7 +64,7 @@ export async function createResource(formData: FormData): Promise<ActionResponse
     })
 
     revalidatePath("/resources")
-    revalidatePath("/home")
+    revalidatePath("/")
     revalidatePath("/activity")
 
     await logActivity({
@@ -163,7 +163,7 @@ export async function deleteResource(resourceId: string): Promise<ActionResponse
     await db.delete(resources).where(eq(resources.id, resourceId))
 
     revalidatePath("/resources")
-    revalidatePath("/home")
+    revalidatePath("/")
 
     return { success: true }
   } catch (error) {

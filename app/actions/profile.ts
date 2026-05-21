@@ -50,8 +50,7 @@ export async function updateProfile(formData: FormData): Promise<ActionResponse>
       .where(eq(user.id, session.user.id))
 
     revalidatePath("/user")
-    revalidatePath("/onboard")
-    revalidatePath("/home")
+    revalidatePath("/")
 
     return { success: true }
   } catch (error) {

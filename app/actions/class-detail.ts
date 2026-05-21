@@ -112,7 +112,7 @@ export async function createAnnouncement(
     )
 
     revalidatePath(`/classes/${classId}`)
-    revalidatePath("/home")
+    revalidatePath("/")
     revalidatePath("/activity")
 
     await logActivity({
@@ -199,7 +199,7 @@ export async function createClasswork(
     )
 
     revalidatePath(`/classes/${classId}`)
-    revalidatePath("/home")
+    revalidatePath("/")
     revalidatePath("/activity")
 
     await logActivity({
@@ -365,7 +365,7 @@ export async function submitClasswork(
     })
 
     revalidatePath(`/classes/${classworkData[0].classId}`)
-    revalidatePath("/home")
+    revalidatePath("/")
     revalidatePath("/activity")
 
     await logActivity({
@@ -470,7 +470,7 @@ export async function gradeSubmission(
     })
 
     revalidatePath(`/classes/${classworkData[0].classId}`)
-    revalidatePath("/home")
+    revalidatePath("/")
     revalidatePath("/activity")
 
     await logActivity({

@@ -242,7 +242,7 @@ export async function createQuiz(classId: string, formData: FormData): Promise<A
     }
 
     revalidatePath(`/classes/${classId}`)
-    revalidatePath("/home")
+    revalidatePath("/")
     revalidatePath("/activity")
 
     await logActivity({
@@ -513,7 +513,7 @@ export async function submitQuiz(quizId: string, formData: FormData): Promise<Ac
 
     revalidatePath(`/classes/${quizRow[0].classId}`)
     revalidatePath(`/classes/${quizRow[0].classId}/quizzes/${quizId}`)
-    revalidatePath("/home")
+    revalidatePath("/")
     revalidatePath("/activity")
 
     await logActivity({
@@ -663,7 +663,7 @@ export async function gradeQuizAttempt(attemptId: string, formData: FormData): P
 
     revalidatePath(`/classes/${quiz.classId}`)
     revalidatePath(`/classes/${quiz.classId}/quizzes/${quiz.id}`)
-    revalidatePath("/home")
+    revalidatePath("/")
     revalidatePath("/activity")
 
     await logActivity({
