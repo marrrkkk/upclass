@@ -39,7 +39,7 @@ export default function NotFound() {
 
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                     <Button asChild size="lg" className="rounded-full px-8 shadow-md hover:shadow-lg transition-all active:scale-95">
-                        <Link href="/home" className="gap-2">
+                        <Link href="/" className="gap-2">
                             <ArrowLeft className="h-4 w-4" />
                             Back to Home
                         </Link>
