@@ -1,4 +1,4 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   pgEnum,
   pgTable,
@@ -12,6 +12,15 @@ import {
 } from "drizzle-orm/pg-core";
 
 export const userRole = pgEnum("user_role", ["teacher", "student"]);
+
+export const orgRole = pgEnum("org_role", ["admin", "teacher", "student"]);
+
+export const invitationStatus = pgEnum("invitation_status", [
+  "pending",
+  "accepted",
+  "expired",
+  "cancelled",
+]);
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -102,6 +111,7 @@ export const verification = pgTable(
 export const userRelations = relations(user, ({ many }) => ({
   sessions: many(session),
   accounts: many(account),
+  orgMemberships: many(orgMembership),
 }));
 
 export const sessionRelations = relations(session, ({ one }) => ({
@@ -117,6 +127,77 @@ export const accountRelations = relations(account, ({ one }) => ({
     references: [user.id],
   }),
 }));
+
+export const organization = pgTable(
+  "organization",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    slug: text("slug").notNull().unique(),
+    description: text("description"),
+    logo: text("logo"),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+);
+
+export const orgMembership = pgTable(
+  "org_membership",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    role: orgRole("role").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("org_membership_user_idx").on(table.userId),
+    index("org_membership_org_idx").on(table.organizationId),
+    uniqueIndex("org_membership_unique_org_user").on(
+      table.organizationId,
+      table.userId,
+    ),
+  ],
+);
+
+export const orgInvitation = pgTable(
+  "org_invitation",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    role: orgRole("role").notNull(),
+    token: text("token").notNull().unique(),
+    invitedBy: text("invited_by")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    status: invitationStatus("status").notNull().default("pending"),
+    expiresAt: timestamp("expires_at").notNull(),
+    acceptedAt: timestamp("accepted_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("org_invitation_token_idx").on(table.token),
+    index("org_invitation_org_email_idx").on(table.organizationId, table.email),
+    index("org_invitation_org_idx").on(table.organizationId),
+  ],
+);
 
 export const classRole = pgEnum("class_role", ["teacher", "student"]);
 
@@ -134,6 +215,9 @@ export const classes = pgTable(
     ownerId: text("owner_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
+    organizationId: text("organization_id").references(() => organization.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()
@@ -143,6 +227,7 @@ export const classes = pgTable(
   (table) => [
     index("classes_owner_idx").on(table.ownerId),
     index("classes_code_idx").on(table.code),
+    index("classes_organization_idx").on(table.organizationId),
   ],
 );
 
@@ -174,6 +259,10 @@ export const classRelations = relations(classes, ({ many, one }) => ({
   owner: one(user, {
     fields: [classes.ownerId],
     references: [user.id],
+  }),
+  organization: one(organization, {
+    fields: [classes.organizationId],
+    references: [organization.id],
   }),
 }));
 
@@ -232,6 +321,40 @@ export const resourceRelations = relations(resources, ({ one }) => ({
     references: [user.id],
   }),
 }));
+
+export const orgResource = pgTable(
+  "org_resource",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    description: text("description"),
+    category: text("category").default("General"),
+    fileUrl: text("file_url").notNull(),
+    fileName: text("file_name").notNull(),
+    fileType: resourceFileType("file_type").notNull(),
+    fileSize: text("file_size"),
+    uploadedBy: text("uploaded_by")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    sourceClassId: text("source_class_id").references(() => classes.id),
+    sourceResourceId: text("source_resource_id").references(() => resources.id),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("org_resource_org_idx").on(table.organizationId),
+    index("org_resource_uploaded_by_idx").on(table.uploadedBy),
+    uniqueIndex("org_resource_unique_org_source")
+      .on(table.organizationId, table.sourceResourceId)
+      .where(sql`${table.sourceResourceId} IS NOT NULL`),
+  ],
+);
 
 export const announcements = pgTable(
   "announcements",
@@ -949,5 +1072,59 @@ export const whiteboardOperationRelations = relations(whiteboardOperations, ({ o
   user: one(user, {
     fields: [whiteboardOperations.userId],
     references: [user.id],
+  }),
+}));
+
+// Organization relations
+
+export const organizationRelations = relations(organization, ({ one, many }) => ({
+  creator: one(user, {
+    fields: [organization.createdBy],
+    references: [user.id],
+  }),
+  memberships: many(orgMembership),
+  invitations: many(orgInvitation),
+  resources: many(orgResource),
+  classes: many(classes),
+}));
+
+export const orgMembershipRelations = relations(orgMembership, ({ one }) => ({
+  organization: one(organization, {
+    fields: [orgMembership.organizationId],
+    references: [organization.id],
+  }),
+  user: one(user, {
+    fields: [orgMembership.userId],
+    references: [user.id],
+  }),
+}));
+
+export const orgInvitationRelations = relations(orgInvitation, ({ one }) => ({
+  organization: one(organization, {
+    fields: [orgInvitation.organizationId],
+    references: [organization.id],
+  }),
+  inviter: one(user, {
+    fields: [orgInvitation.invitedBy],
+    references: [user.id],
+  }),
+}));
+
+export const orgResourceRelations = relations(orgResource, ({ one }) => ({
+  organization: one(organization, {
+    fields: [orgResource.organizationId],
+    references: [organization.id],
+  }),
+  uploader: one(user, {
+    fields: [orgResource.uploadedBy],
+    references: [user.id],
+  }),
+  sourceClass: one(classes, {
+    fields: [orgResource.sourceClassId],
+    references: [classes.id],
+  }),
+  sourceResource: one(resources, {
+    fields: [orgResource.sourceResourceId],
+    references: [resources.id],
   }),
 }));

@@ -1,55 +1,13 @@
 {
-    "version":  "7",
-    "dialect":  "postgresql",
-    "entries":  [
-                    {
-                        "idx":  0,
-                        "version":  "7",
-                        "when":  1773245714855,
-                        "tag":  "0000_mysterious_storm",
-                        "breakpoints":  true
-                    },
-                    {
-                        "idx":  1,
-                        "version":  "7",
-                        "when":  1773326400000,
-                        "tag":  "0001_whiteboard_ops_realtime",
-                        "breakpoints":  true
-                    },
-                    {
-                        "idx":  2,
-                        "version":  "7",
-                        "when":  1773806400000,
-                        "tag":  "0002_personal_activity_log",
-                        "breakpoints":  true
-                    },
-                    {
-                        "idx":  3,
-                        "version":  "7",
-                        "when":  1773900000000,
-                        "tag":  "0003_whiteboard_snapshots",
-                        "breakpoints":  true
-                    },
-                    {
-                        "idx":  4,
-                        "version":  "7",
-                        "when":  1774123200000,
-                        "tag":  "0004_favorites",
-                        "breakpoints":  true
-                    },
-                    {
-                        "idx":  5,
-                        "version":  "7",
-                        "when":  1775156400000,
-                        "tag":  "0005_assignment_workflow_and_channels",
-                        "breakpoints":  true
-                    },
-                    {
-                        "idx":  6,
-                        "version":  "7",
-                        "when":  1775163600000,
-                        "tag":  "0006_remove_favorites",
-                        "breakpoints":  true
-                    }
-                ]
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1779345134693,
+      "tag": "0000_abandoned_gladiator",
+      "breakpoints": true
+    }
+  ]
 }
