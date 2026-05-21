@@ -41,6 +41,12 @@
       "sourceType": "github",
       "computedHash": "0b8f1e6f78708bc73de3c1fa04c0ad0c3a698fa308fe0311f5078703ca4b6359"
     },
+    "react-doctor": {
+      "source": "millionco/react-doctor",
+      "sourceType": "github",
+      "skillPath": "skills/react-doctor/SKILL.md",
+      "computedHash": "42918936128ec8ce92f940404721448c37c345e4fd36d7580db94d3abff265d3"
+    },
     "react-testing-library": {
       "source": "itechmeat/llm-code",
       "sourceType": "github",

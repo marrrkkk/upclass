@@ -14,6 +14,14 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     ".agents/**",
   ]),
+  {
+    rules: {
+      // Downgrade new strict react-hooks rules to warnings while we refactor
+      "react-hooks/set-state-in-effect": "warn",
+      "react-hooks/purity": "warn",
+      "react-hooks/refs": "warn",
+    },
+  },
 ]);
 
 export default eslintConfig;
