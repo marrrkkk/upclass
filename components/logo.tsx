@@ -19,7 +19,7 @@ const sizeMap = {
 }
 
 export function Logo({ 
-  href = "/home", 
+  href = "/", 
   className, 
   iconClassName,
   textClassName,

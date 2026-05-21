@@ -19,6 +19,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
+import { useOrgStore } from "@/stores/org-store"
 
 type CreateClassButtonProps = {
   iconOnly?: boolean
@@ -31,6 +32,7 @@ export function CreateClassButton({ iconOnly = false }: CreateClassButtonProps) 
   const [selectedColor, setSelectedColor] = useState("#3b82f6")
   const [selectedDays, setSelectedDays] = useState<string[]>([])
   const [selectedTime, setSelectedTime] = useState("")
+  const activeOrgId = useOrgStore((s) => s.activeOrgId)
 
   const handleCreate = async (formData: FormData) => {
     setError(null)
@@ -210,6 +212,11 @@ export function CreateClassButton({ iconOnly = false }: CreateClassButtonProps) 
               <input type="hidden" name="color" value={selectedColor} />
             </div>
           </div>
+
+          {/* Pass organization context when active */}
+          {activeOrgId && (
+            <input type="hidden" name="organizationId" value={activeOrgId} />
+          )}
 
           {error && (
             <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive font-medium border border-destructive/20 animate-in fade-in slide-in-from-bottom-2">

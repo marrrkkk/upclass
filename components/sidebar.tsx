@@ -22,7 +22,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Logo } from "@/components/logo"
 
 const navItems = [
-  { label: "Home", href: "/home", icon: Home },
+  { label: "Home", href: "/", icon: Home },
   { label: "Activity", href: "/activity", icon: Activity },
   { label: "Classes", href: "/classes", icon: GraduationCap },
   { label: "Resources", href: "/resources", icon: FolderOpen },
@@ -56,7 +56,7 @@ export function Sidebar({
   onClose,
 }: SidebarProps = {}) {
   const pathname = usePathname()
-  const currentPath = pathname || "/home"
+  const currentPath = pathname || "/"
   const currentUserInfo = userInfo
   const currentUserId = userId
   const [isScrolling, setIsScrolling] = useState(false)
@@ -93,7 +93,7 @@ export function Sidebar({
     >
       {/* Header */}
       <div className="flex items-center justify-between p-4 h-[4rem] border-b border-border/40">
-        <Logo href="/home" size="md" onClick={onNavigate} />
+        <Logo href="/" size="md" onClick={onNavigate} />
         <Button
           variant="ghost"
           size="icon"
@@ -120,7 +120,7 @@ export function Sidebar({
           <nav className="space-y-0.5">
             {navItems.map((item) => {
               const Icon = item.icon
-              const isActive = currentPath === item.href || (item.href !== "/home" && currentPath?.startsWith(item.href))
+              const isActive = currentPath === item.href || (item.href !== "/" && currentPath?.startsWith(item.href))
               return (
                 <Link
                   key={item.label}

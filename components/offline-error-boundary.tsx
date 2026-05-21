@@ -194,7 +194,7 @@ export class OfflineErrorBoundary extends Component<Props, State> {
                 Retry
               </Button>
               <Button variant="outline" asChild className="w-full">
-                <Link href="/home">
+                <Link href="/">
                   <Home className="mr-2 h-4 w-4" />
                   Go to Home
                 </Link>

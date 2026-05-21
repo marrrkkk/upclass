@@ -35,7 +35,7 @@ export default function SocialButton({
       onClick={async () => {
         await authClient.signIn.social({
           provider,
-          callbackURL: "/home",
+          callbackURL: "/",
         });
       }}
       type="button"
