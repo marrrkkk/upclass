@@ -25,20 +25,20 @@ export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
     schema
-    // optionally, you can pass schema/table config here
-    // e.g. { schema: { user: ..., session: ..., account: ..., verification: ... } }
   }),
+  // Enable email + password authentication
+  emailAndPassword: {
+    enabled: true,
+  },
   // enable OAuth providers:
   socialProviders: {
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     },
-    // ... other providers if you like
   },
   // configure session/cookies as needed
   session: {
     cookieCache: { enabled: true },
   },
-  // other settings (email/password if you want fallback, etc.)
 });
