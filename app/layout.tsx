@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from "next"
+import { GeistSans } from "geist/font/sans"
+import { GeistMono } from "geist/font/mono"
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 
@@ -79,8 +81,8 @@ export const viewport: Viewport = {
   maximumScale: 5,
   userScalable: true,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "hsl(var(--primary))" },
-    { media: "(prefers-color-scheme: dark)", color: "hsl(var(--primary))" },
+    { media: "(prefers-color-scheme: light)", color: "#2f9fee" },
+    { media: "(prefers-color-scheme: dark)", color: "#2f9fee" },
   ],
 }
 
@@ -90,7 +92,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`} suppressHydrationWarning>
       <body className="font-sans antialiased" suppressHydrationWarning>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           {children}

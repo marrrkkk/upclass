@@ -7,7 +7,6 @@ const IMAGE_CACHE = `upclass-images-${SW_VERSION}`;
 
 const CORE_ROUTES = [
   "/",
-  "/home",
   "/activity",
   "/classes",
   "/resources",
