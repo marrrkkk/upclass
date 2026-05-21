@@ -8,8 +8,8 @@ const alertVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-background text-foreground",
-        destructive: "border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive",
+        default: "alert-surface text-foreground",
+        destructive: "alert-destructive-surface border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive",
       },
     },
     defaultVariants: {
@@ -26,8 +26,8 @@ function Alert({
   return <div role="alert" className={cn(alertVariants({ variant }), className)} {...props} />
 }
 
-function AlertTitle({ className, ...props }: React.ComponentProps<"h5">) {
-  return <h5 className={cn("mb-1 font-medium leading-none tracking-tight", className)} {...props} />
+function AlertTitle({ className, children, ...props }: React.ComponentProps<"h5">) {
+  return <h5 className={cn("mb-1 font-medium leading-none tracking-tight", className)} {...props}>{children}</h5>
 }
 
 function AlertDescription({ className, ...props }: React.ComponentProps<"div">) {

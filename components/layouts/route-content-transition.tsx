@@ -16,7 +16,7 @@ import {
 } from "@/components/skeletons"
 
 function RouteFallback({ pathname }: { pathname: string }) {
-  if (pathname === "/home") {
+  if (pathname === "/") {
     return (
       <div className="space-y-6">
         <GenericPageSkeleton />
