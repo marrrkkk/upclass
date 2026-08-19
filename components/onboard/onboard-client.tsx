@@ -1,18 +1,47 @@
 "use client"
 
-import { useState, useTransition, useRef } from "react"
+import { useRef, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { Upload, User as UserIcon, GraduationCap, BookOpen, X, ChevronRight, ChevronLeft, Check, Sparkles, School } from "lucide-react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
-import { Button, buttonVariants } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  GraduationCap,
+  School,
+  Upload,
+  UserRound,
+} from "lucide-react"
+
 import { updateProfile } from "@/app/actions/profile"
-import { useUploadThing } from "@/lib/uploadthing"
-import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { Callout } from "@/components/ui/callout"
+import { EntityAvatar } from "@/components/ui/entity-avatar"
+import { Field, FieldGroup, FieldHelp, FieldLabel } from "@/components/ui/field"
+import { IconBadge } from "@/components/ui/icon-badge"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
+import { Panel, PanelBody, PanelFooter } from "@/components/ui/panel"
 import { Progress } from "@/components/ui/progress"
+import { PageContainer, PageHeading } from "@/components/ui/section"
+import { StatusBadge } from "@/components/ui/status-badge"
+import { Text } from "@/components/ui/typography"
+import { Textarea } from "@/components/ui/textarea"
+import { useSupabaseUpload } from "@/lib/supabase-storage"
+import { cn } from "@/lib/utils"
+
+const roleOptions = [
+  {
+    value: "teacher",
+    title: "Teacher",
+    description: "Create classes, publish coursework, and follow student progress.",
+    icon: School,
+  },
+  {
+    value: "student",
+    title: "Student",
+    description: "Join classes, submit work, and collaborate with classmates.",
+    icon: GraduationCap,
+  },
+] as const
 
 type OnboardClientProps = {
   initialData?: {
@@ -28,21 +57,17 @@ export function OnboardClient({ initialData }: OnboardClientProps) {
   const router = useRouter()
   const [step, setStep] = useState(1)
   const totalSteps = 2
-
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
-
-  // Form State
   const [selectedRole, setSelectedRole] = useState<"teacher" | "student" | null>(
-    initialData?.role || null
+    initialData?.role || null,
   )
   const [name, setName] = useState(initialData?.name || "")
   const [bio, setBio] = useState(initialData?.bio || "")
-  const [imageUrl, setImageUrl] = useState<string>(initialData?.image || "")
+  const [imageUrl, setImageUrl] = useState(initialData?.image || "")
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
-
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { startUpload, isUploading } = useUploadThing("imageUploader")
+  const { startUpload, isUploading } = useSupabaseUpload("avatars")
 
   const handleNext = () => {
     if (step === 1 && !selectedRole) {
@@ -50,12 +75,12 @@ export function OnboardClient({ initialData }: OnboardClientProps) {
       return
     }
     setError(null)
-    setStep((prev) => Math.min(prev + 1, totalSteps))
+    setStep((previous) => Math.min(previous + 1, totalSteps))
   }
 
   const handleBack = () => {
     setError(null)
-    setStep((prev) => Math.max(prev - 1, 1))
+    setStep((previous) => Math.max(previous - 1, 1))
   }
 
   const handleSubmit = async () => {
@@ -77,251 +102,224 @@ export function OnboardClient({ initialData }: OnboardClientProps) {
       formData.append("name", name)
       formData.append("bio", bio)
 
-      // Upload image if selected
       if (selectedFile) {
         try {
           const uploadResult = await startUpload([selectedFile])
           if (uploadResult && uploadResult[0]) {
-            formData.append("image", uploadResult[0].ufsUrl || uploadResult[0].url || "")
+            formData.append("image", uploadResult[0].url || "")
           }
-        } catch (err) {
+        } catch {
           setError("Failed to upload image")
           return
         }
       } else if (imageUrl && !imageUrl.startsWith("data:")) {
-        // Keep existing image URL if it's not a data URL
         formData.append("image", imageUrl)
       }
 
-      const res = await updateProfile(formData)
-      if (!res.success) {
-        setError(res.error)
+      const result = await updateProfile(formData)
+      if (!result.success) {
+        setError(result.error)
         return
       }
-      router.push("/home")
+
+      router.push("/org")
       router.refresh()
     })
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setSelectedFile(file)
-      setError(null)
-      // Preview image
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setImageUrl(reader.result as string)
-      }
-      reader.readAsDataURL(file)
-    }
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setSelectedFile(file)
+    setError(null)
+    const reader = new FileReader()
+    reader.onloadend = () => setImageUrl(reader.result as string)
+    reader.readAsDataURL(file)
   }
 
-  const progress = (step / totalSteps) * 100
+  const saving = pending || isUploading
+  const heading = step === 1 ? "Choose your role" : "Complete your profile"
+  const description =
+    step === 1
+      ? "Select how you will use UpClass. You can update your profile details later."
+      : "Add the name and optional details classmates and colleagues will recognize."
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[80vh] w-full max-w-4xl mx-auto p-4 gap-8">
-      {/* Progress Indicator */}
-      <div className="w-full max-w-xl space-y-2">
-        <div className="flex justify-between text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          <span>Role Selection</span>
-          <span>Profile Details</span>
+    <PageContainer
+      width="narrow"
+      className="flex min-h-[80vh] flex-col justify-center px-4 py-8 sm:px-6"
+    >
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Text variant="overline" tone={step === 1 ? "primary" : "muted"}>
+            Role
+          </Text>
+          <Text variant="overline" tone={step === 2 ? "primary" : "muted"}>
+            Profile
+          </Text>
         </div>
-        <Progress value={progress} className="h-2" />
+        <Progress value={(step / totalSteps) * 100} aria-label={`Step ${step} of ${totalSteps}`} />
       </div>
 
-      <Card className="w-full max-w-2xl border-0 shadow-2xl bg-card/50 backdrop-blur-xl ring-1 ring-white/10 overflow-hidden">
+      <PageHeading
+        eyebrow={`Profile setup · Step ${step} of ${totalSteps}`}
+        title={heading}
+        description={description}
+        media={
+          <IconBadge tone="primary" size="lg">
+            {step === 1 ? <GraduationCap /> : <UserRound />}
+          </IconBadge>
+        }
+      />
 
-
-        <div className="p-8">
-          {/* Header */}
-          <div className="text-center space-y-2 mb-8">
-            <h1 className="text-3xl font-bold tracking-tight">
-              {step === 1 ? "Choose your path" : "Tell us about yourself"}
-            </h1>
-            <p className="text-muted-foreground">
-              {step === 1
-                ? "Select how you'll be using UpClass to get a tailored experience."
-                : "Complete your profile to help others recognize you."}
-            </p>
-          </div>
-
-          <div className="min-h-[400px] flex flex-col">
-
-            {/* Step 1: Role Selection */}
-            {step === 1 && (
-              <div className="grid gap-6 md:grid-cols-2 animate-in fade-in slide-in-from-right-8 duration-500">
-                <button
-                  type="button"
-                  onClick={() => { setSelectedRole("teacher"); setError(null); }}
-                  className={cn(
-                    "relative group flex flex-col items-center gap-4 rounded-xl border-2 p-8 text-center transition-all duration-300 hover:scale-[1.02]",
-                    selectedRole === "teacher"
-                      ? "border-blue-600 bg-blue-50/50 dark:bg-blue-950/20 shadow-xl shadow-blue-500/10"
-                      : "border-border hover:border-blue-300/50 hover:bg-muted/30",
-                  )}
-                >
-                  {selectedRole === "teacher" && (
-                    <div className="absolute top-3 right-3 text-blue-600 bg-white rounded-full p-0.5 shadow-sm">
-                      <Check className="h-4 w-4" strokeWidth={3} />
-                    </div>
-                  )}
-                  <div className={cn(
-                    "rounded-2xl p-4 transition-colors duration-300",
-                    selectedRole === "teacher" ? "bg-blue-600 text-white shadow-lg shadow-blue-600/30" : "bg-muted text-muted-foreground group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 group-hover:text-blue-600"
-                  )}>
-                    <School className="h-10 w-10" />
-                  </div>
-                  <div className="space-y-2">
-                    <h3 className="font-bold text-xl">I am a Teacher</h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      Create classrooms, design curriculum, assignments, and track student progress.
-                    </p>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => { setSelectedRole("student"); setError(null); }}
-                  className={cn(
-                    "relative group flex flex-col items-center gap-4 rounded-xl border-2 p-8 text-center transition-all duration-300 hover:scale-[1.02]",
-                    selectedRole === "student"
-                      ? "border-purple-600 bg-purple-50/50 dark:bg-purple-950/20 shadow-xl shadow-purple-500/10"
-                      : "border-border hover:border-purple-300/50 hover:bg-muted/30",
-                  )}
-                >
-                  {selectedRole === "student" && (
-                    <div className="absolute top-3 right-3 text-purple-600 bg-white rounded-full p-0.5 shadow-sm">
-                      <Check className="h-4 w-4" strokeWidth={3} />
-                    </div>
-                  )}
-                  <div className={cn(
-                    "rounded-2xl p-4 transition-colors duration-300",
-                    selectedRole === "student" ? "bg-purple-600 text-white shadow-lg shadow-purple-600/30" : "bg-muted text-muted-foreground group-hover:bg-purple-100 dark:group-hover:bg-purple-900/30 group-hover:text-purple-600"
-                  )}>
-                    <GraduationCap className="h-10 w-10" />
-                  </div>
-                  <div className="space-y-2">
-                    <h3 className="font-bold text-xl">I am a Student</h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      Join classes, submit your work, collaborate with peers, and learn new skills.
-                    </p>
-                  </div>
-                </button>
+      <Panel padding="none" className="overflow-hidden">
+        {step === 1 ? (
+          <PanelBody className="p-0">
+            <fieldset>
+              <legend className="sr-only">Account role</legend>
+              <div className="divide-y divide-hairline">
+                {roleOptions.map((option) => {
+                  const selected = selectedRole === option.value
+                  return (
+                    <label
+                      key={option.value}
+                      className={cn(
+                        "row-interactive flex cursor-pointer items-start gap-4 px-5 py-5 text-left",
+                        selected && "bg-primary-surface",
+                      )}
+                    >
+                      <input
+                        type="radio"
+                        name="account-role"
+                        value={option.value}
+                        checked={selected}
+                        required
+                        onChange={() => {
+                          setSelectedRole(option.value)
+                          setError(null)
+                        }}
+                        className="mt-3 size-4 shrink-0 accent-primary"
+                      />
+                      <IconBadge tone={selected ? "primary" : "neutral"} size="md">
+                        <option.icon />
+                      </IconBadge>
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <Text variant="h4" as="span">
+                          {option.title}
+                        </Text>
+                        <Text variant="small" tone="muted">
+                          {option.description}
+                        </Text>
+                      </div>
+                      {selected ? (
+                        <StatusBadge tone="primary">
+                          <Check aria-hidden="true" />
+                          Selected
+                        </StatusBadge>
+                      ) : null}
+                    </label>
+                  )
+                })}
               </div>
-            )}
-
-            {/* Step 2: Profile Details */}
-            {step === 2 && (
-              <div className="space-y-8 max-w-md mx-auto w-full animate-in fade-in slide-in-from-right-8 duration-500">
-                {/* Avatar Upload */}
-                <div className="flex flex-col items-center gap-4">
-                  <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                    <Avatar className="h-32 w-32 border-4 border-background shadow-xl">
-                      <AvatarImage src={imageUrl || undefined} alt="Profile" className="object-cover" />
-                      <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-500 text-white text-4xl">
-                        {(name?.[0] || "").toUpperCase() || <UserIcon className="h-12 w-12" />}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Upload className="h-8 w-8 text-white" />
-                    </div>
-                    <div className="absolute bottom-0 right-0 bg-primary text-white p-2 rounded-full shadow-lg border-2 border-background">
-                      <Sparkles className="h-4 w-4" />
-                    </div>
-                  </div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                  <div className="text-center">
-                    <p className="text-sm font-medium">Upload a photo</p>
-                    <p className="text-xs text-muted-foreground">JPG, PNG or GIF (max 4MB)</p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Full Name</Label>
-                    <Input
-                      id="name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="e.g. John Doe"
-                      className="h-11"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="bio">Bio <span className="text-muted-foreground font-normal">(Optional)</span></Label>
-                    <Textarea
-                      id="bio"
-                      value={bio}
-                      onChange={(e) => setBio(e.target.value)}
-                      placeholder="Share a bit about yourself..."
-                      className="min-h-[100px] resize-none"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {error && (
-              <div className="mt-6 p-4 rounded-lg bg-destructive/10 text-destructive text-sm font-medium text-center animate-in fade-in slide-in-from-bottom-2">
-                {error}
-              </div>
-            )}
-
-            {/* Navigation Actions */}
-            <div className="mt-auto pt-8 flex items-center justify-between">
-              <Button
-                variant="ghost"
-                onClick={handleBack}
-                disabled={step === 1 || pending || isUploading}
-                className={cn("", step === 1 && "invisible")}
-              >
-                <ChevronLeft className="mr-2 h-4 w-4" /> Back
-              </Button>
-
-              {step < totalSteps ? (
-                <Button
-                  onClick={handleNext}
-                  disabled={!selectedRole}
-                  className="min-w-[140px] h-11 text-base shadow-lg shadow-primary/20 hover:shadow-primary/30"
-                >
-                  Continue <ChevronRight className="ml-2 h-4 w-4" />
+            </fieldset>
+          </PanelBody>
+        ) : (
+          <PanelBody className="space-y-6">
+            <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+              <EntityAvatar
+                name={name || initialData?.email || "Profile"}
+                image={imageUrl || undefined}
+                colorKey={initialData?.email || name || "profile"}
+                size="xl"
+              />
+              <div className="space-y-2">
+                <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
+                  <Upload aria-hidden="true" />
+                  Choose a photo
                 </Button>
-              ) : (
-                <Button
-                  onClick={handleSubmit}
-                  disabled={pending || isUploading || !name.trim()}
-                  className="min-w-[140px] h-11 text-base shadow-lg shadow-primary/20 hover:shadow-primary/30 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 border-0"
-                >
-                  {pending || isUploading ? (
-                    <span className="flex items-center gap-2">
-                      <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Creating...
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-2">
-                      Get Started <Sparkles className="h-4 w-4" />
-                    </span>
-                  )}
-                </Button>
-              )}
+                <Text variant="caption" tone="muted">
+                  JPG, PNG or GIF, up to 4 MB.
+                </Text>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="sr-only"
+                tabIndex={-1}
+              />
             </div>
-          </div>
-        </div>
-      </Card>
 
-      {/* Help Text */}
-      <p className="text-center text-xs text-muted-foreground">
-        Need help? Contact support if you are unsure which role to choose.
-      </p>
-    </div>
+            <FieldGroup>
+              <Field>
+                <FieldLabel htmlFor="name">Full name</FieldLabel>
+                <Input
+                  id="name"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="e.g. John Doe"
+                  autoComplete="name"
+                  disabled={saving}
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="bio" optional>
+                  Bio
+                </FieldLabel>
+                <Textarea
+                  id="bio"
+                  value={bio}
+                  onChange={(event) => setBio(event.target.value)}
+                  placeholder="Share a little about yourself"
+                  rows={4}
+                  disabled={saving}
+                />
+                <FieldHelp>A short introduction for people in your classes.</FieldHelp>
+              </Field>
+            </FieldGroup>
+          </PanelBody>
+        )}
+
+        {error ? (
+          <div className="px-5 pb-5">
+            <Callout tone="danger" role="alert">
+              {error}
+            </Callout>
+          </div>
+        ) : null}
+
+        <PanelFooter className="justify-between">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={handleBack}
+            disabled={step === 1 || saving}
+            className={cn(step === 1 && "invisible")}
+          >
+            <ChevronLeft aria-hidden="true" />
+            Back
+          </Button>
+
+          {step < totalSteps ? (
+            <Button type="button" onClick={handleNext} disabled={!selectedRole}>
+              Continue
+              <ChevronRight aria-hidden="true" />
+            </Button>
+          ) : (
+            <Button type="button" onClick={handleSubmit} disabled={saving || !name.trim()} isLoading={saving}>
+              {saving ? "Saving profile..." : "Get started"}
+              {!saving ? <ChevronRight aria-hidden="true" /> : null}
+            </Button>
+          )}
+        </PanelFooter>
+      </Panel>
+
+      <Text variant="caption" tone="subtle" className="text-center">
+        Need help choosing a role? Contact support before continuing.
+      </Text>
+    </PageContainer>
   )
 }
-

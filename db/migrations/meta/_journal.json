@@ -1,55 +1,132 @@
 {
-    "version":  "7",
-    "dialect":  "postgresql",
-    "entries":  [
-                    {
-                        "idx":  0,
-                        "version":  "7",
-                        "when":  1773245714855,
-                        "tag":  "0000_mysterious_storm",
-                        "breakpoints":  true
-                    },
-                    {
-                        "idx":  1,
-                        "version":  "7",
-                        "when":  1773326400000,
-                        "tag":  "0001_whiteboard_ops_realtime",
-                        "breakpoints":  true
-                    },
-                    {
-                        "idx":  2,
-                        "version":  "7",
-                        "when":  1773806400000,
-                        "tag":  "0002_personal_activity_log",
-                        "breakpoints":  true
-                    },
-                    {
-                        "idx":  3,
-                        "version":  "7",
-                        "when":  1773900000000,
-                        "tag":  "0003_whiteboard_snapshots",
-                        "breakpoints":  true
-                    },
-                    {
-                        "idx":  4,
-                        "version":  "7",
-                        "when":  1774123200000,
-                        "tag":  "0004_favorites",
-                        "breakpoints":  true
-                    },
-                    {
-                        "idx":  5,
-                        "version":  "7",
-                        "when":  1775156400000,
-                        "tag":  "0005_assignment_workflow_and_channels",
-                        "breakpoints":  true
-                    },
-                    {
-                        "idx":  6,
-                        "version":  "7",
-                        "when":  1775163600000,
-                        "tag":  "0006_remove_favorites",
-                        "breakpoints":  true
-                    }
-                ]
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1773245714855,
+      "tag": "0000_mysterious_storm",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1773326400000,
+      "tag": "0001_whiteboard_ops_realtime",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1773806400000,
+      "tag": "0002_personal_activity_log",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1773900000000,
+      "tag": "0003_whiteboard_snapshots",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1774123200000,
+      "tag": "0004_favorites",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1775156400000,
+      "tag": "0005_assignment_workflow_and_channels",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1775163600000,
+      "tag": "0006_remove_favorites",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1785807472683,
+      "tag": "0007_sturdy_secret_warriors",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1786084520017,
+      "tag": "0008_resource_ai_conversations",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1786704099290,
+      "tag": "0009_gifted_marrow",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1786853586574,
+      "tag": "0010_fixed_famine",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1787047853678,
+      "tag": "0011_small_patch",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1787061433122,
+      "tag": "0012_last_hydra",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1787150000000,
+      "tag": "0013_resource_org_scope",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1787200000000,
+      "tag": "0014_onboarding_and_roles",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1787250000000,
+      "tag": "0015_add_resource_surface",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1787300000000,
+      "tag": "0016_migrate_resource_conversations",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1787400000000,
+      "tag": "0017_structured_class_and_resource",
+      "breakpoints": true
+    }
+  ]
 }

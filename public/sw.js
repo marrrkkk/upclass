@@ -1,4 +1,4 @@
-const SW_VERSION = "v6";
+const SW_VERSION = "v7";
 const STATIC_CACHE = `upclass-static-${SW_VERSION}`;
 const APP_SHELL_CACHE = `upclass-app-shell-${SW_VERSION}`;
 const ROUTE_CACHE = `upclass-routes-${SW_VERSION}`;
@@ -7,8 +7,8 @@ const IMAGE_CACHE = `upclass-images-${SW_VERSION}`;
 
 const CORE_ROUTES = [
   "/",
-  "/home",
-  "/activity",
+  "/dashboard",
+  "/calendar",
   "/classes",
   "/resources",
   "/messages",
@@ -66,7 +66,7 @@ function isImageRequest(request, url) {
 }
 
 function shouldHandleCrossOriginImage(url) {
-  return url.hostname.includes("uploadthing.com") || url.hostname.includes("supabase.co");
+  return url.hostname.includes("supabase.co");
 }
 
 function buildOfflinePage(pathname = "/") {
@@ -144,7 +144,7 @@ function buildOfflinePage(pathname = "/") {
     <p>${pageLabel} needs a connection right now or needs to be opened once while online so it can be cached on this device.</p>
     <div class="actions">
       <button onclick="location.reload()">Try again</button>
-      <a href="javascript:history.length > 1 ? history.back() : location.assign('/home')">Go back</a>
+      <a href="javascript:history.length > 1 ? history.back() : location.assign('/dashboard')">Go back</a>
     </div>
   </main>
 </body>

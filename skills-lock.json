@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "caveman": {
+      "source": "juliusbrussee/caveman",
+      "sourceType": "github",
+      "skillPath": "skills/caveman/SKILL.md",
+      "computedHash": "48646eeec87b27067502d8bd450484faf08af588df783706b1571ee72f2d918c"
+    },
     "changelog-maintenance": {
       "source": "supercent-io/skills-template",
       "sourceType": "github",
@@ -14,12 +20,31 @@
     "frontend-design": {
       "source": "anthropics/skills",
       "sourceType": "github",
-      "computedHash": "063a0e6448123cd359ad0044cc46b0e490cc7964d45ef4bb9fd842bd2ffbca67"
+      "skillPath": "skills/frontend-design/SKILL.md",
+      "computedHash": "93f53fd1c0352d3d7ec17b8f73d7351bf76f4821e55d123c9d2abc2c53ba48e4"
     },
     "git-commit": {
       "source": "github/awesome-copilot",
       "sourceType": "github",
       "computedHash": "2607fc60629b82b257136dd2a7a373f0a4466c0b49df7746d845d59313c99b21"
+    },
+    "handoff": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/productivity/handoff/SKILL.md",
+      "computedHash": "7b03a812d5ca10fa8fe69d4cf8a34542684db51f5db0271254b96074e9f3a243"
+    },
+    "impeccable": {
+      "source": "pbakaus/impeccable",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/impeccable/SKILL.md",
+      "computedHash": "b6963d62c634e16e147b711bad79d095c62b8ffc17c632bd4e06e211f415e80f"
+    },
+    "minimalist-ui": {
+      "source": "leonxlnx/taste-skill",
+      "sourceType": "github",
+      "skillPath": "skills/minimalist-skill/SKILL.md",
+      "computedHash": "7e88897e0371184e97a82b8d9ef080323c13f21eb067b58ef71eb05173a08ac2"
     },
     "next-best-practices": {
       "source": "vercel-labs/next-skills",
@@ -69,7 +94,8 @@
     "ui-ux-pro-max": {
       "source": "nextlevelbuilder/ui-ux-pro-max-skill",
       "sourceType": "github",
-      "computedHash": "0a413bf988d06481f69bb81df2070741c3ba12dd9f1be2706d57f259c905992d"
+      "skillPath": ".claude/skills/ui-ux-pro-max/SKILL.md",
+      "computedHash": "6cb585d36a0d0418986bc8449bc0c8ff216344d692e08245d7f9e7414fee11a6"
     },
     "vitest": {
       "source": "sablier-labs/agent-skills",

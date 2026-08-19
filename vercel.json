@@ -1,5 +1,9 @@
 {
   "buildCommand": "npm run build:vercel",
+  "crons": [
+    { "path": "/api/cron/token-log-cleanup", "schedule": "0 3 * * *" },
+    { "path": "/api/cron/message-notifications", "schedule": "* * * * *" }
+  ],
   "git": {
     "deploymentEnabled": {
       "*": false,

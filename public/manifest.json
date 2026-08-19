@@ -3,11 +3,11 @@
   "short_name": "UpClass",
   "description": "UpClass is a learning management system for managing classes, collaborating live, and keeping classroom work moving.",
   "id": "/",
-  "start_url": "/home",
+  "start_url": "/dashboard",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#2563eb",
+  "background_color": "#f7f8fa",
+  "theme_color": "#0075de",
   "orientation": "portrait-primary",
   "icons": [
     {
@@ -33,10 +33,10 @@
       "icons": [{ "src": "/icon.svg", "sizes": "any" }]
     },
     {
-      "name": "Home",
-      "short_name": "Home",
-      "description": "Go to home",
-      "url": "/home",
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "Go to your dashboard",
+      "url": "/dashboard",
       "icons": [{ "src": "/icon.svg", "sizes": "any" }]
     }
   ]
