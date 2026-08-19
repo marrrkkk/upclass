@@ -2,17 +2,23 @@
 
 import { useEffect, useRef, useState, useTransition } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { ArrowLeft, Hash, Paperclip, Send, X } from "lucide-react"
+import { usePathname, useRouter } from "next/navigation"
+import { ArrowLeft, FileText, Hash, Paperclip, Send, Users, X } from "lucide-react"
 
 import { markChannelAsRead, sendChannelMessage } from "@/app/actions/messages"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button, buttonVariants } from "@/components/ui/button"
+import { Callout } from "@/components/ui/callout"
+import { EmptyState } from "@/components/ui/empty-state"
+import { EntityAvatar } from "@/components/ui/entity-avatar"
 import { Input } from "@/components/ui/input"
-import { useUploadThing } from "@/lib/uploadthing"
-import { cn } from "@/lib/utils"
-import { supabase } from "@/lib/supabase-client"
+import { Panel } from "@/components/ui/panel"
+import { StatusBadge } from "@/components/ui/status-badge"
+import { Text } from "@/components/ui/typography"
 import { executeWithOfflineHandling } from "@/lib/offline-action-handler"
+import { supabase } from "@/lib/supabase-client"
+import { authorizeSupabaseRealtime } from "@/lib/supabase-realtime-auth"
+import { useSupabaseUpload } from "@/lib/supabase-storage"
+import { cn } from "@/lib/utils"
 
 type MediaFile = {
   url: string
@@ -27,6 +33,7 @@ type ChannelMessage = {
   content: string
   media: MediaFile[] | null
   createdAt: string
+  clientMessageId?: string | null
   sender: {
     id: string
     name: string
@@ -40,6 +47,8 @@ type ClassChannelChatClientProps = {
   classColor: string
   currentUserId: string
   messages: ChannelMessage[]
+  orgSlug?: string
+  hasMore?: boolean
 }
 
 export function ClassChannelChatClient({
@@ -48,14 +57,19 @@ export function ClassChannelChatClient({
   classColor,
   currentUserId,
   messages: initialMessages,
+  orgSlug: orgSlugProp,
 }: ClassChannelChatClientProps) {
   const router = useRouter()
+  const pathname = usePathname()
+  const orgSlug = orgSlugProp || pathname?.split('/')[1] || ''
+  const messagesPath = orgSlug ? `/${orgSlug}/messages` : '/messages'
+
   const [messages, setMessages] = useState(initialMessages)
   const [newMessage, setNewMessage] = useState("")
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
-  const { startUpload, isUploading } = useUploadThing("submissionAttachmentUploader")
+  const { startUpload, isUploading } = useSupabaseUpload("media")
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -73,7 +87,11 @@ export function ClassChannelChatClient({
   useEffect(() => {
     if (!supabase) return
 
-    const channel = supabase
+    let channel: ReturnType<typeof supabase.channel> | null = null
+    let cancelled = false
+    void authorizeSupabaseRealtime().then((authorized) => {
+      if (!authorized || cancelled || !supabase) return
+      channel = supabase
       .channel(`class-channel:${channelId}`)
       .on(
         "postgres_changes",
@@ -88,9 +106,11 @@ export function ClassChannelChatClient({
         },
       )
       .subscribe()
+    })
 
     return () => {
-      supabase?.removeChannel(channel)
+      cancelled = true
+      if (channel) supabase?.removeChannel(channel)
     }
   }, [channelId, router])
 
@@ -109,7 +129,7 @@ export function ClassChannelChatClient({
       }
 
       uploadedMedia = uploads.map((file) => ({
-        url: file.ufsUrl || file.url || "",
+        url: file.url || "",
         type: file.type || "application/octet-stream",
         name: file.name || "Attachment",
         size: file.size?.toString() || null,
@@ -118,13 +138,22 @@ export function ClassChannelChatClient({
 
     startTransition(async () => {
       const mediaJson = uploadedMedia.length ? JSON.stringify(uploadedMedia) : undefined
+      const clientMessageId = crypto.randomUUID()
       const result = await executeWithOfflineHandling(
-        () => sendChannelMessage(channelId, newMessage.trim(), mediaJson),
-        "send-channel-message",
-        {
+        () => sendChannelMessage({
+          orgSlug,
           channelId,
           content: newMessage.trim(),
           media: mediaJson,
+          clientMessageId,
+        }),
+        "send-channel-message",
+        {
+          orgSlug,
+          channelId,
+          content: newMessage.trim(),
+          media: mediaJson,
+          clientMessageId,
         },
       )
 
@@ -144,98 +173,227 @@ export function ClassChannelChatClient({
   }
 
   return (
-    <div className="flex h-[calc(100vh-12rem)] flex-col overflow-hidden rounded-lg border bg-background shadow-sm">
-      <div className="flex items-center gap-3 border-b bg-card/50 p-3">
-        <Link href="/messages" className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "md:hidden")}>
-          <ArrowLeft className="h-5 w-5" />
-        </Link>
-        <div
-          className="flex h-10 w-10 items-center justify-center rounded-2xl text-white"
-          style={{ backgroundColor: classColor }}
-        >
-          <Hash className="h-5 w-5" />
-        </div>
-        <div>
-          <p className="font-semibold">{className}</p>
-          <p className="text-xs text-muted-foreground">General channel</p>
-        </div>
-      </div>
+    <Panel
+      padding="none"
+      className="flex h-[calc(100dvh-10rem)] min-h-[34rem] flex-col overflow-hidden rounded-2xl border border-hairline/80 bg-card shadow-e1"
+    >
+      {/* Header */}
+      <header className="flex items-center justify-between border-b border-hairline/70 bg-card/90 px-4 py-3.5 backdrop-blur-xs sm:px-6">
+        <div className="flex items-center gap-3">
+          <Button asChild variant="ghost" size="icon-sm" className="rounded-xl md:hidden">
+            <Link href={messagesPath} aria-label="Back to messages">
+              <ArrowLeft className="size-4" />
+            </Link>
+          </Button>
 
-      <div className="flex-1 space-y-4 overflow-y-auto bg-muted/20 p-4">
-        {messages.map((message) => {
-          const isOwn = message.senderId === currentUserId
-          return (
-            <div
-              key={message.id}
-              className={cn("flex gap-3", isOwn ? "justify-end" : "justify-start")}
-            >
-              {!isOwn ? (
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={message.sender.image || undefined} alt={message.sender.name} />
-                  <AvatarFallback>{message.sender.name.slice(0, 2).toUpperCase()}</AvatarFallback>
-                </Avatar>
-              ) : null}
-              <div className={cn("max-w-[75%] space-y-1", isOwn ? "items-end" : "items-start")}>
-                {!isOwn ? <p className="text-xs font-medium text-muted-foreground">{message.sender.name}</p> : null}
-                <div className={cn("rounded-2xl px-4 py-2.5 text-sm shadow-sm", isOwn ? "bg-primary text-primary-foreground" : "border bg-card")}>
-                  {message.content ? <p className="whitespace-pre-wrap break-words">{message.content}</p> : null}
-                  {message.media?.length ? (
-                    <div className="mt-2 space-y-2">
-                      {message.media.map((media, index) => (
-                        <a
-                          key={`${media.url}-${index}`}
-                          href={media.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block rounded-md border bg-background/60 p-2 text-xs underline"
-                        >
-                          {media.name}
-                        </a>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              </div>
+          <EntityAvatar
+            name={className}
+            colorKey={classColor || className}
+            shape="square"
+            size="md"
+            className="ring-1 ring-hairline/60 shadow-2xs"
+          />
+
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h3 className="truncate text-sm font-bold tracking-tight text-foreground">
+                {className}
+              </h3>
+              <StatusBadge tone="info" size="sm" className="gap-1 font-semibold text-[11px]">
+                <Hash className="size-2.5" />
+                General channel
+              </StatusBadge>
             </div>
-          )
-        })}
-        <div ref={messagesEndRef} />
+            <p className="text-xs text-muted-foreground">
+              Class discussion and announcements
+            </p>
+          </div>
+        </div>
+      </header>
+
+      {/* Stream body */}
+      <div
+        role="log"
+        aria-label={`${className} general channel`}
+        aria-live="polite"
+        className="min-h-0 flex-1 overflow-y-auto bg-surface-subtle/30 px-4 py-5 sm:px-6"
+      >
+        {messages.length === 0 ? (
+          <EmptyState
+            title="No channel messages yet"
+            description="Start a class discussion or share an update."
+            className="h-full"
+          />
+        ) : (
+          <div className="mx-auto flex min-h-full max-w-3xl flex-col justify-end gap-3.5">
+            {messages.map((message) => {
+              const isOwn = message.senderId === currentUserId
+
+              return (
+                <article
+                  key={message.id}
+                  aria-label={`Message from ${isOwn ? "you" : message.sender.name}`}
+                  className={cn("flex items-end gap-2.5", isOwn && "justify-end")}
+                >
+                  {!isOwn ? (
+                    <EntityAvatar
+                      name={message.sender.name}
+                      image={message.sender.image}
+                      size="sm"
+                      className="shrink-0 mb-1"
+                    />
+                  ) : null}
+
+                  <div
+                    className={cn(
+                      "min-w-0 max-w-[85%] space-y-1 sm:max-w-xl",
+                      isOwn && "text-right",
+                    )}
+                  >
+                    {!isOwn ? (
+                      <span className="px-1 text-[11px] font-semibold text-muted-foreground">
+                        {message.sender.name}
+                      </span>
+                    ) : null}
+
+                    <div
+                      className={cn(
+                        "rounded-2xl px-4 py-2.5 text-left text-sm leading-relaxed shadow-2xs transition-all",
+                        isOwn
+                          ? "rounded-br-xs bg-primary text-primary-foreground"
+                          : "rounded-bl-xs border border-hairline/80 bg-card text-foreground",
+                      )}
+                    >
+                      {message.content ? (
+                        <p className="whitespace-pre-wrap break-words">
+                          {message.content}
+                        </p>
+                      ) : null}
+
+                      {message.media?.length ? (
+                        <div className={cn("space-y-2", message.content && "mt-2.5")}>
+                          {message.media.map((media, index) => (
+                            <a
+                              key={`${media.url}-${index}`}
+                              href={media.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={cn(
+                                "flex items-center gap-2 rounded-xl border px-3 py-2 text-left text-xs transition-colors",
+                                isOwn
+                                  ? "border-primary-foreground/30 bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20"
+                                  : "border-hairline bg-surface-raised text-foreground hover:border-hairline-strong hover:bg-surface-hover",
+                              )}
+                            >
+                              <FileText className="size-4 shrink-0" />
+                              <span className="max-w-44 truncate font-medium">
+                                {media.name}
+                              </span>
+                            </a>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                </article>
+              )
+            })}
+            <div ref={messagesEndRef} />
+          </div>
+        )}
       </div>
 
-      <form onSubmit={handleSend} className="space-y-3 border-t bg-card/50 p-3">
+      {/* Composer footer */}
+      <footer className="border-t border-hairline/70 bg-card/90 p-3 backdrop-blur-xs sm:px-4">
         {selectedFiles.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
+          <div
+            role="list"
+            aria-label="Selected attachments"
+            className="mb-2.5 flex flex-wrap gap-2"
+          >
             {selectedFiles.map((file, index) => (
-              <div key={`${file.name}-${index}`} className="flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-xs">
-                <span>{file.name}</span>
-                <button type="button" onClick={() => setSelectedFiles((current) => current.filter((_, currentIndex) => currentIndex !== index))}>
-                  <X className="h-3 w-3" />
+              <div
+                key={`${file.name}-${index}`}
+                role="listitem"
+                className="flex items-center gap-2 rounded-xl border border-hairline/80 bg-surface-sunken px-3 py-1.5 text-xs shadow-2xs"
+              >
+                <Paperclip className="size-3.5 text-primary" />
+                <span className="max-w-36 truncate font-medium text-foreground">
+                  {file.name}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSelectedFiles((current) =>
+                      current.filter((_, currentIndex) => currentIndex !== index),
+                    )
+                  }
+                  aria-label={`Remove ${file.name}`}
+                  className="rounded-md p-0.5 text-muted-foreground hover:bg-surface-hover hover:text-destructive"
+                >
+                  <X className="size-3.5" />
                 </button>
               </div>
             ))}
           </div>
         ) : null}
-        <div className="flex items-center gap-2">
-          <label className={cn(buttonVariants({ variant: "outline", size: "icon" }), "cursor-pointer")}>
-            <Paperclip className="h-4 w-4" />
+
+        {error ? (
+          <Callout
+            tone={error.toLowerCase().includes("queue") ? "warning" : "danger"}
+            role="alert"
+            className="mb-2.5 text-xs"
+          >
+            {error}
+          </Callout>
+        ) : null}
+
+        <form onSubmit={handleSend} className="flex items-center gap-2">
+          <label
+            htmlFor="channel-message-attachments"
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "icon" }),
+              "size-9 cursor-pointer rounded-xl text-muted-foreground hover:bg-surface-hover hover:text-foreground",
+            )}
+          >
+            <Paperclip className="size-4" />
+            <span className="sr-only">Attach files</span>
             <input
+              id="channel-message-attachments"
               type="file"
               multiple
-              className="hidden"
-              onChange={(event) => setSelectedFiles(Array.from(event.target.files ?? []).slice(0, 5))}
+              className="sr-only"
+              disabled={pending || isUploading}
+              onChange={(event) =>
+                setSelectedFiles(Array.from(event.target.files ?? []).slice(0, 5))
+              }
             />
           </label>
+
           <Input
             value={newMessage}
             onChange={(event) => setNewMessage(event.target.value)}
-            placeholder={`Message ${className}...`}
+            aria-label={`Message ${className}`}
+            placeholder={`Message #${className}…`}
+            disabled={pending || isUploading}
+            className="h-10 min-w-0 flex-1 rounded-lg border-hairline/90 bg-surface/70 text-sm shadow-2xs focus-visible:bg-card"
           />
-          <Button type="submit" disabled={pending || isUploading}>
-            <Send className="h-4 w-4" />
+
+          <Button
+            type="submit"
+            aria-label="Send channel message"
+            size="icon"
+            disabled={
+              pending ||
+              isUploading ||
+              (!newMessage.trim() && selectedFiles.length === 0)
+            }
+            className="size-10 rounded-lg font-semibold shadow-2xs"
+          >
+            <Send className="size-4" />
           </Button>
-        </div>
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      </form>
-    </div>
+        </form>
+      </footer>
+    </Panel>
   )
 }

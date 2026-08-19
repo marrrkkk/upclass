@@ -1,12 +1,12 @@
 "use server"
 
 import { headers } from "next/headers"
-import { revalidatePath } from "next/cache"
 import { eq } from "drizzle-orm"
 
 import { db } from "@/db"
 import { auth } from "@/lib/auth"
 import { user } from "@/db/schema"
+import { revalidateUserOrgs } from "@/lib/server/revalidate"
 
 type ActionResponse =
   | { success: true }
@@ -23,7 +23,6 @@ export async function updateProfile(formData: FormData): Promise<ActionResponse>
 
   const name = (formData.get("name") as string | null)?.trim()
   const bio = (formData.get("bio") as string | null)?.trim()
-  const role = (formData.get("role") as string | null)?.trim()
   const image = (formData.get("image") as string | null)?.trim()
   const cover = (formData.get("cover") as string | null)?.trim()
   const coverColor = (formData.get("coverColor") as string | null)?.trim()
@@ -32,26 +31,19 @@ export async function updateProfile(formData: FormData): Promise<ActionResponse>
     return { success: false, error: "Name is required" }
   }
 
-  if (!role || (role !== "teacher" && role !== "student")) {
-    return { success: false, error: "Role must be teacher or student" }
-  }
-
   try {
     await db
       .update(user)
       .set({
         name,
         bio: bio || null,
-        role: role as "teacher" | "student",
         image: image || null,
         cover: cover || null,
-        coverColor: coverColor || "#3b82f6",
+        coverColor: coverColor || "#0e6b52",
       })
       .where(eq(user.id, session.user.id))
 
-    revalidatePath("/user")
-    revalidatePath("/onboard")
-    revalidatePath("/home")
+    await revalidateUserOrgs(session.user.id, ["profile", "settings", "home"])
 
     return { success: true }
   } catch (error) {

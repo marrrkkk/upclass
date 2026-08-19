@@ -5,7 +5,9 @@ import { beforeEach, describe, expect, test, vi } from "vitest"
 const getSessionMock = vi.fn()
 const headersMock = vi.fn()
 const revalidatePathMock = vi.fn()
+const revalidateUserOrgsMock = vi.fn().mockResolvedValue(undefined)
 const logActivityMock = vi.fn()
+const getOrganizationMembershipMock = vi.fn()
 const selectLimitMock = vi.fn()
 const selectWhereMock = vi.fn(() => ({ limit: selectLimitMock }))
 const selectFromMock = vi.fn(() => ({ where: selectWhereMock, limit: selectLimitMock }))
@@ -44,6 +46,14 @@ vi.mock("@/lib/activity", () => ({
   logActivity: logActivityMock,
 }))
 
+vi.mock("@/lib/org-validation", () => ({
+  getOrganizationMembership: getOrganizationMembershipMock,
+}))
+
+vi.mock("@/lib/server/revalidate", () => ({
+  revalidateUserOrgs: revalidateUserOrgsMock,
+}))
+
 describe("resources and messages actions", () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -54,12 +64,15 @@ describe("resources and messages actions", () => {
       },
     })
     insertValuesMock.mockResolvedValue(undefined)
+    getOrganizationMembershipMock.mockResolvedValue({ orgId: "org-1", role: "teacher" })
   })
 
   test("createResource validates required file metadata", async () => {
     const { createResource } = await import("@/app/actions/resources")
     const formData = new FormData()
+    formData.append("orgSlug", "school")
     formData.append("title", "Notes")
+    formData.append("resourceType", "notes")
 
     await expect(createResource(formData)).resolves.toEqual({
       success: false,
@@ -70,7 +83,9 @@ describe("resources and messages actions", () => {
   test("createResource persists valid resources", async () => {
     const { createResource } = await import("@/app/actions/resources")
     const formData = new FormData()
+    formData.append("orgSlug", "school")
     formData.append("title", "Notes")
+    formData.append("resourceType", "notes")
     formData.append("fileUrl", "https://files.test/notes.pdf")
     formData.append("fileName", "notes.pdf")
     formData.append("fileType", "pdf")
@@ -79,7 +94,11 @@ describe("resources and messages actions", () => {
       success: true,
     })
     expect(insertMock).toHaveBeenCalledTimes(1)
-    expect(revalidatePathMock).toHaveBeenCalledWith("/resources")
+    expect(revalidateUserOrgsMock).toHaveBeenCalledWith("user-1", [
+      "resources",
+      "home",
+      "activity",
+    ])
     expect(logActivityMock).toHaveBeenCalledTimes(1)
   })
 
@@ -108,6 +127,6 @@ describe("resources and messages actions", () => {
       success: true,
     })
     expect(insertMock).toHaveBeenCalledTimes(1)
-    expect(revalidatePathMock).toHaveBeenCalledWith("/messages")
+    expect(revalidateUserOrgsMock).toHaveBeenCalledWith("user-1", ["messages"])
   })
 })

@@ -24,7 +24,7 @@ UpClass is a classroom and learning-management web app built for teachers and st
 - Drizzle ORM + PostgreSQL
 - Better Auth
 - Supabase Realtime
-- UploadThing
+- Supabase Storage
 - Excalidraw
 - Zustand
 - Zod
@@ -45,9 +45,37 @@ tests/        Component, hook, and unit tests
 ## Main App Areas
 
 - `app/(auth)` for sign-in and sign-up
-- `app/(main)` for home, activity, classes, messages, notifications, resources, profile, and settings
+- `app/org` for organization selection, creation, and invitation joins
+- `app/[orgSlug]/(main)` for tenant-scoped dashboard, calendar, classes, messages, notifications, resources, profiles, settings, administration, and the org-scoped AI assistant chat
 - `app/actions/*` for server-side mutations
-- `app/api/*` for auth, uploads, AI chat, whiteboard APIs, and user lookup
+- `app/api/*` for auth, uploads, AI chat, AI assistant (conversations, actions), token-log cron, whiteboard APIs, and user lookup
+
+## Design System
+
+UI styling is centralised in three learning-studio layers. Feature code composes shared primitives
+and typed variants, while tokens are consumed through semantic Tailwind classes. The authenticated
+application uses a **Gray Canvas** language: a fullscreen `#EBEBEB` workspace,
+one white organization sidebar containing only real UpClass routes and recent
+class records, an azure action and selection hierarchy (`#0B99FF`), Inter type in
+near-black ink, borderless white cards resting on the soft `shadow-e1` elevation,
+and selective structural hairlines. The compact top bar exposes only page-owned
+actions and account controls, keeping classes, resources, communication, and
+classroom work easy to scan without changing tenant-aware behavior:
+
+- `app/globals.css` — design tokens. Tailwind v4 is CSS-first here, so there is no
+  `tailwind.config.*`; colours, semantic status tones, layered surfaces, the
+  `shadow-e1`…`shadow-e4` elevation ramp, easing curves, the typography scale and
+  the interaction/texture utilities all live in `@theme inline` blocks.
+- `lib/design-system.ts` — typed variants, layout widths, spacing rhythm and
+  motion presets.
+- `components/ui/*` — shared primitives built on both (`Panel`, `Text`,
+  `DataTable`, `Field`, `IconBadge`, `StatusBadge`, `EmptyState`, and friends).
+
+Reference docs: [`components/ui/design-system.md`](components/ui/design-system.md)
+for the rationale and [`components/ui/QUICK_REFERENCE.md`](components/ui/QUICK_REFERENCE.md)
+for copy-paste snippets. New UI should use semantic tones (`primary`, `success`,
+`warning`, `info`, `danger`, `neutral`) rather than raw palette values, and the
+elevation ramp rather than ad-hoc shadows.
 
 ## Quick Start
 
@@ -69,8 +97,20 @@ GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
-UPLOADTHING_TOKEN=
-GEMINI_API_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+# AI - Uses Vercel AI SDK with Cerebras via OpenAI-compatible provider
+CEREBRAS_API_KEY=
+# Optional: defaults to gpt-oss-120b
+CEREBRAS_MODEL=
+# Org-scoped AI assistant: embedding models for knowledge-base retrieval and
+# the canary token used to detect system-prompt leakage (random per deployment)
+GOOGLE_GENERATIVE_AI_API_KEY=
+MISTRAL_API_KEY=
+OPENROUTER_API_KEY=
+GROQ_API_KEY=
+AI_CANARY_SECRET=
+# Cron route protection (token-log cleanup); also used by Vercel Cron
+CRON_SECRET=
 RESEND_API_KEY=
 EMAIL_FROM="UpClass <notifications@your-domain.com>"
 ```
@@ -86,7 +126,28 @@ EMAIL_FROM="UpClass <notifications@your-domain.com>"
 npm run db:migrate
 ```
 
-### 4. Start the app
+### 4. Set up Supabase Storage
+
+UpClass uses Supabase Storage for file uploads (avatars, resources, media).
+
+**Automatic setup (recommended):**
+
+```bash
+# Create the storage buckets
+npm run storage:setup
+
+# Set up Row Level Security policies
+npm run storage:policies
+
+# Verify everything is configured
+npm run storage:check
+```
+
+**Manual setup:**
+
+If the automatic setup doesn't work, follow the detailed guide in [`SUPABASE_STORAGE_SETUP.md`](./SUPABASE_STORAGE_SETUP.md).
+
+### 5. Start the app
 
 ```bash
 npm run dev
@@ -97,17 +158,40 @@ Open `http://localhost:3000`.
 ## Available Scripts
 
 ```bash
-npm run dev           # start the local dev server
-npm run db:migrate    # apply Drizzle migrations
-npm run build         # create a production webpack build
-npm run build:vercel  # lint, type-check, test, optionally migrate, then webpack build
-npm run start         # serve the production build
-npm run lint          # run ESLint
-npm run type-check    # run TypeScript without emitting files
-npm run test          # run Vitest once
-npm run test:watch    # run Vitest in watch mode
-npm run test:coverage # run Vitest with coverage
+npm run dev            # start the local dev server
+npm run db:migrate     # apply Drizzle migrations
+npm run db:seed        # seed demo classes and students for definitelynotmark13@gmail.com
+npm run build          # create a production webpack build
+npm run build:vercel   # lint, type-check, test, migrate, setup storage, then build (used by Vercel)
+npm run deploy:setup   # set up storage buckets and RLS policies (used during deployment)
+npm run start          # serve the production build
+npm run lint           # run ESLint
+npm run type-check     # run TypeScript without emitting files
+npm run test           # run Vitest once
+npm run test:watch     # run Vitest in watch mode
+npm run test:coverage  # run Vitest with coverage
+npm run storage:setup  # create Supabase storage buckets
+npm run storage:policies # get SQL for RLS policies
+npm run storage:check  # verify storage bucket configuration
 ```
+
+## Deployment
+
+See [`DEPLOYMENT.md`](./DEPLOYMENT.md) for complete deployment instructions for Vercel.
+
+**Quick deploy:**
+
+1. Push to GitHub/GitLab
+2. Connect to Vercel
+3. Add environment variables
+4. Deploy! (migrations and storage setup run automatically)
+
+The `build:vercel` script automatically:
+- ✅ Runs linting and type checks
+- ✅ Runs tests
+- ✅ Applies database migrations
+- ✅ Creates storage buckets
+- ✅ Builds the application
 
 ## Environment & Integrations
 
@@ -117,8 +201,18 @@ npm run test:coverage # run Vitest with coverage
 - Better Auth for authentication
 - Google OAuth for social sign-in
 - Supabase Realtime for live messaging and collaboration updates
-- UploadThing for media and resource uploads
-- Gemini API for the resource AI assistant
+- Supabase Storage for media and resource uploads
+- Vercel AI SDK with Cerebras provider for the resource AI assistant, grounded in supported uploaded resource file text (PDF, DOCX, XLSX, CSV, and plain text)
+- Vercel AI SDK for the org-scoped AI assistant, backed by a provider registry (`lib/ai-providers.ts`, `registry.ts`) with Cerebras as the default and Google/Mistral/OpenRouter/Groq as fallbacks; embeddings for the org knowledge base come from Google or Mistral
+
+### AI assistant (org scope)
+
+The assistant lives at `app/[orgSlug]/(main)/chat`, in the dashboard and class surfaces (`Ctrl+J` opens the slide-in panel from anywhere). It combines:
+
+- **Orchestration** (`lib/ai/orchestrator/`): intent classification (cached), org memory retrieval (embedding search over admin-curated entries), conversation compression with summaries, per-intent output-token budgets, prompt budgeting over a 9-module system prompt, and a tool selector that caps read tools per turn and gates draft actions to teachers/owners.
+- **25 read tools + 4 draft action tools** (`lib/ai/tools/`): seven read tools return structured cards rendered as data cards; the four action tools produce interactive confirmation cards that run the mutation only on confirm.
+- **Safety**: input sanitization (blocklists, locked-detection), output filtering with an HMAC canary token that redacts system-prompt leakage, per-user rate limiting (20 req/min, persisted failed turns), monthly budget caps per org via `lib/ai/usage-limiter.ts`, and per-turn step/tool budgets.
+- **Persistence**: conversations, messages (with structured-output/action metadata), and an org knowledge base (`ai_*` tables, migration `0010_fixed_famine.sql`); a daily cron (`/api/cron/token-log-cleanup`, `CRON_SECRET` bearer) prunes token logs older than 90 days.
 
 ### Important runtime notes
 
@@ -146,8 +240,8 @@ UpClass treats offline and mobile installation as core product behavior, not an 
 - Route pages are mostly server-rendered and fetch initial data with Drizzle and `auth.api.getSession(...)`
 - Interactive feature surfaces are split into client components where browser APIs, realtime updates, dialogs, or local state are required
 - Shared server input validation lives in `lib/validation/` and uses Zod schemas plus `FormData` parsing helpers for server actions and route handlers
-- The main shell sidebar now uses a recent-classes accordion instead of a saved-items/favorites flow
-- Messaging includes direct conversations plus a default `general` channel per class, with server-side search and offline queue support for sends
+- The main shell sidebar uses an LMS-oriented hierarchy with a compact recent-course shelf instead of a saved-items/favorites flow
+- Messaging includes organization-scoped direct conversations plus a default `general` channel per class. Messages use cursor pagination, idempotent client IDs, optimistic/realtime reconciliation, IndexedDB offline text queueing, and a protected notification outbox cron. `SUPABASE_JWT_SECRET` bridges Better Auth sessions to Supabase RLS; attachments remain online-only.
 - Assignment submissions track attachments, revisions, and grading history on the current canonical submission row
 - `components/ui/` provides the reusable design-system layer
 - `whiteboard/` isolates canvas, persistence, realtime, and state logic for Excalidraw-based collaboration

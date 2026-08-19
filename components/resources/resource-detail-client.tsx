@@ -1,52 +1,72 @@
 "use client"
 
-import dynamic from "next/dynamic"
-import { useState, useTransition, useEffect } from "react"
-import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { useEffect, useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import {
-  ArrowLeft,
+  Calendar,
+  ChevronRight,
   Download,
   Edit,
-  FileText,
-  Calendar,
-  Bot,
+  FileIcon,
   FileSpreadsheet,
-  Presentation,
-  FileIcon as FileIconLucide,
+  FileText,
   FileType,
-  Trash2
+  HardDrive,
+  MoreHorizontal,
+  Presentation,
+  Trash2,
+  type LucideIcon,
 } from "lucide-react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
-import { usePageHeaderStore } from "@/stores/page-header-store"
 
+import { deleteResource, updateResource } from "@/app/actions/resources"
+import { RESOURCE_TYPES } from "@/components/resources/create-resource-button"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { Card, CardContent } from "@/components/ui/card"
-import { cn } from "@/lib/utils"
-import { updateResource, deleteResource } from "@/app/actions/resources"
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Button } from "@/components/ui/button"
+import { Callout } from "@/components/ui/callout"
+import { ResponsiveOverlay } from "@/components/ui/responsive-overlay"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { EmptyState } from "@/components/ui/empty-state"
+import { EntityAvatar } from "@/components/ui/entity-avatar"
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { IconBadge } from "@/components/ui/icon-badge"
+import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { StatusBadge } from "@/components/ui/status-badge"
+import { Textarea } from "@/components/ui/textarea"
+import { PageContainer } from "@/components/ui/section"
 
-const AIChatDialog = dynamic(
-  () => import("@/components/resources/ai-chat-dialog").then((mod) => mod.AIChatDialog),
-  {
-    ssr: false,
-  },
-)
+import type { Tone } from "@/lib/design-system"
+import { cn } from "@/lib/utils"
+import { usePageHeaderStore } from "@/stores/page-header-store"
 
 type ResourceData = {
   id: string
   title: string
   description: string | null
+  resourceType: string
+  classId: string | null
   category: string | null
   fileUrl: string
   fileName: string
@@ -61,34 +81,66 @@ type ResourceData = {
     image: string | null
     email: string
   }
+  class?: {
+    id: string
+    title: string
+  } | null
 }
 
 type ResourceDetailClientProps = {
   resource: ResourceData
   isOwner: boolean
+  orgSlug: string
 }
 
-const getFileTypeInfo = (type: string) => {
-  const t = type.toLowerCase()
-  if (t === 'pdf') return { icon: FileText, bgColor: 'bg-red-50', textColor: 'text-red-600' }
-  if (t === 'doc' || t === 'docx') return { icon: FileText, bgColor: 'bg-blue-50', textColor: 'text-blue-600' }
-  if (t === 'xls' || t === 'xlsx' || t === 'csv') return { icon: FileSpreadsheet, bgColor: 'bg-green-50', textColor: 'text-green-600' }
-  if (t === 'ppt' || t === 'pptx') return { icon: Presentation, bgColor: 'bg-orange-50', textColor: 'text-orange-600' }
-  if (t === 'txt') return { icon: FileType, bgColor: 'bg-gray-50', textColor: 'text-gray-600' }
-  return { icon: FileIconLucide, bgColor: 'bg-gray-50', textColor: 'text-gray-600' }
+type FileTypeInfo = {
+  icon: LucideIcon
+  label: string
+  tone: Tone
 }
 
-const formatFileSize = (size: string | null) => {
+function getFileTypeInfo(type: string): FileTypeInfo {
+  const normalizedType = type.toLowerCase()
+
+  if (normalizedType === "pdf") return { icon: FileText, label: "PDF", tone: "danger" }
+  if (normalizedType === "doc" || normalizedType === "docx") {
+    return { icon: FileText, label: "Word document", tone: "info" }
+  }
+  if (
+    normalizedType === "xls" ||
+    normalizedType === "xlsx" ||
+    normalizedType === "csv"
+  ) {
+    return { icon: FileSpreadsheet, label: "Spreadsheet", tone: "success" }
+  }
+  if (normalizedType === "ppt" || normalizedType === "pptx") {
+    return { icon: Presentation, label: "Presentation", tone: "warning" }
+  }
+  if (normalizedType === "txt") return { icon: FileType, label: "Text file", tone: "neutral" }
+
+  return { icon: FileIcon, label: "File", tone: "neutral" }
+}
+
+function formatFileSize(size: string | null) {
   if (!size) return "Unknown size"
-  const bytes = parseInt(size)
+
+  const bytes = Number.parseInt(size, 10)
+  if (!Number.isFinite(bytes)) return "Unknown size"
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
 }
 
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString)
-  return date.toLocaleDateString("en-US", {
+function formatDateShort(dateString: string) {
+  return new Date(dateString).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  })
+}
+
+function formatDate(dateString: string) {
+  return new Date(dateString).toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",
     day: "numeric",
@@ -97,27 +149,57 @@ const formatDate = (dateString: string) => {
   })
 }
 
-const canPreview = (fileType: string) => {
+function canPreview(fileType: string) {
   return fileType === "pdf" || fileType === "txt"
 }
 
-export function ResourceDetailClient({ resource, isOwner }: ResourceDetailClientProps) {
+/** A single pill in the metadata strip. */
+function MetaPill({
+  icon: Icon,
+  children,
+  className,
+}: {
+  icon?: LucideIcon
+  children: React.ReactNode
+  className?: string
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground bg-surface-subtle/80",
+        className,
+      )}
+    >
+      {Icon ? <Icon className="size-3 shrink-0" /> : null}
+      {children}
+    </span>
+  )
+}
+
+export function ResourceDetailClient({
+  resource,
+  isOwner,
+  orgSlug,
+}: ResourceDetailClientProps) {
   const router = useRouter()
+  const resourcesPath = `/${orgSlug}/resources`
+  const ownerPath = `/${orgSlug}/user/${resource.owner.id}`
   const setPageTitle = usePageHeaderStore((state) => state.setPageTitle)
   const [editOpen, setEditOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [aiChatOpen, setAiChatOpen] = useState(false)
   const [title, setTitle] = useState(resource.title)
   const [description, setDescription] = useState(resource.description || "")
-  const [category, setCategory] = useState(resource.category || "General")
+  const [resourceType, setResourceType] = useState(resource.resourceType || "other")
   const [pending, startTransition] = useTransition()
   const [deletePending, startDeleteTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
-
-  // Determine styles based on file type
   const fileInfo = getFileTypeInfo(resource.fileType)
+  const FileTypeIcon = fileInfo.icon
+  const resourceTypeLabel =
+    RESOURCE_TYPES.find((rt) => rt.value === resource.resourceType)?.label ||
+    resource.category ||
+    "Resource"
 
-  // Set page title for breadcrumbs
   useEffect(() => {
     setPageTitle(resource.title)
     return () => setPageTitle(null)
@@ -130,7 +212,7 @@ export function ResourceDetailClient({ resource, isOwner }: ResourceDetailClient
   const handleOpenEdit = () => {
     setTitle(resource.title)
     setDescription(resource.description || "")
-    setCategory(resource.category || "General")
+    setResourceType(resource.resourceType || "other")
     setError(null)
     setEditOpen(true)
   }
@@ -139,7 +221,7 @@ export function ResourceDetailClient({ resource, isOwner }: ResourceDetailClient
     setEditOpen(false)
     setTitle(resource.title)
     setDescription(resource.description || "")
-    setCategory(resource.category || "General")
+    setResourceType(resource.resourceType || "other")
     setError(null)
   }
 
@@ -150,14 +232,15 @@ export function ResourceDetailClient({ resource, isOwner }: ResourceDetailClient
       formData.append("id", resource.id)
       formData.append("title", title)
       formData.append("description", description)
-      formData.append("category", category)
+      formData.append("resourceType", resourceType)
+      if (resource.classId) formData.append("classId", resource.classId)
 
-      const res = await updateResource(formData)
-      if (res.success) {
+      const result = await updateResource(formData)
+      if (result.success) {
         setEditOpen(false)
         router.refresh()
       } else {
-        setError(res.error)
+        setError(result.error)
       }
     })
   }
@@ -168,352 +251,320 @@ export function ResourceDetailClient({ resource, isOwner }: ResourceDetailClient
 
   const handleDelete = () => {
     startDeleteTransition(async () => {
-      const res = await deleteResource(resource.id)
-      if (res.success) {
+      const result = await deleteResource(resource.id)
+      if (result.success) {
         setDeleteDialogOpen(false)
-        router.push("/resources")
+        router.push(resourcesPath)
+        router.refresh()
       } else {
-        setError(res.error)
+        setError(result.error)
         setDeleteDialogOpen(false)
       }
     })
   }
 
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2)
-  }
-
   return (
-    <div className="flex flex-col gap-8 max-w-7xl mx-auto">
-      {/* Header Back Link */}
-      <div>
-        <Link
-          href="/resources"
-          className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          Back to resources
-        </Link>
+    <PageContainer width="wide" className="space-y-0 pb-safe-bottom pb-10 sm:space-y-0 sm:pb-10">
+
+      {/* ── Top bar: Breadcrumb + Actions ────────────────────────────── */}
+      <div className="flex flex-col gap-3 py-1 mb-5 sm:mb-7 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        {/* Breadcrumb */}
+        <nav aria-label="breadcrumb" className="flex items-center gap-1.5 min-w-0">
+          <Link
+            href={resourcesPath}
+            className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors duration-150 shrink-0"
+          >
+            Resources
+          </Link>
+          <ChevronRight className="size-3.5 text-muted-foreground/50 shrink-0" />
+          <span className="text-xs font-semibold text-foreground truncate">
+            {resource.title}
+          </span>
+        </nav>
+
+        {/* Actions */}
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            type="button"
+            size="sm"
+            onClick={handleDownload}
+            className="gap-1.5 rounded-xl font-semibold shadow-2xs"
+          >
+            <Download className="size-4" />
+            <span className="hidden sm:inline">Download</span>
+            <span className="inline sm:hidden">Get file</span>
+          </Button>
+
+          {isOwner ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-sm"
+                  className="rounded-xl shadow-2xs"
+                  aria-label="More actions"
+                >
+                  <MoreHorizontal className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-[10rem]">
+                <DropdownMenuItem onClick={handleOpenEdit}>
+                  <Edit className="size-4" />
+                  Edit resource
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => setDeleteDialogOpen(true)}
+                >
+                  <Trash2 className="size-4" />
+                  Delete resource
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Preview & File Visual */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className={cn("relative overflow-hidden rounded-2xl border bg-card shadow-sm group", fileInfo.bgColor)}>
-            {/* Background Pattern */}
-            <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_1px_1px,currentColor_1px,transparent_0)] [background-size:24px_24px] [color:inherit]" />
-
-            {/* Preview Content */}
-            <div className="relative z-10 p-1">
-              {canPreview(resource.fileType) ? (
-                <div className="aspect-[4/3] w-full rounded-xl bg-background shadow-inner overflow-hidden border">
-                  <iframe
-                    src={resource.fileUrl}
-                    className="w-full h-full"
-                    title={resource.fileName}
-                  />
-                </div>
-              ) : (
-                <div className="aspect-[4/3] w-full flex flex-col items-center justify-center text-center p-12">
-                  <div className={cn("p-8 rounded-3xl bg-white/30 backdrop-blur-md shadow-lg mb-6 transform transition-transform group-hover:scale-105", fileInfo.textColor)}>
-                    <fileInfo.icon className="h-24 w-24" />
-                  </div>
-                  <h3 className="text-xl font-semibold opacity-90 mb-2">
-                    Preview not available
-                  </h3>
-                  <p className="text-muted-foreground max-w-xs mx-auto mb-8">
-                    This file type ({resource.fileType.toUpperCase()}) cannot be previewed in the browser.
-                  </p>
-                  <Button
-                    onClick={handleDownload}
-                    size="lg"
-                    className="rounded-full shadow-lg hover:shadow-xl transition-all"
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Download File
-                  </Button>
-                </div>
-              )}
-            </div>
-          </div>
+      {/* ── Hero: identity + metadata strip ──────────────────────────── */}
+      <div className="mb-5 flex flex-col gap-4 sm:mb-7 sm:flex-row sm:items-start sm:gap-6">
+        {/* File type badge */}
+        <div className="shrink-0">
+          <IconBadge tone={fileInfo.tone} size="xl" className="rounded-2xl shadow-e1">
+            <FileTypeIcon className="size-7" />
+          </IconBadge>
         </div>
 
-        {/* Right Column: Details & Actions */}
-        <div className="space-y-6">
-          {/* Header Info */}
-          <div className="space-y-4">
-            <div className="flex items-start justify-between gap-4">
-              <h1 className="text-3xl font-bold leading-tight decoration-clone bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
-                {resource.title}
-              </h1>
-              {isOwner && (
-                <div className="flex gap-2 shrink-0">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={handleOpenEdit}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => setDeleteDialogOpen(true)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <span
-                className={cn("px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider", fileInfo.bgColor, fileInfo.textColor)}
-              >
-                {resource.fileType}
-              </span>
-              <span className="px-3 py-1 rounded-full text-xs font-medium bg-secondary text-secondary-foreground">
-                {formatFileSize(resource.fileSize)}
-              </span>
-              <span className="px-3 py-1 rounded-full text-xs font-medium bg-secondary text-secondary-foreground border border-border">
-                {resource.category || "General"}
-              </span>
-            </div>
+        {/* Title block */}
+        <div className="min-w-0 flex-1 space-y-3">
+          <div>
+            <p className="type-overline text-muted-foreground mb-1.5">{resourceTypeLabel}</p>
+            <h1 className="type-h1 break-words leading-tight">{resource.title}</h1>
+            {resource.description ? (
+              <p className="mt-2 type-body break-words text-muted-foreground max-w-2xl whitespace-pre-wrap">
+                {resource.description}
+              </p>
+            ) : null}
           </div>
 
-          {/* Description */}
-          <div className="prose prose-sm text-muted-foreground max-w-none">
-            <p className="whitespace-pre-wrap leading-relaxed">
-              {resource.description || "No description provided for this resource."}
-            </p>
-          </div>
-
-          {/* Actions */}
-          <Card className="overflow-hidden border-none shadow-lg bg-gradient-to-br from-card to-secondary/20">
-            <CardContent className="p-0">
-              <div className="flex flex-col">
-                <button
-                  onClick={() => setAiChatOpen(true)}
-                  className="flex items-center gap-4 p-4 hover:bg-muted/50 transition-colors text-left group border-b border-border/50"
-                >
-                  <div className="h-10 w-10 rounded-full bg-violet-100 flex items-center justify-center text-violet-600 group-hover:scale-110 transition-transform">
-                    <Bot className="h-5 w-5" />
-                  </div>
-                  <div className="flex-1">
-                    <span className="font-semibold block text-base group-hover:text-primary transition-colors">Ask AI Assistant</span>
-                    <span className="text-xs text-muted-foreground">Summarize, question, or analyze this file</span>
-                  </div>
-                  <ArrowLeft className="h-4 w-4 rotate-180 text-muted-foreground group-hover:translate-x-1 transition-transform" />
-                </button>
-
-                <button
-                  onClick={handleDownload}
-                  className="flex items-center gap-4 p-4 hover:bg-muted/50 transition-colors text-left group"
-                >
-                  <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
-                    <Download className="h-5 w-5" />
-                  </div>
-                  <div className="flex-1">
-                    <span className="font-semibold block text-base group-hover:text-primary transition-colors">Download File</span>
-                    <span className="text-xs text-muted-foreground">Save to your device</span>
-                  </div>
-                  <ArrowLeft className="h-4 w-4 rotate-180 text-muted-foreground group-hover:translate-x-1 transition-transform" />
-                </button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Metadata */}
-          <div className="rounded-xl bg-muted/30 p-4 space-y-4 border border-border/50">
+          {/* Metadata strip */}
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            {/* Owner */}
             <Link
-              href={`/profile/${resource.owner.id}`}
-              className="flex items-center gap-3 group hover:bg-muted/50 rounded-lg p-2 -m-2 transition-colors"
+              href={ownerPath}
+              className="touch-target inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-muted-foreground bg-surface-subtle/80 hover:bg-surface-raised hover:text-foreground transition-colors duration-150 group"
             >
-              <Avatar className="h-10 w-10 border border-background shadow-sm group-hover:ring-2 group-hover:ring-primary/20 transition-all">
-                <AvatarImage src={resource.owner.image || undefined} alt={resource.owner.name} />
-                <AvatarFallback>{getInitials(resource.owner.name)}</AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">{resource.owner.name}</p>
-                <p className="text-xs text-muted-foreground truncate">{resource.owner.email}</p>
-              </div>
+              <EntityAvatar
+                name={resource.owner.name}
+                image={resource.owner.image}
+                colorKey={resource.owner.id}
+                size="xs"
+              />
+              <span className="group-hover:text-foreground transition-colors duration-150">
+                {resource.owner.name}
+              </span>
             </Link>
 
-            <div className="h-px bg-border/50" />
+            {/* Format */}
+            <StatusBadge tone={fileInfo.tone} className="font-bold text-[11px]">
+              {resource.fileType.toUpperCase()}
+            </StatusBadge>
 
-            <div className="grid grid-cols-2 gap-4 text-xs">
-              <div>
-                <p className="text-muted-foreground mb-1">Created</p>
-                <p className="font-medium flex items-center gap-1.5">
-                  <Calendar className="h-3.5 w-3.5" />
-                  {formatDate(resource.createdAt)}
-                </p>
-              </div>
-              <div>
-                <p className="text-muted-foreground mb-1">Updated</p>
-                <p className="font-medium flex items-center gap-1.5">
-                  <Calendar className="h-3.5 w-3.5" />
-                  {formatDate(resource.updatedAt)}
-                </p>
-              </div>
-            </div>
+            {/* File size */}
+            <MetaPill icon={HardDrive}>
+              {formatFileSize(resource.fileSize)}
+            </MetaPill>
+
+            {/* Upload date */}
+            <MetaPill icon={Calendar}>
+              {formatDateShort(resource.createdAt)}
+            </MetaPill>
+
+            {/* Linked class */}
+            {resource.class ? (
+              <Link
+                href={`/${orgSlug}/classes/${resource.class.id}`}
+                className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium text-primary-text bg-primary-surface hover:bg-primary/20 transition-colors duration-150"
+              >
+                {resource.class.title}
+              </Link>
+            ) : null}
           </div>
-
         </div>
       </div>
 
-      {/* Edit Dialog - Kept similar functional logic but ensured improved visuals */}
-      {/* Edit Dialog - Premium UI */}
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="sm:max-w-[550px] gap-0 p-0 overflow-y-auto border-0 shadow-2xl max-h-[calc(100vh-2rem)] flex flex-col">
-          <DialogHeader className="p-6 pb-2 bg-gradient-to-r from-muted/50 to-muted/10 border-b border-border/50">
-            <DialogTitle className="text-xl font-semibold tracking-tight">Edit Resource</DialogTitle>
-            <DialogDescription className="text-muted-foreground">
-              Update the resource details, then click save when you are finished.
-            </DialogDescription>
-          </DialogHeader>
-
-          {error && (
-            <div className="px-6 pt-4">
-              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive font-medium border border-destructive/20 animate-in fade-in slide-in-from-bottom-2">
-                {error}
-              </div>
-            </div>
-          )}
-
-          <div className="space-y-5 p-6">
-            <div className="space-y-2">
-              <Label htmlFor="edit-title" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Title</Label>
-              <Input
-                id="edit-title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Resource title"
-                className="h-11 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors text-base"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-description" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Description</Label>
-              <Textarea
-                id="edit-description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Add a description..."
-                rows={6}
-                className="resize-none bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-category" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Category</Label>
-              <Input
-                id="edit-category"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                placeholder="e.g. Lecture Notes, Assignments"
-                className="h-10 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors"
-              />
-            </div>
+      {/* ── Preview area ─────────────────────────────────────────────── */}
+      <div className="relative overflow-hidden rounded-2xl border border-hairline/80 bg-card shadow-e1">
+        {/* Floating header row */}
+        <div className="flex items-center justify-between border-b border-hairline/70 bg-card/90 px-5 py-3 backdrop-blur-xs">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <FileTypeIcon className="size-4 shrink-0 text-muted-foreground" />
+            <span className="min-w-0 truncate text-sm font-semibold text-foreground">{resource.fileName}</span>
           </div>
-
-          <DialogFooter className="px-6 py-4 bg-muted/30 border-t backdrop-blur-sm">
+          <div className="flex shrink-0 items-center gap-2">
+            <StatusBadge tone={fileInfo.tone} className="font-bold text-[11px]">
+              {resource.fileType.toUpperCase()}
+            </StatusBadge>
             <Button
+              type="button"
               variant="ghost"
+              size="icon-sm"
+              onClick={handleDownload}
+              className="rounded-lg text-muted-foreground hover:text-foreground"
+              aria-label="Download file"
+            >
+              <Download className="size-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Preview body */}
+        {canPreview(resource.fileType) ? (
+          <iframe
+            src={resource.fileUrl}
+            className="w-full border-0 bg-surface-sunken"
+            style={{ minHeight: "calc(100dvh - 20rem)", height: "70vh" }}
+            title={resource.fileName}
+          />
+        ) : (
+          <div className="flex min-h-[20rem] flex-col items-center justify-center p-6 sm:min-h-[28rem] sm:p-8">
+            <EmptyState
+              icon={<FileTypeIcon className="size-8" />}
+              tone={fileInfo.tone}
+              title="Preview unavailable"
+              description={`${fileInfo.label} files cannot be previewed directly in the browser.`}
+              action={
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleDownload}
+                  className="gap-1.5 rounded-xl font-semibold shadow-2xs"
+                >
+                  <Download className="size-4" />
+                  <span>Download file</span>
+                </Button>
+              }
+            />
+          </div>
+        )}
+      </div>
+
+      {/* ── Edit Overlay ─────────────────────────────────────────────── */}
+      <ResponsiveOverlay
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        title="Edit resource"
+        description="Update the title, description, or type."
+        desktopClassName="sm:max-w-lg"
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="outline"
               onClick={handleCloseEdit}
               disabled={pending}
-              className="text-muted-foreground hover:text-foreground"
+              className="rounded-xl font-medium"
             >
               Cancel
             </Button>
             <Button
+              type="button"
               onClick={handleSave}
-              disabled={pending || !title.trim()}
-              className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg transition-all px-6"
+              isLoading={pending}
+              disabled={!title.trim()}
+              className="rounded-xl font-semibold shadow-2xs"
             >
-              {pending ? "Saving..." : "Save Changes"}
+              {pending ? "Saving..." : "Save changes"}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </>
+        }
+      >
+        {error ? (
+          <Callout tone="danger" role="alert" className="text-xs">
+            {error}
+          </Callout>
+        ) : null}
 
-      {/* AI Chat Dialog */}
-      {aiChatOpen ? (
-        <AIChatDialog
-          open={aiChatOpen}
-          onOpenChange={setAiChatOpen}
-          resourceContext={{
-            title: resource.title,
-            description: resource.description,
-            category: resource.category,
-            fileType: resource.fileType,
-            fileName: resource.fileName,
-          }}
-        />
-      ) : null}
+        <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="edit-resource-title" className="text-xs font-medium">Title</FieldLabel>
+              <Input
+                id="edit-resource-title"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder="Resource title"
+                className="h-10 rounded-xl border-hairline/90 bg-surface/70 text-sm shadow-2xs focus-visible:bg-card"
+              />
+            </Field>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-[420px] gap-0 p-0 overflow-y-auto border-0 shadow-2xl max-h-[calc(100vh-2rem)]">
-          <DialogHeader className="p-6 pb-4 bg-gradient-to-r from-destructive/10 to-destructive/5 border-b border-destructive/20">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center">
-                <Trash2 className="h-5 w-5 text-destructive" />
-              </div>
-              <div>
-                <DialogTitle className="text-lg font-semibold">Delete Resource</DialogTitle>
-                <DialogDescription className="text-sm text-muted-foreground">
-                  This action cannot be undone
-                </DialogDescription>
-              </div>
-            </div>
-          </DialogHeader>
+            <Field>
+              <FieldLabel htmlFor="edit-resource-type" className="text-xs font-medium">
+                Resource Type
+              </FieldLabel>
+              <Select value={resourceType} onValueChange={setResourceType}>
+                <SelectTrigger
+                  id="edit-resource-type"
+                  className="h-10 rounded-xl border-hairline/90 bg-surface/70 text-sm shadow-2xs"
+                >
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {RESOURCE_TYPES.map((type) => (
+                    <SelectItem key={type.value} value={type.value}>
+                      {type.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
 
-          <div className="p-6 text-center space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Are you sure you want to permanently delete
-            </p>
-            <p className="text-lg font-semibold text-foreground truncate">
-              {resource.title}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              The file and all associated data will be permanently removed.
-            </p>
-          </div>
+            <Field>
+              <FieldLabel htmlFor="edit-resource-description" optional className="text-xs font-medium">
+                Description
+              </FieldLabel>
+              <Textarea
+                id="edit-resource-description"
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+                placeholder="What this resource covers"
+                rows={4}
+                className="resize-none rounded-xl border-hairline/90 bg-surface/70 text-sm shadow-2xs focus-visible:bg-card"
+              />
+            </Field>
+          </FieldGroup>
+      </ResponsiveOverlay>
 
-          <div className="px-6 py-4 bg-muted/30 border-t flex items-center justify-center gap-3">
-            <Button
-              variant="outline"
-              onClick={() => setDeleteDialogOpen(false)}
-              disabled={deletePending}
-              className="min-w-[100px]"
-            >
+      {/* ── Delete Dialog ─────────────────────────────────────────────── */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete resource</AlertDialogTitle>
+            <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <Callout tone="danger" icon={<Trash2 className="size-4" />} className="text-xs">
+            Are you sure you want to delete <strong>{resource.title}</strong> from UpClass?
+          </Callout>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletePending}>
               Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(event) => {
+                event.preventDefault()
+                handleDelete()
+              }}
               disabled={deletePending}
-              className="min-w-[120px] gap-2"
             >
-              {deletePending ? (
-                "Deleting..."
-              ) : (
-                <>
-                  <Trash2 className="h-4 w-4" />
-                  Delete
-                </>
-              )}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+              <Trash2 className="size-4" aria-hidden="true" />
+              {deletePending ? "Deleting..." : "Delete resource"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </PageContainer>
   )
 }

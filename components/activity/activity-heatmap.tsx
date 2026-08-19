@@ -3,8 +3,8 @@
 import { useSyncExternalStore } from "react"
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { cn } from "@/lib/utils"
 import { type ActivityGraphDay } from "@/lib/activity-ui"
+import { cn } from "@/lib/utils"
 
 type ActivityHeatmapProps = {
   days: ActivityGraphDay[]
@@ -12,11 +12,11 @@ type ActivityHeatmapProps = {
 }
 
 function getLevelClass(level: ActivityGraphDay["level"]) {
-  if (level === 0) return "bg-slate-200 dark:bg-slate-800"
-  if (level === 1) return "bg-sky-100 dark:bg-sky-950/50"
-  if (level === 2) return "bg-sky-300 dark:bg-sky-800"
-  if (level === 3) return "bg-blue-500/80 dark:bg-blue-600"
-  return "bg-primary"
+  if (level === 0) return "bg-muted"
+  if (level === 1) return "border-primary-border bg-primary-surface"
+  if (level === 2) return "bg-primary/35"
+  if (level === 3) return "bg-primary-strong/65"
+  return "bg-primary-strong"
 }
 
 const subscribe = () => () => {}
@@ -26,25 +26,21 @@ const getServerSnapshot = () => false
 export function ActivityHeatmap({ days, className }: ActivityHeatmapProps) {
   const hasHydrated = useSyncExternalStore(subscribe, getClientSnapshot, getServerSnapshot)
   const weeks = Array.from(new Set(days.map((day) => day.week)))
-  const cellGap = 4
 
   if (!hasHydrated) {
     return (
-      <div className={cn("w-full", className)}>
+      <div className={cn("scroll-x-region w-full", className)}>
         <div
-          className="mx-auto grid w-full max-w-[500px] grid-flow-col grid-rows-7"
-          style={{
-            gridTemplateColumns: `repeat(${weeks.length}, minmax(0, 1fr))`,
-            gap: `${cellGap}px`,
-          }}
+          className="mx-auto grid w-full max-w-lg min-w-[32rem] grid-flow-col grid-rows-7 gap-1"
+          style={{ gridTemplateColumns: `repeat(${weeks.length}, minmax(0, 1fr))` }}
         >
           {days.map((day) => (
             <div
               key={day.date}
               className={cn(
-                "aspect-square w-full rounded-[2px] border border-border shadow-[inset_0_0_0_1px_rgba(255,255,255,0.18)]",
+                "aspect-square w-full rounded-sm border border-hairline",
                 getLevelClass(day.level),
-                day.isToday && "ring-1 ring-primary/50 ring-offset-1 ring-offset-background",
+                day.isToday && "ring-1 ring-primary ring-offset-1 ring-offset-background",
               )}
               aria-hidden="true"
             />
@@ -56,28 +52,28 @@ export function ActivityHeatmap({ days, className }: ActivityHeatmapProps) {
 
   return (
     <TooltipProvider>
-      <div className={cn("w-full", className)}>
+      <div className={cn("scroll-x-region w-full", className)}>
         <div
-          className="mx-auto grid w-full max-w-[500px] grid-flow-col grid-rows-7"
-          style={{
-            gridTemplateColumns: `repeat(${weeks.length}, minmax(0, 1fr))`,
-            gap: `${cellGap}px`,
-          }}
+          className="mx-auto grid w-full max-w-lg min-w-[32rem] grid-flow-col grid-rows-7 gap-1"
+          style={{ gridTemplateColumns: `repeat(${weeks.length}, minmax(0, 1fr))` }}
         >
           {days.map((day) => (
             <Tooltip key={day.date}>
               <TooltipTrigger asChild>
                 <div
                   className={cn(
-                    "aspect-square w-full rounded-[2px] border border-border shadow-[inset_0_0_0_1px_rgba(255,255,255,0.18)] transition-transform hover:scale-110 hover:border-primary/50",
+                    "aspect-square w-full rounded-sm border border-hairline transition-colors hover:border-hairline-strong",
                     getLevelClass(day.level),
-                    day.isToday && "ring-1 ring-primary/50 ring-offset-1 ring-offset-background",
+                    day.isToday && "ring-1 ring-primary ring-offset-1 ring-offset-background",
                   )}
                   role="img"
                   aria-label={day.ariaLabel}
                 />
               </TooltipTrigger>
-              <TooltipContent side="top" className="border border-border bg-background text-foreground shadow-lg">
+              <TooltipContent
+                side="top"
+                className="border border-hairline bg-surface-raised text-foreground shadow-e2"
+              >
                 {day.displayDate}
                 <span className="mx-1 text-muted-foreground">•</span>
                 <span className="text-muted-foreground">

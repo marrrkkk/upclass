@@ -1,32 +1,24 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
-import { Send, Bot, User as UserIcon } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
+import ReactMarkdown from "react-markdown"
+import { Bot, RotateCcw, Send } from "lucide-react"
+import { useChat } from "@ai-sdk/react"
+import { DefaultChatTransport } from "ai"
+
 import { Button } from "@/components/ui/button"
+import { Callout } from "@/components/ui/callout"
+import { ResponsiveOverlay } from "@/components/ui/responsive-overlay"
+import { EmptyState } from "@/components/ui/empty-state"
+import { EntityAvatar } from "@/components/ui/entity-avatar"
+import { IconBadge } from "@/components/ui/icon-badge"
 import { Input } from "@/components/ui/input"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { Text } from "@/components/ui/typography"
 import { cn } from "@/lib/utils"
 
-type Message = {
-  id: string
-  role: "user" | "assistant"
-  content: string
-  timestamp: Date
-}
-
 type ResourceContext = {
+  id: string
   title: string
-  description: string | null
-  category: string | null
-  fileType: string
-  fileName: string
 }
 
 type AIChatDialogProps = {
@@ -35,86 +27,54 @@ type AIChatDialogProps = {
   resourceContext: ResourceContext
 }
 
+const suggestions = [
+  "Summarize this",
+  "Key takeaways",
+  "Explain the main concept",
+  "Quiz me on this",
+]
+
 export function AIChatDialog({ open, onOpenChange, resourceContext }: AIChatDialogProps) {
-  const [messages, setMessages] = useState<Message[]>([])
-  const [input, setInput] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }
+  const {
+    messages,
+    sendMessage,
+    status,
+    error,
+    regenerate,
+  } = useChat({
+    transport: new DefaultChatTransport({
+      api: "/api/ai/chat",
+      body: {
+        resourceId: resourceContext.id,
+      },
+    }),
+  })
+
+  const [input, setInput] = useState("")
 
   useEffect(() => {
-    scrollToBottom()
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
   useEffect(() => {
-    if (open && inputRef.current) {
-      inputRef.current.focus()
-    }
+    if (open) inputRef.current?.focus()
   }, [open])
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSend = async (event: React.FormEvent) => {
+    event.preventDefault()
     const message = input.trim()
-    if (!message || isLoading) return
+    if (!message || status !== "ready") return
 
-    setError(null)
+    sendMessage({ text: message })
     setInput("")
+  }
 
-    // Add user message
-    const userMessage: Message = {
-      id: crypto.randomUUID(),
-      role: "user",
-      content: message,
-      timestamp: new Date(),
-    }
-    setMessages((prev) => [...prev, userMessage])
-    setIsLoading(true)
-
-    try {
-      // Build conversation history
-      const conversationHistory = messages.map((msg) => ({
-        role: msg.role,
-        content: msg.content,
-      }))
-
-      const response = await fetch("/api/ai/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          message,
-          resourceContext,
-          conversationHistory,
-        }),
-      })
-
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || "Failed to get AI response")
-      }
-
-      const data = await response.json()
-
-      // Add assistant message
-      const assistantMessage: Message = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: data.response,
-        timestamp: new Date(),
-      }
-      setMessages((prev) => [...prev, assistantMessage])
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to get AI response"
-      setError(message)
-      console.error("AI chat error:", err)
-    } finally {
-      setIsLoading(false)
+  const handleRetry = () => {
+    if (status === "ready" || status === "error") {
+      regenerate()
     }
   }
 
@@ -122,154 +82,217 @@ export function AIChatDialog({ open, onOpenChange, resourceContext }: AIChatDial
     return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
   }
 
+  const renderAssistantContent = (content: string) => (
+    <ReactMarkdown
+      components={{
+        h1: ({ children }) => <h1 className="mb-2 text-base font-semibold">{children}</h1>,
+        h2: ({ children }) => <h2 className="mb-2 text-sm font-semibold">{children}</h2>,
+        h3: ({ children }) => <h3 className="mb-1 text-sm font-medium">{children}</h3>,
+        p: ({ children }) => <p className="mb-2 break-words last:mb-0">{children}</p>,
+        ul: ({ children }) => <ul className="mb-2 list-disc space-y-1 pl-5 last:mb-0">{children}</ul>,
+        ol: ({ children }) => <ol className="mb-2 list-decimal space-y-1 pl-5 last:mb-0">{children}</ol>,
+        li: ({ children }) => <li>{children}</li>,
+        a: ({ href, children }) => {
+          let safeHref: string | null = null
+          if (href) {
+            try {
+              const url = new URL(href, window.location.origin)
+              if (url.protocol === "http:" || url.protocol === "https:") {
+                safeHref = url.href
+              }
+            } catch {
+              safeHref = null
+            }
+          }
+          if (!safeHref) {
+            return <span>{children}</span>
+          }
+          return (
+            <a
+              href={safeHref}
+              target="_blank"
+              rel="noreferrer"
+              className="text-primary-strong underline underline-offset-2"
+            >
+              {children}
+            </a>
+          )
+        },
+        code: ({ className, children }) => (
+          <code className={cn("rounded bg-muted px-1 py-0.5 font-mono text-[0.85em]", className)}>
+            {children}
+          </code>
+        ),
+        pre: ({ children }) => (
+          <pre className="mb-2 overflow-x-auto rounded bg-muted p-3 font-mono text-xs last:mb-0">
+            {children}
+          </pre>
+        ),
+      }}
+    >
+      {content}
+    </ReactMarkdown>
+  )
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] h-[85vh] flex flex-col p-0 gap-0 overflow-y-auto border-0 shadow-2xl bg-gradient-to-b from-background to-muted/20">
-        <DialogHeader className="px-6 py-4 border-b bg-background/80 backdrop-blur-md sticky top-0 z-10">
-          <DialogTitle className="flex items-center gap-3 text-xl font-semibold text-primary">
-            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <Bot className="h-6 w-6 text-primary" />
-            </div>
-            AI Assistant
-          </DialogTitle>
-          <DialogDescription className="text-muted-foreground ml-1">
-            Asking about <span className="font-medium text-foreground">{resourceContext.title}</span>
-          </DialogDescription>
-        </DialogHeader>
-
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 scroll-smooth">
-          {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center space-y-4 px-8">
-              <div className="h-20 w-20 rounded-full bg-primary/5 flex items-center justify-center mb-2 animate-in zoom-in-50 duration-500">
-                <Bot className="h-10 w-10 text-primary/50" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-foreground">How can I help you?</h3>
-                <p className="text-sm text-muted-foreground mt-2 max-w-xm mx-auto leading-relaxed">
-                  I can summarize this resource, explain complex topics, or answer specific questions about the content.
-                </p>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-md mt-6">
-                {["Summarize this", "Key takeaways", "Explain the main concept", "Quiz me on this"].map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    onClick={() => setInput(suggestion)}
-                    className="px-4 py-2 rounded-lg bg-card border hover:border-primary/50 hover:bg-primary/5 hover:text-primary text-sm font-medium transition-all text-muted-foreground shadow-sm"
-                  >
-                    {suggestion}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <>
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={cn(
-                    "flex gap-3 group animate-in fade-in slide-in-from-bottom-2 duration-300",
-                    message.role === "user" ? "justify-end" : "justify-start"
-                  )}
-                >
-                  {message.role === "assistant" && (
-                    <Avatar className="h-8 w-8 mt-1 border shadow-sm">
-                      <AvatarFallback className="bg-primary/10 text-primary font-bold">
-                        AI
-                      </AvatarFallback>
-                    </Avatar>
-                  )}
-                  <div
-                    className={cn(
-                      "flex flex-col max-w-[80%]",
-                      message.role === "user" ? "items-end" : "items-start"
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        "rounded-2xl px-5 py-3 shadow-sm",
-                        message.role === "user"
-                          ? "bg-primary text-primary-foreground rounded-tr-sm"
-                          : "bg-card border text-card-foreground rounded-tl-sm"
-                      )}
-                    >
-                      <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">
-                        {message.content}
-                      </p>
-                    </div>
-                    <span className="text-[10px] text-muted-foreground mt-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {formatTime(message.timestamp)}
-                    </span>
-                  </div>
-                  {message.role === "user" && (
-                    <Avatar className="h-8 w-8 mt-1 border shadow-sm">
-                      <AvatarFallback className="bg-muted text-muted-foreground">
-                        <UserIcon className="h-4 w-4" />
-                      </AvatarFallback>
-                    </Avatar>
-                  )}
-                </div>
-              ))}
-              {isLoading && (
-                <div className="flex gap-3 justify-start animate-pulse">
-                  <Avatar className="h-8 w-8 mt-1 border">
-                    <AvatarFallback className="bg-primary/10 text-primary">
-                      AI
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="rounded-2xl px-5 py-3 bg-card border rounded-tl-sm shadow-sm flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary/40 animate-bounce [animation-delay:-0.3s]"></span>
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary/40 animate-bounce [animation-delay:-0.15s]"></span>
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary/40 animate-bounce"></span>
-                  </div>
-                </div>
-              )}
-              <div ref={messagesEndRef} className="h-1" />
-            </>
-          )}
-        </div>
-
-        {/* Error */}
-        {error && (
-          <div className="px-6 pb-2">
-            <div className="rounded-md bg-destructive/10 p-3 text-xs text-destructive font-medium border border-destructive/20 flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-destructive"></span>
-              {error}
-            </div>
-          </div>
-        )}
-
-        {/* Input */}
-        <div className="p-4 bg-background border-t">
-          <form onSubmit={handleSend} className="relative flex items-end gap-2 bg-muted/30 p-1.5 rounded-xl border focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/50 transition-all shadow-sm">
+    <ResponsiveOverlay
+      open={open}
+      onOpenChange={onOpenChange}
+      title={
+        <span className="flex items-center gap-3">
+          <IconBadge tone="primary" size="md">
+            <Bot />
+          </IconBadge>
+          <span className="min-w-0">
+            <span className="block type-h3">AI assistant</span>
+          </span>
+        </span>
+      }
+      description={`Asking about ${resourceContext.title}`}
+      desktopClassName="sm:max-w-xl"
+      mobileClassName="max-h-[100dvh]"
+      footer={
+        <div>
+          <form onSubmit={handleSend} className="flex items-center gap-2">
             <Input
               ref={inputRef}
               value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Message AI assistant..."
-              disabled={isLoading}
-              className="flex-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 px-4 py-3 h-auto max-h-[120px] resize-none"
+              onChange={(event) => setInput(event.target.value)}
+              aria-label="Message AI assistant"
+              placeholder="Ask a question"
+              disabled={status !== "ready"}
               autoComplete="off"
+              className="flex-1"
             />
             <Button
               type="submit"
-              isLoading={isLoading}
-              disabled={!input.trim()}
               size="icon"
-              className={cn(
-                "h-10 w-10 rounded-lg shrink-0 transition-all",
-                input.trim() ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm" : "bg-muted text-muted-foreground hover:bg-muted/80"
-              )}
+              isLoading={status === "streaming" || status === "submitted"}
+              disabled={!input.trim() || status !== "ready"}
+              aria-label="Send message"
+              className="touch-target"
             >
-              {isLoading ? null : <Send className="h-5 w-5 ml-0.5" />}
+              {status === "streaming" || status === "submitted" ? null : <Send />}
             </Button>
           </form>
-          <div className="text-[10px] text-center text-muted-foreground mt-2">
-            AI can make mistakes. Check important info.
-          </div>
+          <Text variant="caption" tone="subtle" className="mt-2 text-center">
+            Check important information before using it.
+          </Text>
         </div>
-      </DialogContent>
-    </Dialog>
-  )
-}
+      }
+    >
+      <div
+        role="log"
+        aria-label="AI conversation"
+        aria-live="polite"
+        className="space-y-5"
+      >
+          {messages.length === 0 ? (
+            <EmptyState
+              icon={<Bot />}
+              tone="primary"
+              title="Ask about this resource"
+              description="Choose a prompt or enter a question."
+              action={
+                <div className="grid w-full gap-2 sm:grid-cols-2">
+                  {suggestions.map((suggestion) => (
+                    <Button
+                      key={suggestion}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setInput(suggestion)}
+                      disabled={status !== "ready"}
+                    >
+                      {suggestion}
+                    </Button>
+                  ))}
+                </div>
+              }
+              className="h-full px-0 py-8"
+            />
+          ) : (
+            messages.map((message) => (
+              <div
+                key={message.id}
+                className={cn(
+                  "flex items-start gap-3",
+                  message.role === "user" && "flex-row-reverse",
+                )}
+              >
+                <EntityAvatar
+                  name={message.role === "assistant" ? "AI" : "You"}
+                  colorKey={message.role}
+                  size="sm"
+                />
+                <div
+                  className={cn(
+                    "flex max-w-[80%] min-w-0 flex-col gap-1",
+                    message.role === "user" ? "items-end" : "items-start",
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "rounded-lg border px-4 py-3",
+                      message.role === "user"
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-hairline bg-card",
+                    )}
+                  >
+                    {message.role === "assistant" ? (
+                      message.parts.map((part) =>
+                        part.type === "text" ? (
+                          <div key={part.text}>{renderAssistantContent(part.text)}</div>
+                        ) : null,
+                      )
+                    ) : (
+                      <Text variant="small" tone="inverse" className="whitespace-pre-wrap break-words">
+                        {message.parts.map((part) =>
+                          part.type === "text" ? part.text : null,
+                        )}
+                      </Text>
+                    )}
+                  </div>
+                  <Text variant="caption" tone="subtle">
+                    {formatTime(new Date())}
+                  </Text>
+                </div>
+              </div>
+            ))
+          )}
 
+          {status === "streaming" || status === "submitted" ? (
+            <div className="flex items-start gap-3">
+              <EntityAvatar name="AI" colorKey="assistant" size="sm" />
+              <div className="rounded-lg border border-hairline bg-card px-4 py-3">
+                <Text variant="small" tone="muted" className="whitespace-pre-wrap break-words">
+                  {status === "submitted" ? "Thinking…" : ""}
+                </Text>
+              </div>
+            </div>
+          ) : null}
+          <div ref={messagesEndRef} />
+
+          {error ? (
+            <div className="space-y-2">
+              <Callout tone="danger" role="alert">
+                {error instanceof Error ? error.message : "Something went wrong"}
+              </Callout>
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRetry}
+                  disabled={status !== "ready" && status !== "error"}
+                >
+                  <RotateCcw />
+                  Retry
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </ResponsiveOverlay>
+    )
+  }

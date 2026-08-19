@@ -1,37 +1,100 @@
 "use client"
 
-import { useState, useTransition, useRef } from "react"
-import { Plus, Upload, X } from "lucide-react"
+import { useRef, useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
+import { FileUp, Upload, X } from "lucide-react"
 
 import { createResource } from "@/app/actions/resources"
 import { Button } from "@/components/ui/button"
+import { Callout } from "@/components/ui/callout"
+import { ResponsiveOverlay } from "@/components/ui/responsive-overlay"
+import { Field, FieldGroup, FieldHelp, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { useUploadThing } from "@/lib/uploadthing"
-import { cn } from "@/lib/utils"
-import { executeWithOfflineHandling } from "@/lib/offline-action-handler"
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
+import { useSupabaseUpload } from "@/lib/supabase-storage"
+import type { ClassCardData } from "@/types/classes"
+import { formatClassIdentity } from "@/lib/classes/class-identity"
+
+// Resource type options
+export const RESOURCE_TYPES = [
+  { value: "notes", label: "Notes" },
+  { value: "slides", label: "Slides" },
+  { value: "worksheet", label: "Worksheet" },
+  { value: "reading", label: "Reading" },
+  { value: "reference", label: "Reference" },
+  { value: "template", label: "Template" },
+  { value: "other", label: "Other" },
+] as const
+
+const NO_CLASS_VALUE = "none"
 
 type CreateResourceButtonProps = {
+  orgSlug?: string
   iconOnly?: boolean
+  className?: string
+  label?: string
+  userClasses?: ClassCardData[]
 }
 
-export function CreateResourceButton({ iconOnly = false }: CreateResourceButtonProps) {
+function getFileType(extension: string) {
+  if (extension === "pdf") return "pdf"
+  if (extension === "ppt") return "ppt"
+  if (extension === "pptx") return "pptx"
+  if (extension === "doc") return "doc"
+  if (extension === "docx") return "docx"
+  if (extension === "xls") return "xls"
+  if (extension === "xlsx") return "xlsx"
+  if (extension === "txt") return "txt"
+  return "other"
+}
+
+export function CreateResourceButton({
+  orgSlug,
+  iconOnly = false,
+  className,
+  label = "Upload",
+  userClasses = [],
+}: CreateResourceButtonProps) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [title, setTitle] = useState("")
+  const [resourceType, setResourceType] = useState<string>("other")
+  const [selectedClassId, setSelectedClassId] = useState<string>(NO_CLASS_VALUE)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { startUpload, isUploading } = useUploadThing("resourceUploader")
+  const formRef = useRef<HTMLFormElement>(null)
+  const { startUpload, isUploading } = useSupabaseUpload("resources")
+
+  // Find the selected class for display
+  const selectedClass = userClasses.find((c) => c.id === selectedClassId)
+
+  const clearSelectedFile = () => {
+    setSelectedFile(null)
+    if (fileInputRef.current) fileInputRef.current.value = ""
+  }
+
+  const resetForm = () => {
+    clearSelectedFile()
+    setTitle("")
+    setResourceType("other")
+    setSelectedClassId(NO_CLASS_VALUE)
+    setError(null)
+    formRef.current?.reset()
+  }
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen)
+    if (!nextOpen && !pending && !isUploading) resetForm()
+  }
 
   const handleCreate = async (formData: FormData) => {
     setError(null)
@@ -41,15 +104,15 @@ export function CreateResourceButton({ iconOnly = false }: CreateResourceButtonP
       return
     }
 
-    // Check if offline
     if (!navigator.onLine) {
-      setError("You're offline. File uploads require an internet connection. Please check your connection and try again.")
+      setError(
+        "You're offline. File uploads require an internet connection. Please check your connection and try again.",
+      )
       return
     }
 
     startTransition(async () => {
       try {
-        // Upload file first
         const uploadResult = await startUpload([selectedFile])
 
         if (!uploadResult || !uploadResult[0]) {
@@ -59,231 +122,257 @@ export function CreateResourceButton({ iconOnly = false }: CreateResourceButtonP
 
         const uploadedFile = uploadResult[0]
         const fileName = uploadedFile.name || selectedFile.name
-        const fileExt = fileName.split(".").pop()?.toLowerCase() || ""
+        const fileExtension = fileName.split(".").pop()?.toLowerCase() || ""
 
-        // Map extension to file type
-        const getFileType = (ext: string): string => {
-          if (ext === "pdf") return "pdf"
-          if (ext === "ppt") return "ppt"
-          if (ext === "pptx") return "pptx"
-          if (ext === "doc") return "doc"
-          if (ext === "docx") return "docx"
-          if (ext === "xls") return "xls"
-          if (ext === "xlsx") return "xlsx"
-          if (ext === "txt") return "txt"
-          return "other"
-        }
+        formData.set("fileUrl", uploadedFile.url || "")
+        formData.set("fileName", fileName)
+        formData.set("fileSize", uploadedFile.size || selectedFile.size.toString())
+        formData.set("fileType", getFileType(fileExtension))
+        formData.set("resourceType", resourceType)
+        formData.set("storagePath", uploadedFile.url?.split("/").pop() || fileName)
+        if (selectedClassId !== NO_CLASS_VALUE) formData.set("classId", selectedClassId)
+        else formData.delete("classId")
+        if (orgSlug) formData.set("orgSlug", orgSlug)
 
-        // Append file data to form
-        formData.append("fileUrl", uploadedFile.ufsUrl || uploadedFile.url || "")
-        formData.append("fileName", fileName)
-        formData.append("fileSize", uploadedFile.size?.toString() || selectedFile.size.toString())
-        formData.append("fileType", getFileType(fileExt))
+        const result = await createResource(formData)
 
-        // Create resource with offline handling
-        const res = await executeWithOfflineHandling(
-          () => createResource(formData),
-          "create-resource",
-          {
-            title: String(formData.get("title") || ""),
-            description: String(formData.get("description") || ""),
-            category: String(formData.get("category") || ""),
-            fileUrl: String(formData.get("fileUrl") || ""),
-            fileName: String(formData.get("fileName") || ""),
-            fileType: String(formData.get("fileType") || ""),
-            fileSize: String(formData.get("fileSize") || ""),
-          },
-        )
-
-        if (res.queued) {
-          setError("Action queued. It will be synced when you're back online.")
-          setTimeout(() => {
-            setOpen(false)
-            setSelectedFile(null)
-            if (fileInputRef.current) {
-              fileInputRef.current.value = ""
-            }
-          }, 2000)
-          return
-        }
-
-        if (!res.success) {
-          setError(res.error || "Failed to create resource")
+        if (!result.success) {
+          setError(result.error || "Failed to create resource")
           return
         }
 
         setOpen(false)
-        setSelectedFile(null)
-        if (fileInputRef.current) {
-          fileInputRef.current.value = ""
-        }
-      } catch (err) {
+        resetForm()
+        router.refresh()
+      } catch (uploadError) {
         if (!navigator.onLine) {
           setError("You're offline. Please check your internet connection and try again.")
         } else {
-          setError(err instanceof Error ? err.message : "Failed to upload file")
+          setError(uploadError instanceof Error ? uploadError.message : "Failed to upload file")
         }
       }
     })
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setSelectedFile(file)
-      setError(null)
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setSelectedFile(file)
+    if (!title.trim()) {
+      setTitle(file.name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " "))
     }
+    setError(null)
+  }
+
+  const handleCancel = () => {
+    setOpen(false)
+    resetForm()
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button
-          size={iconOnly ? "icon" : "sm"}
-          className={cn(
-            iconOnly ? "" : "gap-2",
-            "shadow-sm transition-all hover:shadow-md"
-          )}
-          type="button"
-          title="Create resource"
-        >
-          <Plus className="h-4 w-4" />
-          {!iconOnly && <span>Create resource</span>}
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[550px] gap-0 p-0 overflow-y-auto border-0 shadow-2xl max-h-[calc(100vh-2rem)] flex flex-col">
-        <DialogHeader className="p-6 pb-2 bg-gradient-to-r from-muted/50 to-muted/10 shrink-0">
-          <DialogTitle className="text-xl font-semibold tracking-tight">Upload New Resource</DialogTitle>
-          <DialogDescription className="text-muted-foreground">
-            Share learning materials with your students.
-          </DialogDescription>
-        </DialogHeader>
-        <form action={handleCreate} className="p-6 space-y-6 flex-1 min-h-0">
-          <div className="grid gap-5">
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Resource File</Label>
-                {selectedFile && (
-                  <span className="text-xs text-muted-foreground">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</span>
-                )}
-              </div>
+    <>
+      <Button
+        type="button"
+        size={iconOnly ? "icon" : "default"}
+        title="Upload resource"
+        aria-label="Upload resource"
+        onClick={() => setOpen(true)}
+        className={className || "h-10 rounded-lg px-4 gap-2 font-semibold shadow-2xs"}
+      >
+        <Upload className="size-4" />
+        {!iconOnly ? <span>{label}</span> : null}
+      </Button>
 
-              {selectedFile ? (
-                <div className="flex items-center justify-between rounded-xl border border-input bg-card/50 p-4 transition-all hover:bg-muted/40 group">
-                  <div className="flex items-center gap-4">
-                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform duration-200">
-                      <Upload className="h-5 w-5" />
-                    </div>
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-sm font-medium truncate max-w-[200px] sm:max-w-[300px]">{selectedFile.name}</span>
-                      <span className="text-xs text-muted-foreground">Ready to upload</span>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedFile(null)
-                      if (fileInputRef.current) {
-                        fileInputRef.current.value = ""
-                      }
-                    }}
-                    className="h-8 w-8 flex items-center justify-center rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                    title="Remove file"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              ) : (
-                <div
-                  className="relative rounded-xl border-2 border-dashed border-muted-foreground/20 hover:border-primary/50 hover:bg-primary/5 p-8 transition-all duration-200 cursor-pointer group"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    onChange={handleFileChange}
-                    accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.txt"
-                    className="hidden"
-                    id="file-upload"
-                  />
-                  <div className="flex flex-col items-center justify-center text-center gap-2">
-                    <div className="h-12 w-12 rounded-full bg-muted/50 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-200 group-hover:bg-background shadow-sm">
-                      <Upload className="h-6 w-6 text-muted-foreground group-hover:text-primary transition-colors" />
-                    </div>
-                    <p className="text-sm font-medium">Click to select a file</p>
-                    <p className="text-xs text-muted-foreground">Support for PDF, DOC, PPT, XLS, TXT</p>
-                  </div>
-                </div>
-              )}
+      <ResponsiveOverlay
+        open={open}
+        onOpenChange={handleOpenChange}
+        title={
+          <span className="flex items-start gap-3">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary-surface text-primary-text">
+              <FileUp aria-hidden="true" className="size-5" />
             </div>
-
-            <div className="grid sm:grid-cols-2 gap-5">
-              <div className="space-y-2">
-                <Label htmlFor="title" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Title</Label>
-                <Input
-                  id="title"
-                  name="title"
-                  required
-                  placeholder="e.g. Intro to Design"
-                  className="h-10 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="category" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Category</Label>
-                <Input
-                  id="category"
-                  name="category"
-                  placeholder="e.g. Lectures"
-                  className="h-10 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Description</Label>
-              <Textarea
-                id="description"
-                name="description"
-                placeholder="Optional description about this resource..."
-                rows={3}
-                className="resize-none bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors"
-              />
-            </div>
-          </div>
-
-          {error && (
-            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive font-medium border border-destructive/20 animate-in fade-in slide-in-from-bottom-2">
-              {error}
-            </div>
-          )}
-
-          <DialogFooter className="pt-2">
+            <span className="min-w-0">
+              <span className="block type-h3">Upload a resource</span>
+            </span>
+          </span>
+        }
+        description="Add one file, give it a clear name, and decide where it belongs."
+        desktopClassName="sm:max-w-[42rem]"
+        footer={
+          <>
             <Button
               type="button"
-              variant="ghost"
-              onClick={() => {
-                setOpen(false)
-                setSelectedFile(null)
-                setError(null)
-                if (fileInputRef.current) {
-                  fileInputRef.current.value = ""
-                }
-              }}
-              className="text-muted-foreground hover:text-foreground"
+              variant="outline"
+              onClick={handleCancel}
+              disabled={pending}
+              className="h-10 rounded-lg px-4 font-medium"
             >
               Cancel
             </Button>
             <Button
               type="submit"
+              form="create-resource-form"
               isLoading={pending || isUploading}
               disabled={!selectedFile}
-              className="min-w-[100px] shadow-md hover:shadow-lg transition-all"
+              className="h-10 rounded-lg px-4 font-semibold shadow-2xs"
             >
-              {pending || isUploading ? "Uploading..." : "Upload Resource"}
+              {pending || isUploading ? "Uploading..." : "Upload resource"}
             </Button>
-          </DialogFooter>
+          </>
+        }
+      >
+        <form
+          ref={formRef}
+          id="create-resource-form"
+          action={handleCreate}
+          className="flex flex-col gap-5"
+        >
+          <FieldGroup className="gap-4">
+            {/* File Dropzone */}
+            <Field>
+              <FieldLabel
+                htmlFor="resource-file-upload"
+                hint={
+                  selectedFile
+                    ? `${(selectedFile.size / 1024 / 1024).toFixed(2)} MB`
+                    : "16 MB max"
+                }
+                className="text-xs font-medium"
+              >
+                Resource file
+              </FieldLabel>
+              <input
+                ref={fileInputRef}
+                id="resource-file-upload"
+                type="file"
+                onChange={handleFileChange}
+                accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.txt"
+                className="sr-only"
+              />
+
+              {selectedFile ? (
+                <div className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-primary/25 bg-primary-surface/45 p-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <Upload className="size-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-bold text-foreground">
+                        {selectedFile.name}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB · Ready to upload
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label={`Remove ${selectedFile.name}`}
+                    onClick={clearSelectedFile}
+                    className="touch-target size-7 rounded-lg text-muted-foreground hover:bg-surface-hover hover:text-destructive"
+                  >
+                    <X className="size-3.5" />
+                  </Button>
+                </div>
+              ) : (
+                <label
+                  htmlFor="resource-file-upload"
+                  className="group flex min-h-36 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-hairline-strong bg-surface-subtle/35 p-6 text-center transition-colors hover:border-primary/55 hover:bg-primary-surface/35"
+                >
+                  <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary transition-transform duration-200 group-hover:scale-110">
+                    <Upload className="size-5" />
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-sm font-semibold text-foreground">Click or drop a file here</p>
+                    <p className="text-xs text-muted-foreground">
+                      PDF, Word, PowerPoint, Excel, or Text
+                    </p>
+                  </div>
+                </label>
+              )}
+              <FieldHelp className="text-[11px]">Choose one supported file to upload.</FieldHelp>
+            </Field>
+
+            <div className="grid gap-4 rounded-xl border border-hairline/70 bg-surface-subtle/25 p-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="resource-title">Resource title</FieldLabel>
+                <Input
+                  id="resource-title"
+                  name="title"
+                  required
+                  placeholder="e.g. Chapter 3 Lecture Slides"
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  className="bg-card"
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="resource-type">Type</FieldLabel>
+                <Select value={resourceType} onValueChange={setResourceType} name="resourceType">
+                  <SelectTrigger id="resource-type" className="w-full bg-card">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {RESOURCE_TYPES.map((type) => (
+                      <SelectItem key={type.value} value={type.value}>
+                        {type.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+
+            {/* Optional Class Link */}
+            {userClasses.length > 0 ? (
+              <Field>
+                <FieldLabel htmlFor="resource-class" optional>Class context</FieldLabel>
+                <Select value={selectedClassId} onValueChange={setSelectedClassId}>
+                  <SelectTrigger id="resource-class" className="w-full">
+                    <SelectValue placeholder="Select a class (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_CLASS_VALUE}>Organization library</SelectItem>
+                    {userClasses.map((cls) => (
+                      <SelectItem key={cls.id} value={cls.id}>
+                        {formatClassIdentity(cls)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedClass ? (
+                  <FieldHelp>
+                    This resource will appear in <span className="font-medium">{formatClassIdentity(selectedClass)}</span>.
+                  </FieldHelp>
+                ) : <FieldHelp>Keep it in the shared organization library.</FieldHelp>}
+              </Field>
+            ) : null}
+
+            {/* Description */}
+            <Field>
+              <FieldLabel htmlFor="resource-description" optional>
+                Description
+              </FieldLabel>
+              <Textarea
+                id="resource-description"
+                name="description"
+                placeholder="Summary of what this document covers…"
+                rows={3}
+                className="resize-none"
+              />
+            </Field>
+          </FieldGroup>
+
+          {error ? (
+            <Callout tone="danger" role="alert" className="text-xs">
+              {error}
+            </Callout>
+          ) : null}
         </form>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveOverlay>
+    </>
   )
 }

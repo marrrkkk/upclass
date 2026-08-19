@@ -1,15 +1,25 @@
 "use client"
 
 import dynamic from "next/dynamic"
+import Link from "next/link"
 import { useCallback, useMemo, useRef, useState } from "react"
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types"
-import { RefreshCw } from "lucide-react"
+import { ArrowLeft, RefreshCw } from "lucide-react"
 
 import { OfflineRouteGuard } from "@/components/offline-route-guard"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Callout } from "@/components/ui/callout"
+import {
+  Panel,
+  PanelActions,
+  PanelBody,
+  PanelHeader,
+  PanelHeading,
+} from "@/components/ui/panel"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { StatusBadge } from "@/components/ui/status-badge"
+import { Text } from "@/components/ui/typography"
+import { useOrganizationPath } from "@/hooks/use-organization-path"
 import { WhiteboardPresenceList } from "@/whiteboard/components/whiteboard-presence"
 import { WhiteboardQueryClientProvider } from "@/whiteboard/persistence/query-client-provider"
 import {
@@ -19,6 +29,7 @@ import {
 } from "@/whiteboard/persistence/use-whiteboard-queries"
 import { useWhiteboardUiStore } from "@/whiteboard/state/use-whiteboard-ui-store"
 import type {
+  SaveStatus,
   WhiteboardPageData,
   WhiteboardPresence,
   WhiteboardPresenceUser,
@@ -30,7 +41,9 @@ const ExcalidrawBoard = dynamic(
   () => import("@/whiteboard/canvas/excalidraw-board").then((mod) => mod.ExcalidrawBoard),
   {
     ssr: false,
-    loading: () => <Skeleton className="h-[70vh] w-full rounded-2xl" />,
+    loading: () => (
+      <Skeleton className="h-[calc(100dvh-18rem)] min-h-[28rem] w-full rounded-xl" />
+    ),
   },
 )
 
@@ -44,11 +57,25 @@ type WhiteboardPageClientProps = {
   }
 }
 
+type SaveStatusPresentation = {
+  label: string
+  tone: "success" | "info" | "warning" | "danger"
+}
+
+const SAVE_STATUS_PRESENTATION: Record<SaveStatus, SaveStatusPresentation> = {
+  saved: { label: "Saved", tone: "success" },
+  saving: { label: "Saving", tone: "info" },
+  offline: { label: "Offline", tone: "warning" },
+  conflict: { label: "Conflict", tone: "warning" },
+  error: { label: "Save failed", tone: "danger" },
+}
+
 function WhiteboardPageClientInner({
   className,
   initialData,
   currentUser,
-}: WhiteboardPageClientProps) {
+  backHref,
+}: WhiteboardPageClientProps & { backHref: string }) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [, setEditor] = useState<ExcalidrawImperativeAPI | null>(null)
   const [presences, setPresences] = useState<Record<string, WhiteboardPresence>>({})
@@ -56,7 +83,10 @@ function WhiteboardPageClientInner({
   const boardQuery = useWhiteboardBoard(initialData.board.id, initialData)
   const saveMutation = useSaveWhiteboardSnapshot(initialData.board.id)
   const boardData = boardQuery.data ?? initialData
+  const saveStatus = useWhiteboardUiStore((state) => state.saveStatus)
+  const isUploading = useWhiteboardUiStore((state) => state.isUploading)
   const setSaveStatus = useWhiteboardUiStore((state) => state.setSaveStatus)
+  const status = SAVE_STATUS_PRESENTATION[saveStatus]
 
   const presenceUser = useMemo<WhiteboardPresenceUser>(
     () => ({
@@ -99,44 +129,70 @@ function WhiteboardPageClientInner({
 
   if (boardQuery.isLoading) {
     return (
-      <div className="flex flex-col gap-4">
-        <Skeleton className="h-16 w-full rounded-2xl" />
-        <Skeleton className="h-[70vh] w-full rounded-2xl" />
+      <div className="space-y-4" role="status" aria-label="Loading whiteboard">
+        <Skeleton className="h-24 w-full rounded-xl" />
+        <Skeleton className="h-[calc(100dvh-18rem)] min-h-[28rem] w-full rounded-xl" />
       </div>
     )
   }
 
   return (
-    <div className="flex min-w-0 flex-col gap-4">
+    <div className="min-w-0 space-y-3">
       {conflictData ? (
-        <Alert>
-          <AlertTitle>Whiteboard conflict detected</AlertTitle>
-          <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <span>
-              Another user saved a newer board version. Reload the latest board state before
-              continuing to avoid overwriting newer work.
-            </span>
-            <Button size="sm" variant="outline" onClick={() => void handleReloadLatest()}>
-              <RefreshCw data-icon="inline-start" />
+        <Callout
+          tone="warning"
+          role="alert"
+          action={(
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => void handleReloadLatest()}
+              disabled={boardQuery.isFetching}
+              isLoading={boardQuery.isFetching}
+            >
+              <RefreshCw aria-hidden="true" />
               Reload latest
             </Button>
-          </AlertDescription>
-        </Alert>
+          )}
+        >
+          <div className="space-y-1">
+            <Text as="p" variant="h4">Newer board version available</Text>
+            <Text as="p" variant="small">
+              Another collaborator saved newer work. Reload it before continuing so their changes
+              are not overwritten.
+            </Text>
+          </div>
+        </Callout>
       ) : null}
 
-      <Card className="overflow-hidden border-border/80 shadow-sm sm:rounded-2xl">
-        <CardHeader className="gap-3 border-b border-border/60 px-4 py-4 sm:px-6">
-          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-            <div className="min-w-0">
-              <CardTitle className="text-lg sm:text-2xl">{className} Whiteboard</CardTitle>
-              <CardDescription className="mt-1 text-xs leading-5 sm:text-sm">
-                Pinch to zoom, draw with touch, and rotate your device for a wider canvas when needed.
-              </CardDescription>
+      <Panel padding="none" className="overflow-hidden">
+        <PanelHeader className="items-start">
+          <PanelHeading className="flex min-w-0 items-start gap-3">
+            <Button asChild variant="ghost" size="icon-sm">
+              <Link href={backHref} aria-label={`Back to ${className}`}>
+                <ArrowLeft aria-hidden="true" />
+              </Link>
+            </Button>
+            <div className="min-w-0 space-y-1">
+              <Text variant="overline" tone="muted">Live class workspace</Text>
+              <Text as="h1" variant="h2" truncate>{className} whiteboard</Text>
+              <Text variant="small" tone="muted">
+                Shared canvas for live class work.
+              </Text>
             </div>
-          </div>
-          <WhiteboardPresenceList currentUser={presenceUser} presences={presences} />
-        </CardHeader>
-        <CardContent className="p-0">
+          </PanelHeading>
+
+          <PanelActions className="w-full flex-wrap justify-between sm:w-auto sm:justify-end">
+            <div aria-live="polite" aria-atomic="true">
+              <StatusBadge tone={isUploading ? "info" : status.tone} dot>
+                {isUploading ? "Uploading image" : status.label}
+              </StatusBadge>
+            </div>
+            <WhiteboardPresenceList currentUser={presenceUser} presences={presences} />
+          </PanelActions>
+        </PanelHeader>
+
+        <PanelBody className="p-0">
           <ExcalidrawBoard
             boardId={boardData.board.id}
             currentUser={presenceUser}
@@ -146,24 +202,33 @@ function WhiteboardPageClientInner({
             onPresencesChange={setPresences}
             snapshot={boardData.snapshot}
           />
-        </CardContent>
-      </Card>
+        </PanelBody>
+      </Panel>
 
-      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        aria-label="Upload image to whiteboard"
+      />
     </div>
   )
 }
 
 export function WhiteboardPageClient(props: WhiteboardPageClientProps) {
+  const organizationPath = useOrganizationPath()
+  const backHref = organizationPath(`/classes/${props.initialData.board.classId}`)
+
   return (
     <OfflineRouteGuard
-      title="You're offline"
-      description="The whiteboard needs an internet connection for live collaboration and saving board updates."
-      backHref={`/classes/${props.initialData.board.classId}`}
-      backLabel="Back to Class"
+      title="Whiteboard unavailable offline"
+      description="Reconnect to collaborate and save whiteboard changes."
+      backHref={backHref}
+      backLabel="Back to class"
     >
       <WhiteboardQueryClientProvider>
-        <WhiteboardPageClientInner {...props} />
+        <WhiteboardPageClientInner {...props} backHref={backHref} />
       </WhiteboardQueryClientProvider>
     </OfflineRouteGuard>
   )

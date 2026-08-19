@@ -1,9 +1,19 @@
+"use client"
+
+import { usePathname } from "next/navigation"
 import Link from "next/link"
-import { ArrowRight, NotebookPen } from "lucide-react"
+import { ArrowRight } from "lucide-react"
 
 import { ActivityLogList } from "@/components/activity/activity-log-list"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Panel,
+  PanelActions,
+  PanelBody,
+  PanelHeader,
+  PanelHeading,
+  PanelTitle,
+} from "@/components/ui/panel"
 import { type ActivityLogItem } from "@/lib/activity-ui"
 
 type RecentActivityCardProps = {
@@ -11,33 +21,33 @@ type RecentActivityCardProps = {
 }
 
 export function RecentActivityCard({ items }: RecentActivityCardProps) {
-  return (
-    <Card className="border-0 shadow-lg">
-      <CardHeader className="border-b bg-muted/5">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <NotebookPen className="size-4" />
-            </div>
-            <CardTitle className="text-lg">Recent Activity</CardTitle>
-          </div>
+  const pathname = usePathname()
+  const orgSlug = pathname?.split("/")[1] || ""
+  const activityPath = orgSlug ? `/${orgSlug}/dashboard#activity` : "/dashboard#activity"
 
+  return (
+    <Panel padding="none" variant="panel" className="h-full overflow-hidden">
+      <PanelHeader>
+        <PanelHeading>
+          <PanelTitle>Recent activity</PanelTitle>
+        </PanelHeading>
+        <PanelActions>
           <Button variant="ghost" size="sm" asChild>
-            <Link href="/activity">
+            <Link href={activityPath}>
               View all
-              <ArrowRight data-icon="inline-end" />
+              <ArrowRight aria-hidden="true" />
             </Link>
           </Button>
-        </div>
-      </CardHeader>
+        </PanelActions>
+      </PanelHeader>
 
-      <CardContent className="pt-4">
+      <PanelBody>
         <ActivityLogList
           items={items}
           emptyTitle="No recent activity"
           emptyDescription="Your latest submissions, uploads, and teaching actions will appear here."
         />
-      </CardContent>
-    </Card>
+      </PanelBody>
+    </Panel>
   )
 }

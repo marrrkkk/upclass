@@ -2,12 +2,12 @@
 "use server"
 
 import { headers } from "next/headers"
-import { revalidatePath } from "next/cache"
 import { eq, and, ne } from "drizzle-orm"
 
 import { db } from "@/db"
 import { auth } from "@/lib/auth"
 import { notifications, classMembership, user, classes } from "@/db/schema"
+import { revalidateUserOrgs } from "@/lib/server/revalidate"
 import { deliverClassNotifications } from "@/lib/notifications/delivery"
 
 type ActionResponse =
@@ -34,7 +34,7 @@ export async function markNotificationAsRead(notificationId: string): Promise<Ac
         ),
       )
 
-    revalidatePath("/notifications")
+    await revalidateUserOrgs(session.user.id, ["notifications"])
     return { success: true }
   } catch (error) {
     console.error("markNotificationAsRead error", error)
@@ -57,7 +57,7 @@ export async function markAllNotificationsAsRead(): Promise<ActionResponse> {
       .set({ read: true })
       .where(eq(notifications.userId, session.user.id))
 
-    revalidatePath("/notifications")
+    await revalidateUserOrgs(session.user.id, ["notifications"])
     return { success: true }
   } catch (error) {
     console.error("markAllNotificationsAsRead error", error)

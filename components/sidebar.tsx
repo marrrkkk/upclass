@@ -1,49 +1,72 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { useEffect, useRef, useState } from "react"
-
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import {
-  Activity,
-  Home,
+  ArrowUpRight,
+  Folder,
   GraduationCap,
-  ChevronDown,
-  FolderOpen,
-  Settings,
-  User,
+  LayoutDashboard,
   PanelLeftClose,
-} from "lucide-react"
-import { cn } from "@/lib/utils"
-import { NotificationsSection } from "@/components/sidebar/notifications-section"
-import { MessagesSection } from "@/components/sidebar/messages-section"
-import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Logo } from "@/components/logo"
+  Settings,
+  ShieldCheck,
+} from "lucide-react";
 
-const navItems = [
-  { label: "Home", href: "/home", icon: Home },
-  { label: "Activity", href: "/activity", icon: Activity },
-  { label: "Classes", href: "/classes", icon: GraduationCap },
-  { label: "Resources", href: "/resources", icon: FolderOpen },
-]
+import { OrgSwitcher } from "@/components/org-switcher";
+import { MessagesSection } from "@/components/sidebar/messages-section";
+import { SidebarNavLink } from "@/components/sidebar/sidebar-nav-link";
+import { Button } from "@/components/ui/button";
+import { CourseSwatch } from "@/components/ui/course-identity";
+import { EntityAvatar } from "@/components/ui/entity-avatar";
+import {
+  Sidebar as SidebarPrimitive,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupAction,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarRail,
+  SidebarSeparator,
+  useSidebar,
+} from "@/components/ui/sidebar";
+import { useOrganizationPath } from "@/hooks/use-organization-path";
+import { cn } from "@/lib/utils";
+import { ORG_ROLE_LABELS, type OrgRole } from "@/types/organization";
+
+const workspaceItems = [
+  {
+    label: "Dashboard",
+    path: "/dashboard",
+    icon: LayoutDashboard,
+    exact: true,
+  },
+  { label: "Classes", path: "/classes", icon: GraduationCap },
+] as const;
 
 type SidebarProps = {
-  recentClasses?: Array<{
-    id: string
-    title: string
-    color: string | null
-  }>
-  userId?: string
+  recentClasses?: Array<{ id: string; title: string; color: string | null }>;
+  userId?: string;
   userInfo?: {
-    name: string | null
-    email: string | null
-    image: string | null
-  } | null
-  className?: string
-  "data-state"?: "open" | "closed"
-  onNavigate?: () => void
-  onClose?: () => void
+    name: string | null;
+    email: string | null;
+    image: string | null;
+  } | null;
+  className?: string;
+  "data-state"?: "open" | "closed";
+  onNavigate?: () => void;
+  organizationRole?: OrgRole | null;
+};
+
+function routeIsActive(currentPath: string, href: string, exact = false) {
+  return exact
+    ? currentPath === href
+    : currentPath === href || currentPath.startsWith(`${href}/`);
 }
 
 export function Sidebar({
@@ -51,226 +74,333 @@ export function Sidebar({
   userId,
   userInfo,
   className,
-  "data-state": dataState,
   onNavigate,
-  onClose,
+  organizationRole,
 }: SidebarProps = {}) {
-  const pathname = usePathname()
-  const currentPath = pathname || "/home"
-  const currentUserInfo = userInfo
-  const currentUserId = userId
-  const [isScrolling, setIsScrolling] = useState(false)
-  const scrollTimeoutRef = useRef<number | null>(null)
+  const { state, isMobile, setOpenMobile } = useSidebar();
+  const collapsed = !isMobile && state === "collapsed";
+  const handleNavigate = () => {
+    setOpenMobile(false);
+    onNavigate?.();
+  };
+  const pathname = usePathname();
+  const router = useRouter();
+  const organizationPath = useOrganizationPath();
+  const currentPath = pathname || "/";
+  const [isScrolling, setIsScrolling] = useState(false);
+  const scrollTimeoutRef = useRef<number | null>(null);
 
-  useEffect(() => {
-    return () => {
-      if (scrollTimeoutRef.current) {
-        window.clearTimeout(scrollTimeoutRef.current)
-      }
-    }
-  }, [])
+  useEffect(
+    () => () => {
+      if (scrollTimeoutRef.current)
+        window.clearTimeout(scrollTimeoutRef.current);
+    },
+    [],
+  );
 
   const handleSidebarScroll = () => {
-    setIsScrolling(true)
+    setIsScrolling(true);
+    if (scrollTimeoutRef.current) window.clearTimeout(scrollTimeoutRef.current);
+    scrollTimeoutRef.current = window.setTimeout(
+      () => setIsScrolling(false),
+      500,
+    );
+  };
 
-    if (scrollTimeoutRef.current) {
-      window.clearTimeout(scrollTimeoutRef.current)
-    }
+  const dashboardHref = organizationPath("/dashboard");
+  const classesHref = organizationPath("/classes");
+  const resourcesHref = organizationPath("/resources");
+  const settingsHref = organizationPath("/settings");
+  const adminHref = organizationPath("/admin");
+  const profileHref = userId
+    ? organizationPath(`/user/${userId}`)
+    : organizationPath("/profile");
+  const profileIsActive = routeIsActive(currentPath, profileHref);
+  const visibleRecentClasses = recentClasses?.slice(0, 5) ?? [];
+  const hasMoreClasses =
+    (recentClasses?.length ?? 0) > visibleRecentClasses.length;
 
-    scrollTimeoutRef.current = window.setTimeout(() => {
-      setIsScrolling(false)
-    }, 500)
-  }
+  // A class page is highlighted by its recent-class row when it is listed;
+  // "Classes" then stays quiet so only one item reads as selected. When the
+  // class is not in the recents (deep link, longer list), the section takes
+  // over via its prefix match.
+  const activeRecentClassId = visibleRecentClasses.find((item) =>
+    routeIsActive(currentPath, organizationPath(`/classes/${item.id}`)),
+  )?.id;
 
   return (
-    <aside
+    <SidebarPrimitive
       id="app-sidebar"
-      className={cn(
-        "flex flex-col border-r bg-card/50 backdrop-blur-xl group z-30 transform-gpu will-change-transform",
-        className
-      )}
-      data-state={dataState}
+      aria-label="Application navigation"
+      collapsible="icon"
+      className={className}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 h-[4rem] border-b border-border/40">
-        <Logo href="/home" size="md" onClick={onNavigate} />
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-foreground md:hidden"
-          onClick={onClose}
-          aria-label="Close navigation"
-          type="button"
+      {/* Brand + mobile close */}
+      <SidebarHeader
+        className={cn(
+          "h-[var(--app-header-height)] shrink-0 justify-center px-3 py-0",
+          collapsed && "px-2",
+        )}
+      >
+        <div
+          className={cn(
+            "flex items-center gap-2",
+            collapsed && "justify-center",
+          )}
         >
-          <PanelLeftClose className="h-4 w-4" />
-        </Button>
-      </div>
+          <Link
+            href={dashboardHref}
+            onClick={handleNavigate}
+            onMouseEnter={() => router.prefetch(dashboardHref)}
+            title={collapsed ? "UpClass — dashboard" : undefined}
+            aria-label={collapsed ? "UpClass — dashboard" : undefined}
+            className="focus-ring group flex min-w-0 items-center gap-2.5 rounded-lg px-1 py-1 transition-opacity hover:opacity-90"
+          >
+            <span className="flex size-7.5 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-2xs ring-1 ring-black/5 dark:ring-white/10">
+              <ArrowUpRight
+                className="size-3.5 stroke-[2.5]"
+                aria-hidden="true"
+              />
+            </span>
+            {collapsed ? null : (
+              <span className="min-w-0 truncate font-display text-[15px] font-bold tracking-tight text-foreground">
+                UpClass
+              </span>
+            )}
+          </Link>
+          {collapsed ? null : (
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              className="size-8 rounded-lg text-muted-foreground hover:bg-surface hover:text-foreground md:hidden"
+              onClick={() => setOpenMobile(false)}
+              aria-label="Close navigation"
+              type="button"
+            >
+              <PanelLeftClose className="size-4" />
+            </Button>
+          )}
+        </div>
+      </SidebarHeader>
 
-      {/* Main Navigation */}
-      <div
-        className="minimal-scrollbar flex-1 overflow-y-auto py-6 px-3 space-y-6"
+      {/* Workspace switcher */}
+      {userId ? (
+        <div className={cn("shrink-0 px-2.5 pb-2 pt-0.5", collapsed && "px-2")}>
+          <OrgSwitcher collapsed={collapsed} />
+        </div>
+      ) : null}
+
+      <SidebarContent
+        className={cn(
+          "minimal-scrollbar flex-1 overflow-y-auto pb-4 pt-1",
+          collapsed ? "px-2" : "px-2.5",
+        )}
         data-scrolling={isScrolling ? "true" : "false"}
         onScroll={handleSidebarScroll}
       >
-        {/* Discover Section */}
-        <div className="space-y-1">
-          <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-            Discover
-          </h3>
-          <nav className="space-y-0.5">
-            {navItems.map((item) => {
-              const Icon = item.icon
-              const isActive = currentPath === item.href || (item.href !== "/home" && currentPath?.startsWith(item.href))
-              return (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 group/item",
-                    isActive
-                      ? "bg-primary text-primary-foreground shadow-md"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                  onClick={() => {
-                    // Close sidebar on mobile after navigation
-                    if (onNavigate) {
-                      onNavigate()
-                    }
-                  }}
-                >
-                  <Icon className={cn(
-                    "h-4 w-4 transition-transform group-hover/item:scale-110",
-                    isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"
-                  )} />
-                  <span>{item.label}</span>
-                  {isActive && (
-                    <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white/50" />
-                  )}
-                </Link>
-              )
-            })}
-          </nav>
-        </div>
-
-        {recentClasses && recentClasses.length > 0 ? (
-          <div className="space-y-1">
-            <h3 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Recent Classes
-            </h3>
-            <details className="group rounded-xl border bg-muted/20 px-3 py-2">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-foreground">
-                <span className="flex items-center gap-3">
-                  <GraduationCap className="h-4 w-4 text-muted-foreground" />
-                  Recent Classes
-                </span>
-                <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
-              </summary>
-              <div className="mt-3 space-y-1">
-                {recentClasses.map((item) => {
-                  const href = `/classes/${item.id}`
-                  const isActive = currentPath === href
-
+        <SidebarGroup aria-label="Workspace" className="p-0">
+          <SidebarGroupContent>
+            <nav aria-label="Main navigation">
+              <SidebarMenu className={collapsed ? "gap-1" : "gap-0.5"}>
+                {workspaceItems.map((item) => {
+                  const href = organizationPath(item.path);
+                  const isActive =
+                    item.path === "/classes"
+                      ? routeIsActive(currentPath, href) && !activeRecentClassId
+                      : routeIsActive(
+                          currentPath,
+                          href,
+                          "exact" in item && item.exact,
+                        );
                   return (
-                    <Link
-                      key={item.id}
+                    <SidebarNavLink
+                      key={item.path}
                       href={href}
-                      className={cn(
-                        "flex items-center gap-3 rounded-lg px-2 py-2 text-sm transition-colors",
-                        isActive
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-foreground hover:bg-background hover:text-foreground",
-                      )}
-                      onClick={onNavigate}
-                    >
-                      <span
-                        className="h-2.5 w-2.5 rounded-full"
-                        style={{ backgroundColor: item.color || "#3b82f6" }}
-                      />
-                      <span className="truncate">{item.title}</span>
-                    </Link>
-                  )
+                      active={isActive}
+                      icon={<item.icon />}
+                      label={item.label}
+                      collapsed={collapsed}
+                      onClick={handleNavigate}
+                    />
+                  );
                 })}
-              </div>
-            </details>
-          </div>
+                {userId ? (
+                  <MessagesSection
+                    userId={userId}
+                    onNavigate={handleNavigate}
+                    collapsed={collapsed}
+                  />
+                ) : null}
+                <SidebarNavLink
+                  href={resourcesHref}
+                  active={routeIsActive(currentPath, resourcesHref)}
+                  icon={<Folder />}
+                  label="Resources"
+                  collapsed={collapsed}
+                  onClick={handleNavigate}
+                />
+              </SidebarMenu>
+            </nav>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {visibleRecentClasses.length > 0 ? (
+          <SidebarGroup
+            aria-labelledby="sidebar-courses-label"
+            className={cn("p-0", collapsed ? "mt-2" : "mt-4")}
+          >
+            <SidebarSeparator
+              className={cn("mb-2.5 opacity-60", collapsed && "mx-auto w-6")}
+            />
+            <SidebarGroupLabel asChild>
+              <h2 id="sidebar-courses-label">Recent classes</h2>
+            </SidebarGroupLabel>
+            {hasMoreClasses ? (
+              <SidebarGroupAction asChild>
+                <Link
+                  href={classesHref}
+                  onClick={handleNavigate}
+                  onMouseEnter={() => router.prefetch(classesHref)}
+                  aria-label="View all classes"
+                  title="View all classes"
+                >
+                  <ArrowUpRight />
+                </Link>
+              </SidebarGroupAction>
+            ) : null}
+            <SidebarGroupContent>
+              <nav aria-label="Recent classes">
+                <SidebarMenu className={collapsed ? "gap-1" : "gap-0.5"}>
+                  {visibleRecentClasses.map((item) => {
+                    const href = organizationPath(`/classes/${item.id}`);
+                    const active = routeIsActive(currentPath, href);
+                    return (
+                      <SidebarMenuItem key={item.id}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={active}
+                          tooltip={item.title}
+                          className={cn(
+                            "group/course-item",
+                            active && "font-semibold shadow-2xs",
+                          )}
+                        >
+                          <Link
+                            href={href}
+                            aria-current={active ? "page" : undefined}
+                            data-active={active ? "true" : "false"}
+                            onClick={handleNavigate}
+                            onMouseEnter={() => router.prefetch(href)}
+                            title={collapsed ? item.title : undefined}
+                            aria-label={collapsed ? item.title : undefined}
+                          >
+                            <CourseSwatch
+                              value={item.color}
+                              courseKey={item.id}
+                              size="sm"
+                              className="size-2.5 shrink-0 rounded-full ring-2 ring-background/80"
+                            />
+                            {collapsed ? null : (
+                              <span
+                                className={cn(
+                                  "min-w-0 flex-1 truncate text-[13px]",
+                                  active
+                                    ? "font-semibold text-foreground"
+                                    : "font-medium text-foreground/80 group-hover/course-item:text-foreground",
+                                )}
+                              >
+                                {item.title}
+                              </span>
+                            )}
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </nav>
+            </SidebarGroupContent>
+          </SidebarGroup>
         ) : null}
 
-        {/* Connect Section */}
-        {currentUserId && (
-          <div className="space-y-1">
-            <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-              Connect
-            </h3>
-            <div className="space-y-0.5">
-              <NotificationsSection userId={currentUserId} />
-              <MessagesSection userId={currentUserId} />
-            </div>
-          </div>
-        )}
-
-        {/* Settings Section */}
-        <div className="space-y-1">
-          <h3 className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-            System
-          </h3>
-          <nav className="space-y-0.5">
-            <Link
-              href="/settings"
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 group/item",
-                currentPath === "/settings"
-                  ? "bg-primary text-primary-foreground shadow-md"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}
-              onClick={onNavigate}
-            >
-              <Settings className={cn(
-                "h-4 w-4 transition-transform group-hover/item:rotate-90 duration-500",
-                currentPath === "/settings" ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"
-              )} />
-              <span>Settings</span>
-            </Link>
-          </nav>
-        </div>
-      </div>
-
-      {/* Profile Section */}
-      <div className="p-3 border-t border-border/40">
-        <Link
-          href={currentUserId ? `/user/${currentUserId}` : "/profile"}
-          className={cn(
-            "flex items-center gap-3 rounded-xl p-3 text-sm font-medium transition-all duration-200 border border-transparent",
-            currentPath?.startsWith("/user/")
-              ? "bg-muted border-border shadow-sm"
-              : "hover:bg-muted/50 hover:border-border/50"
-          )}
-          onClick={onNavigate}
+        <SidebarGroup
+          aria-label="Manage"
+          className={cn("p-0", collapsed ? "mt-2" : "mt-3")}
         >
-          {currentUserInfo ? (
-            <Avatar className="h-9 w-9 border border-border/50">
-              <AvatarImage src={currentUserInfo.image || undefined} alt={currentUserInfo.name || "User"} />
-              <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-500 text-white text-xs font-semibold">
-                {currentUserInfo.name
-                  ? currentUserInfo.name
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")
-                    .toUpperCase()
-                    .slice(0, 2)
-                  : "U"}
-              </AvatarFallback>
-            </Avatar>
-          ) : (
-            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white shadow-sm">
-              <User className="h-5 w-5" />
-            </div>
-          )}
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-foreground truncate">{currentUserInfo?.name || "My Profile"}</p>
-            <p className="text-xs text-muted-foreground truncate">View account</p>
-          </div>
-        </Link>
-      </div>
-    </aside>
-  )
+          <SidebarSeparator
+            className={cn("mb-2.5 opacity-60", collapsed && "mx-auto w-6")}
+          />
+          <SidebarGroupContent>
+            <nav aria-label="Account and organization">
+              <SidebarMenu className={collapsed ? "gap-1" : "gap-0.5"}>
+                {organizationRole === "owner" ||
+                organizationRole === "admin" ? (
+                  <SidebarNavLink
+                    href={adminHref}
+                    active={routeIsActive(currentPath, adminHref)}
+                    icon={<ShieldCheck />}
+                    label="Administration"
+                    collapsed={collapsed}
+                    onClick={handleNavigate}
+                  />
+                ) : null}
+                <SidebarNavLink
+                  href={settingsHref}
+                  active={routeIsActive(currentPath, settingsHref)}
+                  icon={<Settings />}
+                  label="Settings"
+                  collapsed={collapsed}
+                  onClick={handleNavigate}
+                />
+              </SidebarMenu>
+            </nav>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+
+      {/* User profile footer card */}
+      {userInfo ? (
+        <SidebarFooter
+          className={cn("shrink-0 p-2.5 pt-1.5", collapsed && "p-2")}
+        >
+          <Link
+            href={profileHref}
+            aria-current={profileIsActive ? "page" : undefined}
+            onClick={handleNavigate}
+            onMouseEnter={() => router.prefetch(profileHref)}
+            title={collapsed ? userInfo.name || "My profile" : undefined}
+            aria-label={collapsed ? userInfo.name || "My profile" : undefined}
+            className={cn(
+              "focus-ring group flex min-h-11 items-center rounded-xl transition-all duration-150 ease-out-expo border border-hairline/60 shadow-2xs",
+              collapsed ? "justify-center p-1.5" : "gap-2.5 p-2",
+              profileIsActive
+                ? "bg-primary/10 border-primary/25 text-foreground dark:bg-primary/15"
+                : "bg-surface/40 hover:bg-surface hover:border-hairline",
+            )}
+          >
+            <EntityAvatar
+              name={userInfo.name || userInfo.email || "User"}
+              image={userInfo.image}
+              colorKey={userId}
+              size="sm"
+              className="size-7.5 rounded-lg ring-1 ring-border/40"
+            />
+            {collapsed ? null : (
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[13px] font-semibold text-foreground tracking-tight">
+                  {userInfo.name || "My profile"}
+                </p>
+                <p className="truncate text-[11px] font-medium text-muted-foreground">
+                  {organizationRole
+                    ? ORG_ROLE_LABELS[organizationRole]
+                    : userInfo.email}
+                </p>
+              </div>
+            )}
+          </Link>
+        </SidebarFooter>
+      ) : null}
+      <SidebarRail />
+    </SidebarPrimitive>
+  );
 }

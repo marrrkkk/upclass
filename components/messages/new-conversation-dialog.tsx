@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Plus, Search } from "lucide-react"
-import { buttonVariants } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { useQuery } from "@tanstack/react-query"
+import { Hash, Mail, MessageSquarePlus, Plus, Search } from "lucide-react"
+
+import { Button } from "@/components/ui/button"
+import { Callout } from "@/components/ui/callout"
 import {
   Dialog,
   DialogContent,
@@ -15,6 +16,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { EntityAvatar } from "@/components/ui/entity-avatar"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { useOrganizationPath } from "@/hooks/use-organization-path"
+import { userKeys } from "@/hooks/query-keys"
 import { cn } from "@/lib/utils"
 
 type NewConversationDialogProps = {
@@ -25,17 +31,65 @@ type NewConversationDialogProps = {
     className: string
     classColor: string
   }>
+  triggerVariant?: "compact" | "default" | "icon"
+  className?: string
+  label?: string
 }
 
-export function NewConversationDialog({ currentUserId, channels }: NewConversationDialogProps) {
+export function NewConversationDialog({
+  currentUserId,
+  channels,
+  triggerVariant = "default",
+  className,
+  label = "New conversation",
+}: NewConversationDialogProps) {
   const router = useRouter()
+  const organizationPath = useOrganizationPath()
   const [open, setOpen] = useState(false)
   const [email, setEmail] = useState("")
+  const [submittedEmail, setSubmittedEmail] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [pending, startTransition] = useTransition()
 
-  const handleSearch = async () => {
-    setError(null)
+  const userQuery = useQuery({
+    queryKey: userKeys.byEmail(submittedEmail ?? ""),
+    queryFn: async ({ queryKey }) => {
+      const response = await fetch(
+        `/api/users/by-email?email=${encodeURIComponent(queryKey[2])}`,
+      )
+      if (!response.ok) {
+        throw new Error("User not found with this email address")
+      }
+      return response.json() as Promise<{ userId: string }>
+    },
+    enabled: submittedEmail !== null,
+    retry: false,
+    staleTime: 60_000,
+    gcTime: 10 * 60_000,
+  })
+
+  useEffect(() => {
+    if (!userQuery.isSuccess || !userQuery.data) return
+
+    if (userQuery.data.userId === currentUserId) {
+      setError("You cannot start a conversation with yourself")
+      setSubmittedEmail(null)
+      return
+    }
+
+    setOpen(false)
+    setEmail("")
+    setSubmittedEmail(null)
+    router.push(organizationPath(`/messages/${userQuery.data.userId}`))
+  }, [currentUserId, organizationPath, router, userQuery.data, userQuery.isSuccess])
+
+  useEffect(() => {
+    if (userQuery.isError) {
+      setError(userQuery.error.message)
+      setSubmittedEmail(null)
+    }
+  }, [userQuery.error, userQuery.isError])
+
+  const handleSearch = () => {
     const trimmedEmail = email.trim()
 
     if (!trimmedEmail) {
@@ -43,139 +97,205 @@ export function NewConversationDialog({ currentUserId, channels }: NewConversati
       return
     }
 
-    startTransition(async () => {
-      // Find user by email
-      try {
-        const response = await fetch(`/api/users/by-email?email=${encodeURIComponent(trimmedEmail)}`)
-        if (!response.ok) {
-          setError("User not found")
-          return
-        }
-        const data = await response.json()
-        if (data.userId === currentUserId) {
-          setError("Cannot message yourself")
-          return
-        }
-        setOpen(false)
-        setEmail("")
-        router.push(`/messages/${data.userId}`)
-      } catch (err) {
-        setError("Failed to find user")
-      }
-    })
+    setError(null)
+    setSubmittedEmail(trimmedEmail)
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen)
+        if (!nextOpen) {
+          setSubmittedEmail(null)
+          setError(null)
+          setEmail("")
+        }
+      }}
+    >
       <DialogTrigger asChild>
-        <button
-          className={cn(buttonVariants({ size: "sm" }), "gap-2 shadow-sm transition-all hover:shadow-md")}
-          type="button"
-        >
-          <Plus className="h-4 w-4" />
-          New Conversation
-        </button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[480px] gap-0 p-0 overflow-y-auto border-0 shadow-2xl max-h-[calc(100vh-2rem)] flex flex-col">
-        <DialogHeader className="p-6 pb-2 shrink-0">
-          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-            <Plus className="h-6 w-6 text-primary" />
-          </div>
-          <DialogTitle className="text-xl font-semibold tracking-tight">Start New Conversation</DialogTitle>
-          <DialogDescription className="text-muted-foreground">
-            Start a direct message or jump into a class channel.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="p-6 pt-2 space-y-6 flex-1 min-h-0 overflow-y-auto">
-          <div className="space-y-3">
-            <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Class Channels</Label>
-            {channels.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No class channels available yet.</p>
-            ) : (
-              <div className="space-y-2">
-                {channels.map((channel) => (
-                  <button
-                    key={channel.channelId}
-                    type="button"
-                    onClick={() => {
-                      setOpen(false)
-                      router.push(`/messages/class/${channel.classId}`)
-                    }}
-                    className="flex w-full items-center justify-between rounded-lg border p-3 text-left transition-colors hover:bg-muted/40"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="flex h-9 w-9 items-center justify-center rounded-xl text-sm font-semibold text-white"
-                        style={{ backgroundColor: channel.classColor }}
-                      >
-                        #
-                      </div>
-                      <div>
-                        <p className="font-medium">{channel.className}</p>
-                        <p className="text-xs text-muted-foreground">General channel</p>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
+        {triggerVariant === "compact" ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className={cn(
+              "h-8 rounded-lg border-hairline/80 bg-surface/60 px-2.5 text-xs font-semibold text-foreground shadow-2xs hover:bg-surface hover:text-primary gap-1",
+              className,
             )}
-          </div>
+          >
+            <Plus className="size-3.5 text-primary" />
+            <span>New</span>
+          </Button>
+        ) : triggerVariant === "icon" ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-sm"
+            aria-label="New conversation"
+            className={cn("size-8 rounded-lg shadow-2xs", className)}
+          >
+            <Plus className="size-4" />
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            size="sm"
+            className={cn("h-9 rounded-lg px-3.5 gap-1.5 text-xs font-semibold shadow-2xs", className)}
+          >
+            <Plus className="size-3.5" />
+            <span>{label}</span>
+          </Button>
+        )}
+      </DialogTrigger>
 
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Email Address</Label>
-              <div className="relative group">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none" />
+      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden rounded-2xl border-hairline/80 shadow-e3 sm:max-w-lg">
+        <DialogHeader className="pb-2">
+          <div className="flex items-center gap-2.5">
+            <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <MessageSquarePlus className="size-5" />
+            </div>
+            <div>
+              <DialogTitle className="text-lg font-bold tracking-tight">Start a conversation</DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground">
+                Send a direct message or open an active class channel.
+              </DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
+
+        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto py-2">
+          {/* Class Channels Section */}
+          <section aria-labelledby="class-channels-heading" className="space-y-2.5">
+            <div className="flex items-center gap-1.5 px-0.5">
+              <Hash className="size-3.5 text-muted-foreground" />
+              <span id="class-channels-heading" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Class channels
+              </span>
+            </div>
+            {channels.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-hairline p-4 text-center">
+                <p className="text-xs text-muted-foreground">
+                  No class channels available yet.
+                </p>
+              </div>
+            ) : (
+              <ul className="space-y-1.5">
+                {channels.map((channel) => (
+                  <li key={channel.channelId}>
+                    <button
+                      type="button"
+                      aria-label={`Open ${channel.className} general channel`}
+                      onClick={() => {
+                        setOpen(false)
+                        router.push(
+                          organizationPath(`/messages/class/${channel.classId}`),
+                        )
+                      }}
+                      className="group flex w-full items-center gap-3 rounded-xl border border-hairline/70 bg-card p-3 text-left transition-all hover:border-primary/40 hover:bg-surface-raised hover:shadow-2xs active:scale-[0.99]"
+                    >
+                      <EntityAvatar
+                        name={channel.className}
+                        colorKey={channel.classColor || channel.classId}
+                        shape="square"
+                        size="md"
+                        className="ring-1 ring-hairline/60 shadow-2xs"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="truncate text-sm font-semibold text-foreground group-hover:text-primary">
+                            {channel.className}
+                          </span>
+                          <span className="inline-flex items-center gap-1 rounded-md bg-surface px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                            General
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Public discussion for all enrolled students & teachers
+                        </p>
+                      </div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          {/* Direct Message Section */}
+          <section aria-labelledby="direct-message-heading" className="space-y-2.5">
+            <div className="flex items-center gap-1.5 px-0.5">
+              <Mail className="size-3.5 text-muted-foreground" />
+              <span id="direct-message-heading" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Direct message
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Find a classmate or teacher by their registered email address.
+            </p>
+            
+            <div className="space-y-2 pt-1">
+              <Label htmlFor="message-email" className="text-xs font-medium">
+                Email address
+              </Label>
+              <div className="relative">
+                <Search
+                  aria-hidden="true"
+                  className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                />
                 <Input
-                  id="email"
+                  id="message-email"
                   type="email"
-                  placeholder="user@example.com"
+                  placeholder="name@school.edu"
                   value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value)
+                  onChange={(event) => {
+                    setEmail(event.target.value)
                     setError(null)
+                    setSubmittedEmail(null)
                   }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault()
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault()
                       handleSearch()
                     }
                   }}
-                  className="pl-10 h-11 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors text-base"
-                  disabled={pending}
+                  className="h-10 rounded-lg border-hairline/90 bg-surface/70 pl-9 pr-3 text-sm focus-visible:bg-card shadow-2xs"
+                  disabled={userQuery.isPending}
                 />
               </div>
             </div>
 
-            {error && (
-              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive font-medium border border-destructive/20 animate-in fade-in slide-in-from-bottom-2">
+            {error ? (
+              <Callout tone="danger" role="alert" className="mt-2 text-xs">
                 {error}
-              </div>
-            )}
-          </div>
-
-          <DialogFooter className="pt-2">
-            <button
-              type="button"
-              onClick={() => {
-                setOpen(false)
-                setEmail("")
-                setError(null)
-              }}
-              className={cn(buttonVariants({ variant: "ghost" }), "text-muted-foreground hover:text-foreground")}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleSearch}
-              disabled={pending || !email.trim()}
-              className={cn(buttonVariants(), "min-w-[100px] shadow-md hover:shadow-lg transition-all", pending && "opacity-80")}
-            >
-              {pending ? "Searching..." : "Start Chat"}
-            </button>
-          </DialogFooter>
+              </Callout>
+            ) : null}
+          </section>
         </div>
+
+        <DialogFooter className="gap-2 border-t border-hairline/70 pt-3">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setOpen(false)
+              setEmail("")
+              setSubmittedEmail(null)
+              setError(null)
+            }}
+            className="h-10 rounded-lg px-4 font-medium"
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            onClick={handleSearch}
+            disabled={userQuery.isPending || !email.trim()}
+            isLoading={userQuery.isPending}
+            className="h-10 rounded-lg px-4 font-semibold shadow-2xs"
+          >
+            {userQuery.isPending ? "Searching…" : "Start chat"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

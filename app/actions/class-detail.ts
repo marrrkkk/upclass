@@ -1,7 +1,6 @@
 "use server"
 
 import { headers } from "next/headers"
-import { revalidatePath } from "next/cache"
 import { eq, and } from "drizzle-orm"
 
 import { db } from "@/db"
@@ -17,6 +16,7 @@ import {
   submissions,
 } from "@/db/schema"
 import { createNotificationsForClass } from "@/app/actions/notifications"
+import { revalidateClassOrg } from "@/lib/server/revalidate"
 import { logActivity } from "@/lib/activity"
 import { gradeSubmissionSchema } from "@/lib/validation/actions"
 
@@ -111,9 +111,7 @@ export async function createAnnouncement(
       session.user.id, // Exclude the author
     )
 
-    revalidatePath(`/classes/${classId}`)
-    revalidatePath("/home")
-    revalidatePath("/activity")
+    await revalidateClassOrg(classId, ["classes", `classes/${classId}`, "home", "activity"])
 
     await logActivity({
       actorId: session.user.id,
@@ -198,9 +196,7 @@ export async function createClasswork(
       session.user.id, // Exclude the creator
     )
 
-    revalidatePath(`/classes/${classId}`)
-    revalidatePath("/home")
-    revalidatePath("/activity")
+    await revalidateClassOrg(classId, ["classes", `classes/${classId}`, "home", "activity"])
 
     await logActivity({
       actorId: session.user.id,
@@ -364,9 +360,12 @@ export async function submitClasswork(
       return submissionId
     })
 
-    revalidatePath(`/classes/${classworkData[0].classId}`)
-    revalidatePath("/home")
-    revalidatePath("/activity")
+    await revalidateClassOrg(classworkData[0].classId, [
+      "classes",
+      `classes/${classworkData[0].classId}`,
+      "home",
+      "activity",
+    ])
 
     await logActivity({
       actorId: session.user.id,
@@ -469,9 +468,12 @@ export async function gradeSubmission(
       })
     })
 
-    revalidatePath(`/classes/${classworkData[0].classId}`)
-    revalidatePath("/home")
-    revalidatePath("/activity")
+    await revalidateClassOrg(classworkData[0].classId, [
+      "classes",
+      `classes/${classworkData[0].classId}`,
+      "home",
+      "activity",
+    ])
 
     await logActivity({
       actorId: session.user.id,
@@ -566,7 +568,7 @@ export async function toggleReaction(
       })
     }
 
-    revalidatePath(`/classes/${classId}`)
+    await revalidateClassOrg(classId, [`classes/${classId}`])
     return { success: true }
   } catch (error) {
     console.error("toggleReaction error", error)
@@ -607,7 +609,9 @@ export async function updateAnnouncement(
       .set({ content, updatedAt: new Date() })
       .where(eq(announcements.id, announcementId))
 
-    revalidatePath(`/classes/${announcementData[0].classId}`)
+    await revalidateClassOrg(announcementData[0].classId, [
+      `classes/${announcementData[0].classId}`,
+    ])
     return { success: true }
   } catch (error) {
     console.error("updateAnnouncement error", error)
@@ -658,7 +662,9 @@ export async function deleteAnnouncement(
   try {
     await db.delete(announcements).where(eq(announcements.id, announcementId))
 
-    revalidatePath(`/classes/${announcementData[0].classId}`)
+    await revalidateClassOrg(announcementData[0].classId, [
+      `classes/${announcementData[0].classId}`,
+    ])
     return { success: true }
   } catch (error) {
     console.error("deleteAnnouncement error", error)
@@ -726,7 +732,9 @@ export async function updateClasswork(
       })
       .where(eq(classwork.id, classworkId))
 
-    revalidatePath(`/classes/${classworkData[0].classId}`)
+    await revalidateClassOrg(classworkData[0].classId, [
+      `classes/${classworkData[0].classId}`,
+    ])
     return { success: true }
   } catch (error) {
     console.error("updateClasswork error", error)
@@ -775,7 +783,9 @@ export async function deleteClasswork(
   try {
     await db.delete(classwork).where(eq(classwork.id, classworkId))
 
-    revalidatePath(`/classes/${classworkData[0].classId}`)
+    await revalidateClassOrg(classworkData[0].classId, [
+      `classes/${classworkData[0].classId}`,
+    ])
     return { success: true }
   } catch (error) {
     console.error("deleteClasswork error", error)
@@ -837,7 +847,7 @@ export async function removeMember(
       .delete(classMembership)
       .where(eq(classMembership.id, targetMembership[0].id))
 
-    revalidatePath(`/classes/${classId}`)
+    await revalidateClassOrg(classId, [`classes/${classId}`])
     return { success: true }
   } catch (error) {
     console.error("removeMember error", error)

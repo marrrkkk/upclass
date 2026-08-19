@@ -7,9 +7,9 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 px-4 py-16 sm:px-6">
+    <main className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col gap-6 px-4 py-16 sm:px-6">
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Terms of Service</h1>
+        <h1 className="text-3xl font-bold">Terms of Service</h1>
         <p className="text-muted-foreground">
           These terms govern your use of UpClass and its class, messaging, whiteboard, and
           resource-sharing features.

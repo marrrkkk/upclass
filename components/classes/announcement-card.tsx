@@ -6,9 +6,8 @@ import { Edit, MoreVertical, SmilePlus, Trash2 } from "lucide-react"
 
 import { deleteAnnouncement, toggleReaction, updateAnnouncement } from "@/app/actions/class-detail"
 import { AnnouncementSkeleton } from "@/components/skeletons"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { buttonVariants } from "@/components/ui/button"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Callout } from "@/components/ui/callout"
 import {
   Dialog,
   DialogContent,
@@ -24,9 +23,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { EntityAvatar } from "@/components/ui/entity-avatar"
+import { IconBadge } from "@/components/ui/icon-badge"
+import { Panel } from "@/components/ui/panel"
+import { Text } from "@/components/ui/typography"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
-
 import type { AnnouncementData } from "@/types/classes"
 
 const REACTION_EMOJIS: Record<string, { emoji: string; label: string }> = {
@@ -57,7 +59,6 @@ export function AnnouncementCard({
   announcement,
   userId,
   userRole,
-  classColor,
 }: {
   announcement: AnnouncementData
   userId?: string
@@ -101,7 +102,6 @@ export function AnnouncementCard({
   const isAuthor = userId === announcement.author.id
   const canEdit = isAuthor
   const canDelete = isAuthor || userRole === "teacher"
-  const authorInitial = announcement.author.name.charAt(0).toUpperCase()
 
   const handleReaction = async (reactionType: string) => {
     if (!userId) return
@@ -151,200 +151,171 @@ export function AnnouncementCard({
 
   return (
     <>
-      <Card className="group transition-all hover:shadow-md border-border/60 overflow-hidden relative border-l-[6px]" style={{ borderLeftColor: classColor }}>
-        <CardHeader className="pb-3 pl-5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Avatar className="h-10 w-10 border">
-                <AvatarImage src={announcement.author.image || undefined} alt={announcement.author.name} />
-                <AvatarFallback className="bg-primary/10 text-primary">{authorInitial}</AvatarFallback>
-              </Avatar>
-              <div>
-                <p className="font-semibold text-sm leading-none">{announcement.author.name}</p>
-                <p className="text-xs text-muted-foreground mt-1">{formatAnnouncementDate(announcement.createdAt)}</p>
-              </div>
+      <div className="group overflow-hidden rounded-2xl border border-hairline/80 bg-card p-5 shadow-e1 transition-all hover:border-hairline hover:shadow-e2">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <EntityAvatar
+              name={announcement.author.name}
+              image={announcement.author.image}
+              colorKey={announcement.author.id}
+              size="md"
+            />
+            <div className="min-w-0">
+              <Text variant="h4" truncate className="font-semibold">{announcement.author.name}</Text>
+              <Text variant="caption" tone="muted">
+                {formatAnnouncementDate(announcement.createdAt)}
+              </Text>
             </div>
-            {(canEdit || canDelete) && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-muted rounded-full text-muted-foreground focus:outline-none">
-                    <MoreVertical className="h-4 w-4" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {canEdit && (
-                    <DropdownMenuItem onClick={() => { setEditContent(announcement.content); setEditOpen(true) }}>
-                      <Edit className="h-4 w-4 mr-2" />
-                      Edit
-                    </DropdownMenuItem>
-                  )}
-                  {canDelete && (
-                    <>
-                      {canEdit && <DropdownMenuSeparator />}
-                      <DropdownMenuItem onClick={() => setDeleteOpen(true)} className="text-destructive focus:text-destructive">
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
           </div>
-        </CardHeader>
-        <CardContent className="pl-5">
-          <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">{announcement.content}</p>
-        </CardContent>
-        <div className="px-6 py-3 border-t bg-muted/5 flex items-center justify-between pl-5">
-          <div className="flex items-center gap-1">
+
+          {canEdit || canDelete ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button
-                  disabled={!userId}
-                  className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all group/rx focus:outline-none",
-                    optimisticReactionState.hasReacted
-                      ? "bg-blue-50 text-blue-600 hover:bg-blue-100"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                  )}
-                  title="Add reaction"
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Announcement actions"
+                  className="rounded-lg text-muted-foreground opacity-100 sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100"
                 >
-                  {optimisticReactionState.hasReacted && optimisticReactionState.userReaction ? (
-                    <>
-                      <span className="text-base leading-none">{REACTION_EMOJIS[optimisticReactionState.userReaction]?.emoji || "👍"}</span>
-                      <span className="capitalize">{REACTION_EMOJIS[optimisticReactionState.userReaction]?.label || "Liked"}</span>
-                    </>
-                  ) : (
-                    <>
-                      <SmilePlus className="h-4 w-4 stroke-current opacity-70 group-hover/rx:opacity-100" />
-                      <span>Reaction</span>
-                    </>
-                  )}
-                </button>
+                  <MoreVertical className="size-4" aria-hidden="true" />
+                </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="flex gap-1 p-1 min-w-0">
-                {Object.entries(REACTION_EMOJIS).map(([key, { emoji, label }]) => (
-                  <DropdownMenuItem
-                    key={key}
-                    onClick={() => handleReaction(key)}
-                    className={cn(
-                      "flex items-center justify-center p-2 rounded-full cursor-pointer hover:bg-muted text-xl transition-transform hover:scale-125 focus:bg-muted",
-                      optimisticReactionState.userReaction === key && "bg-blue-50 ring-1 ring-blue-200",
-                    )}
-                    title={label}
-                  >
-                    {emoji}
+              <DropdownMenuContent align="end" className="rounded-xl">
+                {canEdit ? (
+                  <DropdownMenuItem onClick={() => { setEditContent(announcement.content); setEditOpen(true) }}>
+                    <Edit className="size-3.5" />
+                    Edit
                   </DropdownMenuItem>
-                ))}
+                ) : null}
+                {canDelete ? (
+                  <>
+                    {canEdit ? <DropdownMenuSeparator /> : null}
+                    <DropdownMenuItem onClick={() => setDeleteOpen(true)} className="text-destructive focus:text-destructive">
+                      <Trash2 className="size-3.5" />
+                      Delete
+                    </DropdownMenuItem>
+                  </>
+                ) : null}
               </DropdownMenuContent>
             </DropdownMenu>
-
-            {optimisticReactionState.count > 0 && (
-              <div
-                className="flex items-center gap-1.5 ml-2 text-xs text-muted-foreground bg-muted/50 px-2.5 py-1 rounded-full cursor-default"
-                title={`${optimisticReactionState.count} reaction${optimisticReactionState.count !== 1 ? "s" : ""}`}
-              >
-                <div className="flex -space-x-1">
-                  {sortedReactions.map(([type]) => (
-                    <span key={type} className="text-sm leading-none">
-                      {REACTION_EMOJIS[type]?.emoji || "👍"}
-                    </span>
-                  ))}
-                </div>
-                <span className="font-medium">{optimisticReactionState.count}</span>
-              </div>
-            )}
-          </div>
+          ) : null}
         </div>
-      </Card>
+
+        <div className="py-3.5">
+          <Text className="max-w-[70ch] whitespace-pre-wrap text-sm leading-relaxed text-foreground">{announcement.content}</Text>
+        </div>
+
+        <div className="flex items-center gap-2 pt-1">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant={optimisticReactionState.hasReacted ? "secondary" : "ghost"}
+                size="sm"
+                disabled={!userId}
+                className={cn("h-8 rounded-lg text-xs", optimisticReactionState.hasReacted && "text-primary-strong font-semibold")}
+                title="Add reaction"
+              >
+                {optimisticReactionState.hasReacted && optimisticReactionState.userReaction ? (
+                  <span aria-hidden="true">
+                    {REACTION_EMOJIS[optimisticReactionState.userReaction]?.emoji || "👍"}
+                  </span>
+                ) : (
+                  <SmilePlus className="size-3.5" aria-hidden="true" />
+                )}
+                {optimisticReactionState.hasReacted && optimisticReactionState.userReaction
+                  ? REACTION_EMOJIS[optimisticReactionState.userReaction]?.label || "Liked"
+                  : "Reaction"}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="flex min-w-0 gap-1 p-1 rounded-xl">
+              {Object.entries(REACTION_EMOJIS).map(([key, { emoji, label }]) => (
+                <DropdownMenuItem
+                  key={key}
+                  onClick={() => handleReaction(key)}
+                  className={cn(
+                    "focus-ring flex size-9 cursor-pointer items-center justify-center rounded-lg p-0 text-base",
+                    optimisticReactionState.userReaction === key && "bg-primary-surface",
+                  )}
+                  title={label}
+                  aria-label={label}
+                >
+                  {emoji}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {optimisticReactionState.count > 0 ? (
+            <div
+              className="flex items-center gap-1.5 text-xs text-muted-foreground"
+              title={`${optimisticReactionState.count} reaction${optimisticReactionState.count !== 1 ? "s" : ""}`}
+            >
+              <span className="flex -space-x-1" aria-hidden="true">
+                {sortedReactions.map(([type]) => (
+                  <span key={type} className="text-xs leading-none">
+                    {REACTION_EMOJIS[type]?.emoji || "👍"}
+                  </span>
+                ))}
+              </span>
+              <span className="font-semibold text-foreground/80 numeric-tabular">
+                {optimisticReactionState.count}
+              </span>
+            </div>
+          ) : null}
+        </div>
+      </div>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="sm:max-w-[550px] gap-0 p-0 overflow-y-auto border-0 shadow-2xl max-h-[calc(100vh-2rem)] flex flex-col">
-          <DialogHeader className="p-6 pb-2 bg-gradient-to-r from-muted/50 to-muted/10 border-b border-border/50">
-            <DialogTitle className="text-xl font-semibold tracking-tight flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                <Edit className="h-5 w-5" />
-              </div>
-              Edit Announcement
+        <DialogContent className="sm:max-w-[34rem]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <IconBadge tone="primary" size="sm"><Edit /></IconBadge>
+              Edit announcement
             </DialogTitle>
+            <DialogDescription>Update the message shared with this class.</DialogDescription>
           </DialogHeader>
-          <div className="p-6 pb-4">
-            <Textarea
-              value={editContent}
-              onChange={(event) => setEditContent(event.target.value)}
-              placeholder="Announcement content..."
-              className="min-h-[180px] resize-none"
-            />
-          </div>
-          <DialogFooter className="px-6 py-4 bg-muted/30 border-t">
-            <button
-              type="button"
-              onClick={() => setEditOpen(false)}
-              className={cn(buttonVariants({ variant: "ghost" }), "text-muted-foreground hover:text-foreground")}
-            >
+          <Textarea
+            value={editContent}
+            onChange={(event) => setEditContent(event.target.value)}
+            placeholder="Announcement content"
+            className="min-h-44 resize-none"
+          />
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={() => setEditOpen(false)}>
               Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleEdit}
-              disabled={editPending || !editContent.trim()}
-              className={cn(buttonVariants(), "min-w-[100px] shadow-md hover:shadow-lg transition-all")}
-              style={{ backgroundColor: classColor }}
-            >
+            </Button>
+            <Button type="button" onClick={handleEdit} disabled={editPending || !editContent.trim()}>
               {editPending ? "Saving..." : "Save"}
-            </button>
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent className="sm:max-w-[420px] gap-0 p-0 overflow-y-auto border-0 shadow-2xl max-h-[calc(100vh-2rem)]">
-          <DialogHeader className="p-6 pb-4 bg-gradient-to-r from-destructive/10 to-destructive/5 border-b border-destructive/20">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center">
-                <Trash2 className="h-5 w-5 text-destructive" />
-              </div>
-              <div>
-                <DialogTitle className="text-lg font-semibold">Delete Announcement</DialogTitle>
-                <DialogDescription className="text-sm text-muted-foreground">
-                  This action cannot be undone
-                </DialogDescription>
-              </div>
-            </div>
+        <DialogContent className="sm:max-w-[26rem]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <IconBadge tone="danger" size="sm"><Trash2 /></IconBadge>
+              Delete announcement
+            </DialogTitle>
+            <DialogDescription>This action cannot be undone.</DialogDescription>
           </DialogHeader>
-
-          <div className="p-6 text-center space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Are you sure you want to delete this announcement?
-            </p>
-            <p className="text-sm text-foreground/80 line-clamp-2 italic">
-              &ldquo;{announcement.content.length > 100 ? `${announcement.content.slice(0, 100)}...` : announcement.content}&rdquo;
-            </p>
-          </div>
-
-          <div className="px-6 py-4 bg-muted/30 border-t flex items-center justify-center gap-3">
-            <button
-              type="button"
-              onClick={() => setDeleteOpen(false)}
-              disabled={deletePending}
-              className={cn(buttonVariants({ variant: "outline" }), "min-w-[100px]")}
-            >
+          <Callout tone="danger" icon={false}>
+            <Text variant="small">
+              Are you sure you want to delete &ldquo;{announcement.content.length > 100 ? `${announcement.content.slice(0, 100)}...` : announcement.content}&rdquo;?
+            </Text>
+          </Callout>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setDeleteOpen(false)} disabled={deletePending}>
               Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={deletePending}
-              className={cn(buttonVariants({ variant: "destructive" }), "min-w-[120px] gap-2")}
-            >
-              {deletePending ? "Deleting..." : (
-                <>
-                  <Trash2 className="h-4 w-4" />
-                  Delete
-                </>
-              )}
-            </button>
-          </div>
+            </Button>
+            <Button type="button" variant="destructive" onClick={handleDelete} disabled={deletePending}>
+              <Trash2 aria-hidden="true" />
+              {deletePending ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

@@ -1,10 +1,10 @@
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import { cache } from "react"
-import { eq } from "drizzle-orm"
+import { and, eq, or } from "drizzle-orm"
 
 import { db } from "@/db"
-import { user } from "@/db/schema"
+import { classes, classMembership, orgMembership } from "@/db/schema"
 import { auth } from "@/lib/auth"
 
 export const getOptionalSession = cache(async () => {
@@ -28,21 +28,22 @@ export const getMainShellState = cache(async () => {
 
   if (!session?.user?.id) {
     return {
-      hasRole: false,
+      hasOrganization: false,
       isAuthenticated: false,
       userId: undefined,
       userInfo: null,
     }
   }
 
-  const [userData] = await db
-    .select({ role: user.role })
-    .from(user)
-    .where(eq(user.id, session.user.id))
+  // Check if user belongs to any organization
+  const userOrgs = await db
+    .select({ id: orgMembership.id })
+    .from(orgMembership)
+    .where(eq(orgMembership.userId, session.user.id))
     .limit(1)
 
   return {
-    hasRole: userData?.role !== null && userData?.role !== undefined,
+    hasOrganization: userOrgs.length > 0,
     isAuthenticated: true,
     userId: session.user.id,
     userInfo: {
@@ -51,4 +52,20 @@ export const getMainShellState = cache(async () => {
       image: session.user.image ?? null,
     },
   }
+})
+
+export const getUserRole = cache(async (userId: string): Promise<"teacher" | "student"> => {
+  const teacherMembership = await db
+    .select({ id: classes.id })
+    .from(classes)
+    .leftJoin(classMembership, eq(classMembership.classId, classes.id))
+    .where(
+      or(
+        eq(classes.ownerId, userId),
+        and(eq(classMembership.userId, userId), eq(classMembership.role, "teacher")),
+      ),
+    )
+    .limit(1)
+
+  return teacherMembership.length > 0 ? "teacher" : "student"
 })

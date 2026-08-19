@@ -7,7 +7,7 @@ describe("whiteboard presence helpers", () => {
 
     expect(first).toBe(second)
     expect([
-      "#2563eb",
+      "#0369a1",
       "#dc2626",
       "#16a34a",
       "#9333ea",

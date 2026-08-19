@@ -11,16 +11,16 @@ const OnboardRedirect = dynamic(
 
 export function MainLayoutClient({
   children,
-  hasRole,
+  hasOrganization,
   isAuthenticated,
 }: {
   children: React.ReactNode
-  hasRole: boolean
+  hasOrganization: boolean
   isAuthenticated: boolean
 }) {
   return (
     <>
-      {isAuthenticated ? <OnboardRedirect hasRole={hasRole} /> : null}
+      {isAuthenticated ? <OnboardRedirect hasOrganization={hasOrganization} /> : null}
       {children}
     </>
   )

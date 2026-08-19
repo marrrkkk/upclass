@@ -6,10 +6,16 @@ import { ArrowLeft, ArrowRight, CheckCircle2, Clock, FileQuestion, Timer, XCircl
 
 import { submitQuiz } from "@/app/actions/quizzes"
 import { OfflineRouteGuard } from "@/components/offline-route-guard"
-import { Badge } from "@/components/ui/badge"
-import { buttonVariants } from "@/components/ui/button"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Callout } from "@/components/ui/callout"
+import { CourseSwatch } from "@/components/ui/course-identity"
+import { EmptyState } from "@/components/ui/empty-state"
+import { Panel, PanelBody, PanelHeader } from "@/components/ui/panel"
+import { PageContainer } from "@/components/ui/section"
+import { StatusBadge } from "@/components/ui/status-badge"
+import { Text } from "@/components/ui/typography"
 import { Textarea } from "@/components/ui/textarea"
+import { useOrganizationPath } from "@/hooks/use-organization-path"
 import { cn } from "@/lib/utils"
 
 type QuizTakingPageProps = {
@@ -51,6 +57,8 @@ function formatTimer(seconds: number) {
 
 export function QuizTakingPage({ classId, classTitle, classColor, quiz }: QuizTakingPageProps) {
   const router = useRouter()
+  const organizationPath = useOrganizationPath()
+  const quizzesPath = organizationPath(`/classes/${classId}?tab=quizzes`)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [answers, setAnswers] = useState<Record<string, { selected?: string[]; text?: string }>>({})
   const [error, setError] = useState<string | null>(null)
@@ -120,7 +128,7 @@ export function QuizTakingPage({ classId, classTitle, classColor, quiz }: QuizTa
         return
       }
 
-      router.push(`/classes/${classId}?tab=quizzes`)
+      router.push(quizzesPath)
       router.refresh()
     })
   }
@@ -140,77 +148,52 @@ export function QuizTakingPage({ classId, classTitle, classColor, quiz }: QuizTa
 
   if (quizUnavailable) {
     return (
-      <div className="mx-auto flex max-w-3xl flex-col gap-6 py-10">
-        <Card className="border shadow-sm">
-          <CardContent className="flex flex-col items-center gap-3 p-10 text-center">
-            <XCircle className="h-10 w-10 text-destructive/60" />
-            <h1 className="text-2xl font-semibold">Quiz unavailable</h1>
-            <p className="max-w-md text-sm text-muted-foreground">
-              This quiz is not published, so it cannot be taken right now.
-            </p>
-            <button
-              type="button"
-              onClick={() => router.push(`/classes/${classId}?tab=quizzes`)}
-              className={cn(buttonVariants({ variant: "outline" }), "mt-2")}
-            >
-              Back to Quizzes
-            </button>
-          </CardContent>
-        </Card>
-      </div>
+      <PageContainer width="narrow" className="py-8">
+        <Panel padding="none">
+          <EmptyState
+            icon={<XCircle />}
+            tone="danger"
+            title="Quiz unavailable"
+            description="This quiz is not published, so it cannot be taken right now."
+            action={<Button variant="outline" onClick={() => router.push(quizzesPath)}>Back to quizzes</Button>}
+          />
+        </Panel>
+      </PageContainer>
     )
   }
 
   if (quizCompleted) {
     return (
-      <div className="mx-auto flex max-w-3xl flex-col gap-6 py-10">
-        <Card className="border shadow-sm">
-          <CardContent className="flex flex-col items-center gap-3 p-10 text-center">
-            <CheckCircle2 className={cn("h-10 w-10", quizPendingReview ? "text-amber-600" : "text-green-600")} />
-            <h1 className="text-2xl font-semibold">
-              {quizPendingReview ? "Quiz submitted for review" : "Quiz already completed"}
-            </h1>
-            {quizPendingReview ? (
-              <p className="max-w-md text-sm text-muted-foreground">
-                Your answers were submitted successfully. This quiz includes short-answer questions, so your teacher
-                still needs to review it before a final score is shown.
-              </p>
-            ) : (
-              <p className="max-w-md text-sm text-muted-foreground">
-                You only get one attempt for this quiz. Your score was {quiz.attempt?.score ?? "0"} out of{" "}
-                {quiz.totalPoints ?? "0"}.
-              </p>
-            )}
-            <button
-              type="button"
-              onClick={() => router.push(`/classes/${classId}?tab=quizzes`)}
-              className={cn(buttonVariants({ variant: "outline" }), "mt-2")}
-            >
-              Back to Quizzes
-            </button>
-          </CardContent>
-        </Card>
-      </div>
+      <PageContainer width="narrow" className="py-8">
+        <Panel padding="none">
+          <EmptyState
+            icon={<CheckCircle2 />}
+            tone={quizPendingReview ? "warning" : "success"}
+            title={quizPendingReview ? "Quiz submitted for review" : "Quiz already completed"}
+            description={
+              quizPendingReview
+                ? "Your answers were submitted successfully. Your teacher still needs to review the short-answer responses before a final score is shown."
+                : `You only get one attempt for this quiz. Your score was ${quiz.attempt?.score ?? "0"} out of ${quiz.totalPoints ?? "0"}.`
+            }
+            action={<Button variant="outline" onClick={() => router.push(quizzesPath)}>Back to quizzes</Button>}
+          />
+        </Panel>
+      </PageContainer>
     )
   }
 
   if (!currentQuestion) {
     return (
-      <div className="mx-auto flex max-w-3xl flex-col gap-6 py-10">
-        <Card className="border shadow-sm">
-          <CardContent className="flex flex-col items-center gap-3 p-10 text-center">
-            <XCircle className="h-10 w-10 text-destructive/60" />
-            <h1 className="text-2xl font-semibold">Quiz could not be loaded</h1>
-            <button
-              type="button"
-              onClick={() => router.push(`/classes/${classId}?tab=quizzes`)}
-              className={cn(buttonVariants({ variant: "outline" }), "mt-2")}
-            >
-              Back to Quizzes
-            </button>
-          </CardContent>
-        </Card>
-      </div>
+      <PageContainer width="narrow" className="py-8">
+        <Panel padding="none">
+          <EmptyState
+            icon={<XCircle />}
+            tone="danger"
+            title="Quiz could not be loaded"
+            action={<Button variant="outline" onClick={() => router.push(quizzesPath)}>Back to quizzes</Button>}
+          />
+        </Panel>
+      </PageContainer>
     )
   }
 
@@ -220,169 +203,162 @@ export function QuizTakingPage({ classId, classTitle, classColor, quiz }: QuizTa
     <OfflineRouteGuard
       title="You're offline"
       description="Quiz answering needs an internet connection so your attempt and timer stay in sync."
-      backHref={`/classes/${classId}?tab=quizzes`}
+      backHref={quizzesPath}
       backLabel="Back to Quizzes"
     >
-      <div className="mx-auto flex max-w-4xl flex-col gap-6 py-8">
-        <div className="flex items-center justify-between gap-4">
-        <div className="space-y-2">
-          <button
-            type="button"
-            onClick={() => router.push(`/classes/${classId}?tab=quizzes`)}
-            className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "gap-2 px-0")}
-          >
-            <ArrowLeft className="h-4 w-4" />
-            {classTitle}
-          </button>
-          <div className="space-y-1">
-            <h1 className="text-2xl font-semibold">{quiz.title}</h1>
-            {quiz.description && <p className="text-sm text-muted-foreground">{quiz.description}</p>}
-          </div>
-        </div>
+      <PageContainer width="content" className="py-6 sm:py-8">
+        <Panel padding="none" className="overflow-hidden">
+          <PanelBody className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex min-w-0 items-start gap-3">
+              <CourseSwatch value={classColor} courseKey={classId} size="lg" />
+              <div className="min-w-0 space-y-1">
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  onClick={() => router.push(quizzesPath)}
+                  className="h-auto px-0"
+                >
+                  <ArrowLeft aria-hidden="true" />
+                  {classTitle}
+                </Button>
+                <Text as="h1" variant="h1">{quiz.title}</Text>
+                {quiz.description ? <Text variant="small" tone="muted">{quiz.description}</Text> : null}
+              </div>
+            </div>
 
-        {remainingSeconds != null && (
-          <Badge variant="outline" className="bg-background px-3 py-2 font-mono text-base">
-            <Timer className="mr-2 h-4 w-4" />
-            {formatTimer(remainingSeconds)}
-          </Badge>
-        )}
-      </div>
+            {remainingSeconds != null ? (
+              <StatusBadge tone={remainingSeconds <= 60 ? "warning" : "neutral"} dot={remainingSeconds <= 60} className="type-mono numeric-tabular">
+                <Timer aria-hidden="true" />
+                {formatTimer(remainingSeconds)}
+              </StatusBadge>
+            ) : null}
+          </PanelBody>
+        </Panel>
 
-      <Card className="border shadow-sm">
-        <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm">
-          <div className="flex items-center gap-4 text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <FileQuestion className="h-4 w-4" />
-              Question {currentIndex + 1} of {orderedQuestions.length}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Clock className="h-4 w-4" />
-              {quiz.totalPoints ?? "0"} total points
-            </span>
-          </div>
-          <div className="font-medium" style={{ color: classColor }}>
-            {currentQuestion.points} point{Number(currentQuestion.points) === 1 ? "" : "s"}
-          </div>
-        </CardContent>
-      </Card>
+        <Panel padding="none">
+          <PanelBody className="flex flex-wrap items-center justify-between gap-3 py-3">
+            <div className="flex flex-wrap items-center gap-4 text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <FileQuestion className="size-4" aria-hidden="true" />
+                <Text variant="caption" tone="muted" className="numeric-tabular">
+                  Question {currentIndex + 1} of {orderedQuestions.length}
+                </Text>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Clock className="size-4" aria-hidden="true" />
+                <Text variant="caption" tone="muted" className="numeric-tabular">
+                  {quiz.totalPoints ?? "0"} total points
+                </Text>
+              </span>
+            </div>
+            <StatusBadge tone="primary">{currentQuestion.points} point{Number(currentQuestion.points) === 1 ? "" : "s"}</StatusBadge>
+          </PanelBody>
+        </Panel>
 
-      <Card className="border shadow-sm">
-        <CardHeader className="space-y-3 border-b bg-muted/20 px-6 py-5">
-          <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            Question {currentIndex + 1}
-          </p>
-          <h2 className="text-xl font-medium leading-snug">{currentQuestion.prompt}</h2>
-        </CardHeader>
+        <Panel padding="none" className="overflow-hidden">
+          <PanelHeader className="block space-y-1.5 bg-surface-sunken">
+            <Text variant="overline" tone="primary">Question {currentIndex + 1}</Text>
+            <Text as="h2" variant="h2">{currentQuestion.prompt}</Text>
+          </PanelHeader>
 
-        <CardContent className="space-y-4 p-6">
-          {currentQuestion.type === "short_answer" ? (
-            <Textarea
-              value={answers[currentQuestion.id]?.text || ""}
-              onChange={(event) =>
-                setAnswers((prev) => ({
-                  ...prev,
-                  [currentQuestion.id]: {
-                    ...prev[currentQuestion.id],
-                    text: event.target.value,
-                  },
-                }))
-              }
-              className="min-h-[180px] resize-none"
-              placeholder="Type your answer here..."
-            />
-          ) : (
-            <div className="space-y-3">
-              {currentQuestion.options.map((option) => {
-                const isChecked = selected.includes(option.id)
-                return (
-                  <label
-                    key={option.id}
-                    className={cn(
-                      "flex cursor-pointer items-center gap-3 rounded-lg border p-4 transition-colors hover:bg-muted/40",
-                      isChecked ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "border-border",
-                    )}
-                  >
-                    <input
-                      type={currentQuestion.type === "multiple_select" ? "checkbox" : "radio"}
-                      name={`question-${currentQuestion.id}`}
-                      checked={isChecked}
-                      onChange={(event) => {
-                        if (currentQuestion.type === "multiple_select") {
-                          const nextSelected = event.target.checked
-                            ? [...selected, option.id]
-                            : selected.filter((value) => value !== option.id)
+          <PanelBody className="space-y-4">
+            {currentQuestion.type === "short_answer" ? (
+              <Textarea
+                value={answers[currentQuestion.id]?.text || ""}
+                onChange={(event) =>
+                  setAnswers((prev) => ({
+                    ...prev,
+                    [currentQuestion.id]: {
+                      ...prev[currentQuestion.id],
+                      text: event.target.value,
+                    },
+                  }))
+                }
+                className="min-h-44 resize-none"
+                placeholder="Type your answer here"
+              />
+            ) : (
+              <div className="space-y-2">
+                {currentQuestion.options.map((option) => {
+                  const isChecked = selected.includes(option.id)
+                  return (
+                    <label
+                      key={option.id}
+                      className={cn(
+                        "focus-within:focus-ring row-interactive flex cursor-pointer items-center gap-3 rounded-lg border border-hairline px-4 py-3",
+                        isChecked && "border-primary-border bg-primary-surface",
+                      )}
+                    >
+                      <input
+                        type={currentQuestion.type === "multiple_select" ? "checkbox" : "radio"}
+                        name={`question-${currentQuestion.id}`}
+                        checked={isChecked}
+                        onChange={(event) => {
+                          if (currentQuestion.type === "multiple_select") {
+                            const nextSelected = event.target.checked
+                              ? [...selected, option.id]
+                              : selected.filter((value) => value !== option.id)
+
+                            setAnswers((prev) => ({
+                              ...prev,
+                              [currentQuestion.id]: {
+                                ...prev[currentQuestion.id],
+                                selected: nextSelected,
+                              },
+                            }))
+                            return
+                          }
 
                           setAnswers((prev) => ({
                             ...prev,
                             [currentQuestion.id]: {
                               ...prev[currentQuestion.id],
-                              selected: nextSelected,
+                              selected: [option.id],
                             },
                           }))
-                          return
-                        }
+                        }}
+                        className="size-4 accent-primary"
+                      />
+                      <Text variant="small">{option.text}</Text>
+                    </label>
+                  )
+                })}
+              </div>
+            )}
 
-                        setAnswers((prev) => ({
-                          ...prev,
-                          [currentQuestion.id]: {
-                            ...prev[currentQuestion.id],
-                            selected: [option.id],
-                          },
-                        }))
-                      }}
-                      className="h-4 w-4 accent-primary"
-                    />
-                    <span className="text-sm font-medium">{option.text}</span>
-                  </label>
-                )
-              })}
-            </div>
-          )}
+            {error ? <Callout tone="danger" role="alert">{error}</Callout> : null}
+          </PanelBody>
+        </Panel>
 
-          {error && (
-            <div className="rounded-md border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
-              {error}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <div className="flex items-center justify-between gap-3">
-        <button
-          type="button"
-          onClick={() => setCurrentIndex((value) => Math.max(0, value - 1))}
-          disabled={currentIndex === 0 || submitPending}
-          className={cn(buttonVariants({ variant: "outline" }), "gap-2")}
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </button>
-
-        {isLastQuestion ? (
-          <button
+        <div className="flex items-center justify-between gap-3">
+          <Button
             type="button"
-            onClick={() => submitAttempt(false)}
-            disabled={submitPending}
-            className={cn(buttonVariants(), "gap-2 text-white")}
-            style={{ backgroundColor: classColor }}
+            variant="outline"
+            onClick={() => setCurrentIndex((value) => Math.max(0, value - 1))}
+            disabled={currentIndex === 0 || submitPending}
           >
-            {submitPending ? "Submitting..." : "Submit Quiz"}
-            <CheckCircle2 className="h-4 w-4" />
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setCurrentIndex((value) => Math.min(orderedQuestions.length - 1, value + 1))}
-            disabled={submitPending}
-            className={cn(buttonVariants(), "gap-2 text-white")}
-            style={{ backgroundColor: classColor }}
-          >
-            Next
-            <ArrowRight className="h-4 w-4" />
-          </button>
-        )}
+            <ArrowLeft aria-hidden="true" />
+            Back
+          </Button>
+
+          {isLastQuestion ? (
+            <Button type="button" onClick={() => submitAttempt(false)} disabled={submitPending}>
+              {submitPending ? "Submitting..." : "Submit quiz"}
+              <CheckCircle2 aria-hidden="true" />
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              onClick={() => setCurrentIndex((value) => Math.min(orderedQuestions.length - 1, value + 1))}
+              disabled={submitPending}
+            >
+              Next
+              <ArrowRight aria-hidden="true" />
+            </Button>
+          )}
         </div>
-      </div>
+      </PageContainer>
     </OfflineRouteGuard>
   )
 }

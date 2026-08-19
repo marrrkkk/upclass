@@ -1,84 +1,85 @@
 "use client"
 
 import { useSyncExternalStore } from "react"
-import { Card, CardContent } from "@/components/ui/card"
-import { Sun, Moon, Sunrise, Sunset } from "lucide-react"
+import Link from "next/link"
+import { ArrowRight } from "lucide-react"
 
-type GreetingCardProps = {
-    userName: string
-    role: "teacher" | "student" | null
+import { Button } from "@/components/ui/button"
+import { Text } from "@/components/ui/typography"
+
+export type GreetingCardProps = {
+  userName: string
+  role: "teacher" | "student" | null
+  primaryAction?: {
+    label: string
+    href: string
+    icon?: React.ReactNode
+  }
 }
 
-function getGreetingData(): { text: string, icon: React.ReactNode } {
-    const hour = new Date().getHours()
-    if (hour < 5) return { text: "Good late night", icon: <Moon className="h-6 w-6 text-indigo-300" /> }
-    if (hour < 12) return { text: "Good morning", icon: <Sunrise className="h-6 w-6 text-amber-300" /> }
-    if (hour < 17) return { text: "Good afternoon", icon: <Sun className="h-6 w-6 text-orange-400" /> }
-    if (hour < 21) return { text: "Good evening", icon: <Sunset className="h-6 w-6 text-indigo-400" /> }
-    return { text: "Good night", icon: <Moon className="h-6 w-6 text-indigo-300" /> }
+function getGreetingData(): string {
+  const hour = new Date().getHours()
+  if (hour < 5) return "Good late night"
+  if (hour < 12) return "Good morning"
+  if (hour < 17) return "Good afternoon"
+  if (hour < 21) return "Good evening"
+  return "Good night"
 }
 
-function getMotivationalMessage(role: "teacher" | "student" | null, userName: string): string {
-    const messages = {
-        teacher: [
-            "Ready to inspire your students today?",
-            "Let's make learning amazing today!",
-            "Your students are waiting for your guidance!",
-            "Your impact goes beyond the classroom.",
-            "Make today a masterpiece!",
-        ],
-        student: [
-            "Ready to learn something new?",
-            "Let's crush those assignments today!",
-            "Every day is a chance to grow!",
-            "Knowledge is power. Go get it!",
-            "Small steps lead to big progress.",
-        ],
-    }
-
-    const roleMessages = role ? messages[role] : messages.student
-    const seed = `${role ?? "student"}:${userName}`
-    const hash = Array.from(seed).reduce((total, char) => total + char.charCodeAt(0), 0)
-    return roleMessages[hash % roleMessages.length]
+function getOverviewDescription(role: "teacher" | "student" | null) {
+  return role === "teacher"
+    ? "Your teaching workspace is ready. Review work that needs feedback and keep your classes moving."
+    : "Your learning workspace is ready. Continue your work and stay ahead of what is due next."
 }
 
-const defaultGreeting = { text: "Welcome", icon: <Sun className="h-6 w-6 text-orange-400" /> }
+function formatToday() {
+  return new Date().toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  })
+}
+
+const defaultGreeting = "Welcome"
 const subscribe = () => () => {}
 const getClientSnapshot = () => true
 const getServerSnapshot = () => false
 
-export function GreetingCard({ userName, role }: GreetingCardProps) {
-    const hasHydrated = useSyncExternalStore(subscribe, getClientSnapshot, getServerSnapshot)
-    const firstName = userName?.split(" ")[0] || "there"
-    const greetingData = hasHydrated ? getGreetingData() : defaultGreeting
-    const { text: greeting, icon } = greetingData
-    const motivationalMessage = getMotivationalMessage(role, userName)
+export function GreetingCard({ userName, role, primaryAction }: GreetingCardProps) {
+  const hasHydrated = useSyncExternalStore(subscribe, getClientSnapshot, getServerSnapshot)
+  const firstName = userName?.split(" ")[0] || "there"
+  const greeting = hasHydrated ? getGreetingData() : defaultGreeting
 
-    return (
-        <Card className="border-0 overflow-hidden relative shadow-lg group">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 opacity-90 transition-all duration-500 group-hover:scale-105" />
+  return (
+    <header
+      data-slot="greeting"
+      className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
+    >
+      <div className="min-w-0 space-y-1.5">
+        <Text variant="overline" tone="muted" as="span" className="font-medium">
+          {hasHydrated ? formatToday() : "\u00A0"}
+        </Text>
+        <Text as="h1" variant="h1" className="text-balance">
+          {greeting}, {firstName}
+        </Text>
+        <Text variant="small" tone="muted" className="max-w-2xl text-pretty leading-relaxed">
+          {getOverviewDescription(role)}
+        </Text>
+      </div>
 
-            {/* Abstract Shapes */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/10 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
-
-            <CardContent className="py-8 px-6 sm:px-8 relative z-10 text-white">
-                <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="space-y-2 max-w-3xl">
-                        <div className="flex items-center gap-3 mb-1">
-                            <span className="p-2 rounded-full bg-white/20 backdrop-blur-md shadow-inner">{icon}</span>
-                            <span className="text-sm font-medium text-blue-100 uppercase tracking-wider">Welcome Back</span>
-                        </div>
-                        <h1 className="text-4xl font-bold tracking-tight text-white drop-shadow-sm leading-tight">
-                            {greeting}, {firstName}!
-                        </h1>
-                        <p className="text-blue-100 text-lg max-w-xl font-light leading-relaxed text-balance">
-                            {motivationalMessage}
-                        </p>
-                    </div>
-                    {/* Optional: Add a subtle illustration or vector art here on the right side for desktop */}
-                </div>
-            </CardContent>
-        </Card>
-    )
+      <div className="flex w-full items-center justify-end sm:w-auto">
+        <span className="sr-only">{role === "teacher" ? "Teaching" : "Learning"}</span>
+        {primaryAction ? (
+          <Button asChild size="default" className="shrink-0 px-4">
+            <Link href={primaryAction.href}>
+              {primaryAction.icon}
+              {primaryAction.label}
+              {!primaryAction.icon ? <ArrowRight aria-hidden="true" /> : null}
+            </Link>
+          </Button>
+        ) : null}
+      </div>
+    </header>
+  )
 }
+

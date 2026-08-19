@@ -1,7 +1,6 @@
 "use server"
 
 import { headers } from "next/headers"
-import { revalidatePath } from "next/cache"
 import { and, eq, inArray } from "drizzle-orm"
 
 import { db } from "@/db"
@@ -14,6 +13,7 @@ import {
   classMembership,
 } from "@/db/schema"
 import { auth } from "@/lib/auth"
+import { revalidateClassOrg } from "@/lib/server/revalidate"
 import { logActivity } from "@/lib/activity"
 
 type ActionResponse =
@@ -241,9 +241,7 @@ export async function createQuiz(classId: string, formData: FormData): Promise<A
       }
     }
 
-    revalidatePath(`/classes/${classId}`)
-    revalidatePath("/home")
-    revalidatePath("/activity")
+    await revalidateClassOrg(classId, ["classes", `classes/${classId}`, "home", "activity"])
 
     await logActivity({
       actorId: session.user.id,
@@ -359,7 +357,7 @@ export async function updateQuiz(quizId: string, formData: FormData): Promise<Ac
       }
     }
 
-    revalidatePath(`/classes/${classId}`)
+    await revalidateClassOrg(classId, [`classes/${classId}`])
     return { success: true }
   } catch (err) {
     console.error("updateQuiz error", err)
@@ -511,10 +509,13 @@ export async function submitQuiz(quizId: string, formData: FormData): Promise<Ac
       })
       .where(eq(quizAttempts.id, attemptId))
 
-    revalidatePath(`/classes/${quizRow[0].classId}`)
-    revalidatePath(`/classes/${quizRow[0].classId}/quizzes/${quizId}`)
-    revalidatePath("/home")
-    revalidatePath("/activity")
+    await revalidateClassOrg(quizRow[0].classId, [
+      "classes",
+      `classes/${quizRow[0].classId}`,
+      `classes/${quizRow[0].classId}/quizzes/${quizId}`,
+      "home",
+      "activity",
+    ])
 
     await logActivity({
       actorId: session.user.id,
@@ -661,10 +662,13 @@ export async function gradeQuizAttempt(attemptId: string, formData: FormData): P
       })
       .where(eq(quizAttempts.id, attemptId))
 
-    revalidatePath(`/classes/${quiz.classId}`)
-    revalidatePath(`/classes/${quiz.classId}/quizzes/${quiz.id}`)
-    revalidatePath("/home")
-    revalidatePath("/activity")
+    await revalidateClassOrg(quiz.classId, [
+      "classes",
+      `classes/${quiz.classId}`,
+      `classes/${quiz.classId}/quizzes/${quiz.id}`,
+      "home",
+      "activity",
+    ])
 
     await logActivity({
       actorId: session.user.id,
@@ -724,7 +728,7 @@ export async function deleteQuiz(
   try {
     await db.delete(quizzes).where(eq(quizzes.id, quizId))
 
-    revalidatePath(`/classes/${quizData[0].classId}`)
+    await revalidateClassOrg(quizData[0].classId, [`classes/${quizData[0].classId}`])
     return { success: true }
   } catch (err) {
     console.error("deleteQuiz error", err)

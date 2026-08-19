@@ -1,4 +1,5 @@
-import Link from "next/link"
+"use client"
+
 import { formatDistanceToNow } from "date-fns"
 import {
   BadgeCheck,
@@ -8,12 +9,16 @@ import {
   GraduationCap,
   NotebookPen,
   PenSquare,
+  type LucideIcon,
 } from "lucide-react"
 
-import { Badge } from "@/components/ui/badge"
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
-import { cn } from "@/lib/utils"
+import { EmptyState } from "@/components/ui/empty-state"
+import { StatusBadge } from "@/components/ui/status-badge"
+import { TimelineRow } from "@/components/ui/timeline-row"
+import { useOrganizationPath } from "@/hooks/use-organization-path"
 import { type ActivityLogItem } from "@/lib/activity-ui"
+import { type Tone } from "@/lib/design-system"
+import { cn } from "@/lib/utils"
 
 type ActivityLogListProps = {
   items: ActivityLogItem[]
@@ -22,14 +27,31 @@ type ActivityLogListProps = {
   className?: string
 }
 
-function getActivityIcon(eventType: string) {
-  if (eventType === "class_created" || eventType === "class_joined") return GraduationCap
-  if (eventType === "announcement_created") return NotebookPen
-  if (eventType === "resource_uploaded") return FolderOpen
-  if (eventType === "submission_graded" || eventType === "quiz_graded") return BadgeCheck
-  if (eventType === "assignment_submitted" || eventType === "quiz_submitted") return FileCheck2
-  if (eventType === "quiz_created") return BookMarked
-  return PenSquare
+type ActivityPresentation = {
+  Icon: LucideIcon
+  tone: Tone
+}
+
+function getActivityPresentation(eventType: string): ActivityPresentation {
+  if (eventType === "class_created" || eventType === "class_joined") {
+    return { Icon: GraduationCap, tone: "info" }
+  }
+  if (eventType === "announcement_created") {
+    return { Icon: NotebookPen, tone: "primary" }
+  }
+  if (eventType === "resource_uploaded") {
+    return { Icon: FolderOpen, tone: "neutral" }
+  }
+  if (eventType === "submission_graded" || eventType === "quiz_graded") {
+    return { Icon: BadgeCheck, tone: "success" }
+  }
+  if (eventType === "assignment_submitted" || eventType === "quiz_submitted") {
+    return { Icon: FileCheck2, tone: "info" }
+  }
+  if (eventType === "quiz_created") {
+    return { Icon: BookMarked, tone: "warning" }
+  }
+  return { Icon: PenSquare, tone: "neutral" }
 }
 
 export function ActivityLogList({
@@ -38,54 +60,45 @@ export function ActivityLogList({
   emptyDescription = "Your recent work will show up here once you start using classes, assignments, and resources.",
   className,
 }: ActivityLogListProps) {
+  const organizationPath = useOrganizationPath()
+
   if (items.length === 0) {
     return (
-      <Empty className={cn("border bg-muted/10", className)}>
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <NotebookPen />
-          </EmptyMedia>
-          <EmptyTitle>{emptyTitle}</EmptyTitle>
-          <EmptyDescription>{emptyDescription}</EmptyDescription>
-        </EmptyHeader>
-      </Empty>
+      <EmptyState
+        className={className}
+        icon={<NotebookPen aria-hidden="true" />}
+        title={emptyTitle}
+        description={emptyDescription}
+      />
     )
   }
 
   return (
-    <div className={cn("flex flex-col gap-2", className)}>
+    <div
+      role="list"
+      aria-label="Activity timeline"
+      className={cn("divide-y divide-hairline", className)}
+    >
       {items.map((item) => {
-        const Icon = getActivityIcon(item.eventType)
+        const { Icon, tone } = getActivityPresentation(item.eventType)
 
         return (
-          <Link
+          <TimelineRow
             key={item.id}
-            href={item.href}
-            className="flex items-start gap-3 rounded-xl border border-transparent px-3 py-3 transition-all hover:border-border hover:bg-muted/30"
-          >
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Icon className="size-4" />
-            </div>
-
-            <div className="flex min-w-0 flex-1 flex-col gap-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="truncate text-sm font-medium text-foreground">{item.title}</p>
-                {item.className ? (
-                  <Badge variant="outline" className="rounded-full">
-                    {item.className}
-                  </Badge>
-                ) : null}
-              </div>
-
-              {item.description ? (
-                <p className="line-clamp-2 text-sm text-muted-foreground">{item.description}</p>
-              ) : null}
-
-              <p className="text-xs text-muted-foreground">
-                {formatDistanceToNow(new Date(item.occurredAt), { addSuffix: true })}
-              </p>
-            </div>
-          </Link>
+            role="listitem"
+            href={organizationPath(item.href)}
+            icon={<Icon aria-hidden="true" />}
+            tone={tone}
+            title={item.title}
+            description={item.description ? <span className="line-clamp-2 break-words">{item.description}</span> : undefined}
+            timestamp={formatDistanceToNow(new Date(item.occurredAt), { addSuffix: true })}
+            dateTime={item.occurredAt}
+            trailing={item.className ? (
+              <StatusBadge tone="neutral" title={item.className} size="sm" className="hidden max-w-32 sm:block sm:max-w-40">
+                <span className="block truncate">{item.className}</span>
+              </StatusBadge>
+            ) : undefined}
+          />
         )
       })}
     </div>

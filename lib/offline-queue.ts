@@ -42,9 +42,11 @@ const submitClassworkPayloadSchema = z
 
 const sendDirectMessagePayloadSchema = z
   .object({
+    orgSlug: z.string().min(1, "Organization is required"),
     receiverId: z.string().min(1, "Receiver is required"),
     content: z.string().trim().optional(),
     media: z.string().trim().optional(),
+    clientMessageId: z.string().trim().min(1).max(64),
   })
   .refine((value) => !!value.content || !!value.media, {
     message: "Message content or media is required",
@@ -52,9 +54,11 @@ const sendDirectMessagePayloadSchema = z
 
 const sendChannelMessagePayloadSchema = z
   .object({
+    orgSlug: z.string().min(1, "Organization is required"),
     channelId: z.string().min(1, "Channel is required"),
     content: z.string().trim().optional(),
     media: z.string().trim().optional(),
+    clientMessageId: z.string().trim().min(1).max(64),
   })
   .refine((value) => !!value.content || !!value.media, {
     message: "Message content or media is required",
@@ -66,9 +70,11 @@ const createQuizPayloadSchema = z.object({
 })
 
 export const offlineActionPayloadSchemas = {
-  "create-class": createClassSchema,
+  "create-class": createClassSchema.extend({
+    orgSlug: z.string().trim().min(1, "Organization is required"),
+  }),
   "join-class": joinClassSchema,
-  "create-resource": createResourceSchema,
+  // Note: "create-resource" is intentionally excluded - resource uploads are online-only
   "create-announcement": createAnnouncementPayloadSchema,
   "create-classwork": createClassworkPayloadSchema,
   "submit-classwork": submitClassworkPayloadSchema,
@@ -288,6 +294,7 @@ async function removeAction(id: string) {
 }
 
 function appendFormData(formData: FormData, payload: Record<string, unknown>, skipKeys: string[] = []) {
+  if (!payload || typeof payload !== "object") return
   for (const [key, value] of Object.entries(payload)) {
     if (skipKeys.includes(key) || value == null) continue
     formData.append(key, String(value))
@@ -308,12 +315,7 @@ async function processQueuedAction(action: QueuedAction) {
       appendFormData(formData, action.payload)
       return await joinClass(formData)
     }
-    case "create-resource": {
-      const { createResource } = await import("@/app/actions/resources")
-      const formData = new FormData()
-      appendFormData(formData, action.payload)
-      return await createResource(formData)
-    }
+    // Note: "create-resource" case removed - resources are online-only due to file uploads
     case "create-announcement": {
       const { createAnnouncement } = await import("@/app/actions/class-detail")
       const formData = new FormData()
@@ -336,17 +338,13 @@ async function processQueuedAction(action: QueuedAction) {
     case "send-direct-message": {
       const { sendMessage } = await import("@/app/actions/messages")
       return await sendMessage(
-        action.payload.receiverId,
-        action.payload.content || "",
-        action.payload.media,
+        { ...action.payload, content: action.payload.content || "" },
       )
     }
     case "send-channel-message": {
       const { sendChannelMessage } = await import("@/app/actions/messages")
       return await sendChannelMessage(
-        action.payload.channelId,
-        action.payload.content || "",
-        action.payload.media,
+        { ...action.payload, content: action.payload.content || "" },
       )
     }
     case "create-quiz": {

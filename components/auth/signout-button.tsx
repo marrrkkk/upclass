@@ -49,7 +49,7 @@ export default function SignoutButton() {
         <AlertDialogHeader>
           <AlertDialogTitle>Are you sure you want to sign out?</AlertDialogTitle>
           <AlertDialogDescription>
-            You will be redirected to the sign-in page and will need to authenticate again to access your account.
+            You will return to the UpClass home page and will need to authenticate again to access your account.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

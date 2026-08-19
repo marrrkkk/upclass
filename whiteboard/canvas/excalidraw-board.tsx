@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils"
 import { uploadWhiteboardImage } from "@/whiteboard/persistence/storage"
 import { useWhiteboardRealtime } from "@/whiteboard/realtime/use-whiteboard-realtime"
 import { useWhiteboardUiStore } from "@/whiteboard/state/use-whiteboard-ui-store"
+import { WhiteboardToolbar } from "@/whiteboard/components/whiteboard-toolbar"
 import { WhiteboardConflictError } from "@/whiteboard/persistence/use-whiteboard-queries"
 import type {
   WhiteboardPresence,
@@ -30,6 +31,7 @@ import type {
   WhiteboardSnapshotSavedEvent,
   WhiteboardSnapshot,
   WhiteboardSnapshotDocument,
+  WhiteboardTool,
 } from "@/whiteboard/types"
 import { resolveWhiteboardSnapshotDocument } from "@/whiteboard/utils/legacy"
 
@@ -46,6 +48,20 @@ const CURSOR_SMOOTHING = 0.58
 const CURSOR_SETTLE_DISTANCE = 0.2
 const CURSOR_SNAP_DISTANCE = 18
 const LOCAL_DRAFT_KEY_PREFIX = "upclass:whiteboard:draft:"
+
+/** Maps Excalidraw's active tool to the toolbar's tool set ("sticky" is a
+ * rectangle preset and cannot be detected from appState, so it is skipped). */
+const TOOL_BY_EXCALIDRAW_TYPE: Partial<Record<string, WhiteboardTool>> = {
+  selection: "select",
+  hand: "hand",
+  freedraw: "draw",
+  rectangle: "rectangle",
+  ellipse: "ellipse",
+  line: "line",
+  arrow: "arrow",
+  text: "text",
+  image: "image",
+}
 
 type ElementVersionState = Record<
   string,
@@ -263,8 +279,10 @@ export function ExcalidrawBoard({
 }: ExcalidrawBoardProps) {
   const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null)
   const setIsUploading = useWhiteboardUiStore((state) => state.setIsUploading)
+  const isUploading = useWhiteboardUiStore((state) => state.isUploading)
   const setSaveStatus = useWhiteboardUiStore((state) => state.setSaveStatus)
-  const clientIdRef = useRef(crypto.randomUUID())
+  const [clientId] = useState(() => crypto.randomUUID())
+  const clientIdRef = useRef(clientId)
   const broadcastSnapshotSavedRef = useRef<((event: WhiteboardSnapshotSavedEvent) => void) | null>(null)
   const saveTimeoutRef = useRef<number | null>(null)
   const loadedVersionRef = useRef<number | null>(null)
@@ -381,7 +399,6 @@ export function ExcalidrawBoard({
     const centered = centerCamera(appState.width, appState.height)
     api.updateScene({
       appState: {
-        viewBackgroundColor: "#eef2ff",
         scrollX: centered.scrollX,
         scrollY: centered.scrollY,
       },
@@ -420,7 +437,7 @@ export function ExcalidrawBoard({
 
   const { presences, broadcastShapeEvent, broadcastSnapshotSaved, updatePresence } = useWhiteboardRealtime({
     boardId,
-    clientId: clientIdRef.current,
+    clientId,
     currentUser,
     onRemoteShapeEvent: handleRemoteShapeEvent,
     onRemoteSnapshotSaved: handleRemoteSnapshotSaved,
@@ -522,6 +539,12 @@ export function ExcalidrawBoard({
       latestSceneRef.current = { elements: allElements, appState, files }
       writeLocalDraft(boardId, buildDocument(allElements, appState, files))
 
+      const uiState = useWhiteboardUiStore.getState()
+      const mappedTool = TOOL_BY_EXCALIDRAW_TYPE[appState.activeTool.type]
+      if (mappedTool && uiState.activeTool !== mappedTool) {
+        uiState.setActiveTool(mappedTool)
+      }
+
       updatePresence({
         camera: {
           x: appState.scrollX,
@@ -562,8 +585,12 @@ export function ExcalidrawBoard({
           await persistSnapshot(allElements, appState, files)
           setSaveStatus("saved")
         } catch (error) {
-          console.error("Failed to persist whiteboard snapshot", error)
-          setSaveStatus(error instanceof WhiteboardConflictError ? "conflict" : "error")
+          if (error instanceof WhiteboardConflictError) {
+            setSaveStatus("conflict")
+          } else {
+            console.error("Failed to persist whiteboard snapshot", error)
+            setSaveStatus("error")
+          }
         }
       }, 1200)
     },
@@ -707,14 +734,14 @@ export function ExcalidrawBoard({
   return (
     <div
       className={cn(
-        "relative h-[calc(100dvh-11.5rem)] min-h-[26rem] overflow-hidden bg-white",
-        "sm:h-[calc(100dvh-18rem)] sm:min-h-[70vh] sm:rounded-b-2xl sm:border-t",
+        "relative h-[calc(100dvh-17rem)] min-h-[28rem] overflow-hidden bg-surface-sunken",
+        "sm:h-[calc(100dvh-16rem)] sm:min-h-[34rem]",
       )}
       onPointerLeave={handlePointerLeave}
     >
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0),rgba(255,255,255,0.1))] sm:hidden" />
-      <div className="pointer-events-none absolute inset-3 rounded-[24px] border border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.08)] sm:inset-6 sm:rounded-[32px] sm:shadow-[0_28px_80px_rgba(15,23,42,0.12)]" />
-      <Excalidraw
+      <div className="absolute inset-2 overflow-hidden rounded-lg border border-hairline bg-card shadow-e1 sm:inset-3">
+        <Excalidraw
+          theme="light"
         excalidrawAPI={setApi}
         initialData={
           initialDocument
@@ -724,9 +751,6 @@ export function ExcalidrawBoard({
                 scrollToContent: false,
               }
             : {
-                appState: {
-                  viewBackgroundColor: "#eef2ff",
-                },
                 scrollToContent: false,
               }
         }
@@ -734,6 +758,11 @@ export function ExcalidrawBoard({
         onChange={handleChange}
         onPointerUpdate={handlePointerUpdate}
         onScrollChange={(scrollX, scrollY, zoom) => {
+          const uiState = useWhiteboardUiStore.getState()
+          if (uiState.zoom !== zoom.value) {
+            uiState.setZoom(zoom.value)
+          }
+
           if (!api || isClampingScrollRef.current) return
 
           const appState = api.getAppState()
@@ -753,8 +782,11 @@ export function ExcalidrawBoard({
           window.requestAnimationFrame(() => {
             isClampingScrollRef.current = false
           })
-        }}
-      />
+          }}
+        />
+      </div>
+
+      <WhiteboardToolbar editor={api} fileInputRef={fileInputRef} isUploading={isUploading} />
     </div>
   )
 }

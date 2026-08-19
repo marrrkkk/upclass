@@ -1,16 +1,21 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Users, Trash2, MoreVertical, UserMinus } from "lucide-react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Card, CardContent } from "@/components/ui/card"
-import { buttonVariants } from "@/components/ui/button"
+import { useRouter } from "next/navigation"
+import { MoreVertical, UserMinus, Users } from "lucide-react"
+
+import { removeMember } from "@/app/actions/class-detail"
+import { regenerateClassEnrollmentCode } from "@/app/actions/classes"
+import { MemberSkeleton } from "@/components/skeletons"
+import { Button } from "@/components/ui/button"
+import { Callout } from "@/components/ui/callout"
+import { CopyButton } from "@/components/ui/copy-button"
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
@@ -20,9 +25,20 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { cn } from "@/lib/utils"
-import { removeMember } from "@/app/actions/class-detail"
-import { MemberSkeleton } from "@/components/skeletons"
+import { EmptyState } from "@/components/ui/empty-state"
+import { EntityAvatar } from "@/components/ui/entity-avatar"
+import { IconBadge } from "@/components/ui/icon-badge"
+import {
+  Panel,
+  PanelActions,
+  PanelDescription,
+  PanelHeader,
+  PanelHeading,
+  PanelTitle,
+} from "@/components/ui/panel"
+import { StatusBadge } from "@/components/ui/status-badge"
+import { Text } from "@/components/ui/typography"
+import { useOrganizationPath } from "@/hooks/use-organization-path"
 
 type MemberData = {
   id: string
@@ -34,21 +50,61 @@ type MemberData = {
 
 type PeopleTabProps = {
   classId: string
+  classCode?: string
   userId?: string
   userRole: "teacher" | "student" | null
   members: MemberData[]
+  showSetupChecklist?: boolean
 }
 
-export function PeopleTab({ classId, userId, userRole, members }: PeopleTabProps) {
+function MemberRow({
+  member,
+  href,
+  actions,
+}: {
+  member: MemberData
+  href: string
+  actions?: React.ReactNode
+}) {
+  return (
+    <div role="listitem" className="group flex items-center gap-2 border-t border-hairline first:border-t-0">
+      <Link href={href} className="touch-target row-interactive focus-ring flex min-w-0 flex-1 items-center gap-3 px-4 py-3 sm:px-5">
+        <EntityAvatar name={member.name} image={member.image} colorKey={member.id} size="sm" />
+        <div className="min-w-0 flex-1">
+          <Text variant="h4" truncate>{member.name}</Text>
+          <Text variant="caption" tone="muted" truncate>{member.email}</Text>
+        </div>
+      </Link>
+      {actions ? <div className="pr-3 sm:pr-4">{actions}</div> : null}
+    </div>
+  )
+}
+
+export function PeopleTab({
+  classId,
+  classCode,
+  userRole,
+  members,
+  showSetupChecklist = false,
+}: PeopleTabProps) {
   const router = useRouter()
-  const teachers = members.filter((m) => m.role === "teacher")
-  const students = members.filter((m) => m.role === "student")
+  const organizationPath = useOrganizationPath()
+  const teachers = members.filter((member) => member.role === "teacher")
+  const students = members.filter((member) => member.role === "student")
 
   const [removeMemberOpen, setRemoveMemberOpen] = useState<string | null>(null)
   const [removePending, startRemoveTransition] = useTransition()
   const [removingId, setRemovingId] = useState<string | null>(null)
+  const [checklistDismissed, setChecklistDismissed] = useState(false)
+  const [activeCode, setActiveCode] = useState(classCode ?? "")
+  const [codePending, startCodeTransition] = useTransition()
 
-  const memberToRemove = members.find(m => m.id === removeMemberOpen)
+  const enrollmentLink =
+    typeof window !== "undefined" && activeCode
+      ? `${window.location.origin}/org/join?code=${activeCode}`
+      : ""
+
+  const memberToRemove = members.find((member) => member.id === removeMemberOpen)
 
   const handleRemoveMember = (memberId: string) => {
     setRemovingId(memberId)
@@ -63,144 +119,179 @@ export function PeopleTab({ classId, userId, userRole, members }: PeopleTabProps
   }
 
   return (
-    <div className="flex flex-col gap-8 max-w-4xl mx-auto">
-      {/* Teachers Section */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-semibold text-primary/80 border-b pb-2">Teachers</h2>
+    <section className="space-y-4">
+      {showSetupChecklist && userRole === "teacher" && !checklistDismissed ? (
+        <Callout tone="info" className="relative pr-12">
+          <div className="space-y-3">
+            <div>
+              <Text variant="h4">Finish inviting students</Text>
+              <Text variant="small" tone="muted">
+                Share your enrollment link or code, then watch this roster grow.
+              </Text>
+            </div>
+            {activeCode ? (
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                <code className="type-mono rounded bg-surface-sunken px-2 py-1 text-sm font-semibold tracking-widest">{activeCode}</code>
+                <CopyButton value={enrollmentLink || activeCode} label="Copy enrollment link" showLabel />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={codePending}
+                  onClick={() => {
+                    startCodeTransition(async () => {
+                      const result = await regenerateClassEnrollmentCode(classId)
+                      if (result.success && result.data) {
+                        setActiveCode(result.data.code)
+                        router.refresh()
+                      }
+                    })
+                  }}
+                >
+                  Regenerate
+                </Button>
+              </div>
+            ) : null}
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="absolute right-2 top-2"
+            onClick={() => setChecklistDismissed(true)}
+          >
+            Dismiss
+          </Button>
+        </Callout>
+      ) : null}
+
+      <Panel padding="none" className="overflow-hidden rounded-2xl border border-hairline/80 bg-card shadow-e1">
+        <PanelHeader className="pb-3">
+          <PanelHeading>
+            <PanelTitle>Teachers</PanelTitle>
+            <PanelDescription>Course instructors and teaching staff.</PanelDescription>
+          </PanelHeading>
+          <PanelActions><StatusBadge tone="neutral">{teachers.length}</StatusBadge></PanelActions>
+        </PanelHeader>
         {teachers.length === 0 ? (
-          <p className="text-sm text-muted-foreground italic">No teachers assigned</p>
+          <EmptyState title="No teachers assigned" description="No teaching staff are listed for this course." />
         ) : (
-          <div className="grid gap-4 md:grid-cols-2">
-            {teachers.map((member) => {
-              if (removingId === member.id) return <MemberSkeleton key={member.id} />
-              const initial = member.name.charAt(0).toUpperCase()
-              return (
-                <Link key={member.id} href={`/user/${member.id}`} className="block h-full">
-                  <Card className="h-full transition-all hover:shadow-md hover:border-primary/20 cursor-pointer overflow-hidden">
-                    <CardContent className="flex items-center gap-4 p-4">
-                      <Avatar className="h-12 w-12 border-2 border-background shadow-sm">
-                        <AvatarImage src={member.image || undefined} alt={member.name} />
-                        <AvatarFallback className="bg-primary/10 text-primary">{initial}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold truncate text-lg leading-tight">{member.name}</p>
-                        <p className="text-sm text-muted-foreground truncate">{member.email}</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              )
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Students Section */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between border-b pb-2">
-          <h2 className="text-2xl font-semibold text-primary/80">Students</h2>
-          <span className="text-sm font-medium text-muted-foreground bg-muted px-2 py-1 rounded-full">{students.length} students</span>
-        </div>
-        {students.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 border rounded-lg bg-muted/10 border-dashed">
-            <div className="p-3 bg-background rounded-full shadow-sm mb-3">
-              <Users className="h-6 w-6 text-muted-foreground" />
-            </div>
-            <p className="font-medium text-muted-foreground">No students enrolled yet</p>
-          </div>
-        ) : (
-          <div className="space-y-1">
-            {students.map((member) => {
-              if (removingId === member.id) return <MemberSkeleton key={member.id} />
-              const initial = member.name.charAt(0).toUpperCase()
-              return (
-                <div key={member.id} className="group flex items-center gap-4 p-3 rounded-lg hover:bg-muted/50 transition-colors border-b last:border-0 border-transparent hover:border-border/40">
-                  <Link href={`/user/${member.id}`} className="flex-1 flex items-center gap-4 min-w-0">
-                    <Avatar className="h-10 w-10 border border-border">
-                      <AvatarImage src={member.image || undefined} alt={member.name} />
-                      <AvatarFallback className="bg-muted text-muted-foreground">{initial}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate group-hover:text-primary transition-colors">{member.name}</p>
-                      <p className="text-xs text-muted-foreground truncate">{member.email}</p>
-                    </div>
-                  </Link>
-
-                  {userRole === "teacher" && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-muted rounded-full text-muted-foreground focus:outline-none">
-                          <MoreVertical className="h-4 w-4" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => setRemoveMemberOpen(member.id)} className="text-destructive focus:text-destructive">
-                          <UserMinus className="h-4 w-4 mr-2" />
-                          Remove from class
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
+          <div role="list" aria-label="Teachers">
+            {teachers.map((member) =>
+              removingId === member.id ? (
+                <div key={member.id} role="listitem">
+                  <MemberSkeleton />
                 </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Remove Member Dialog */}
-      <Dialog open={!!removeMemberOpen} onOpenChange={(open) => !open && setRemoveMemberOpen(null)}>
-        <DialogContent className="sm:max-w-[420px] gap-0 p-0 overflow-y-auto border-0 shadow-2xl max-h-[calc(100vh-2rem)]">
-          <DialogHeader className="p-6 pb-4 bg-gradient-to-r from-destructive/10 to-destructive/5 border-b border-destructive/20">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center">
-                <UserMinus className="h-5 w-5 text-destructive" />
-              </div>
-              <div>
-                <DialogTitle className="text-lg font-semibold">Remove Student</DialogTitle>
-                <DialogDescription className="text-sm text-muted-foreground">
-                  This action cannot be undone
-                </DialogDescription>
-              </div>
-            </div>
-          </DialogHeader>
-
-          <div className="p-6 text-center space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Are you sure you want to remove this student from the class?
-            </p>
-            {memberToRemove && (
-              <div className="flex items-center justify-center gap-3">
-                <Avatar className="h-12 w-12 border border-border">
-                  <AvatarImage src={memberToRemove.image || undefined} alt={memberToRemove.name} />
-                  <AvatarFallback className="bg-muted text-muted-foreground">{memberToRemove.name.charAt(0).toUpperCase()}</AvatarFallback>
-                </Avatar>
-                <div className="text-left">
-                  <p className="font-semibold text-foreground">{memberToRemove.name}</p>
-                  <p className="text-xs text-muted-foreground">{memberToRemove.email}</p>
-                </div>
-              </div>
+              ) : (
+                <MemberRow key={member.id} member={member} href={organizationPath(`/user/${member.id}`)} />
+              ),
             )}
-            <p className="text-xs text-muted-foreground">
-              The student will no longer have access to this class.
-            </p>
           </div>
+        )}
+      </Panel>
 
-          <div className="px-6 py-4 bg-muted/30 border-t flex items-center justify-center gap-3">
-            <button type="button" onClick={() => setRemoveMemberOpen(null)} disabled={removePending} className={cn(buttonVariants({ variant: "outline" }), "min-w-[100px]")}>
-              Cancel
-            </button>
-            <button type="button" onClick={() => memberToRemove && handleRemoveMember(memberToRemove.id)} disabled={removePending} className={cn(buttonVariants({ variant: "destructive" }), "min-w-[120px] gap-2")}>
-              {removePending ? "Removing..." : (
-                <>
-                  <UserMinus className="h-4 w-4" />
-                  Remove
-                </>
-              )}
-            </button>
+      <Panel padding="none" className="overflow-hidden rounded-2xl border border-hairline/80 bg-card shadow-e1">
+        <PanelHeader className="pb-3">
+          <PanelHeading>
+            <PanelTitle>Students</PanelTitle>
+            <PanelDescription>Everyone currently enrolled in this course.</PanelDescription>
+          </PanelHeading>
+          <PanelActions>
+            <StatusBadge tone="neutral">{students.length} students</StatusBadge>
+          </PanelActions>
+        </PanelHeader>
+        {students.length === 0 ? (
+          <EmptyState
+            icon={<Users />}
+            title="No students enrolled yet"
+            description="Students will appear here after they join the class."
+          />
+        ) : (
+          <div role="list" aria-label="Students">
+            {students.map((member) => {
+              if (removingId === member.id) {
+                return (
+                  <div key={member.id} role="listitem">
+                    <MemberSkeleton />
+                  </div>
+                )
+              }
+
+              return (
+                <MemberRow
+                  key={member.id}
+                  member={member}
+                  href={organizationPath(`/user/${member.id}`)}
+                  actions={
+                    userRole === "teacher" ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={`Actions for ${member.name}`}
+                            className="text-muted-foreground opacity-100 sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100"
+                          >
+                            <MoreVertical aria-hidden="true" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => setRemoveMemberOpen(member.id)}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <UserMinus />
+                            Remove from class
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : null
+                  }
+                />
+              )
+            })}
           </div>
+        )}
+      </Panel>
+
+      <Dialog open={!!removeMemberOpen} onOpenChange={(open) => !open && setRemoveMemberOpen(null)}>
+        <DialogContent className="sm:max-w-[26rem]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <IconBadge tone="danger" size="sm"><UserMinus /></IconBadge>
+              Remove student
+            </DialogTitle>
+            <DialogDescription>This action cannot be undone.</DialogDescription>
+          </DialogHeader>
+          {memberToRemove ? (
+            <div className="flex items-center gap-3 rounded-lg border border-hairline bg-surface-sunken p-3">
+              <EntityAvatar name={memberToRemove.name} image={memberToRemove.image} colorKey={memberToRemove.id} />
+              <div className="min-w-0">
+                <Text variant="h4" truncate>{memberToRemove.name}</Text>
+                <Text variant="caption" tone="muted" truncate>{memberToRemove.email}</Text>
+              </div>
+            </div>
+          ) : null}
+          <Callout tone="danger" icon={false}>
+            The student will no longer have access to this class.
+          </Callout>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setRemoveMemberOpen(null)} disabled={removePending}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => memberToRemove && handleRemoveMember(memberToRemove.id)}
+              disabled={removePending}
+            >
+              <UserMinus aria-hidden="true" />
+              {removePending ? "Removing..." : "Remove"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </section>
   )
 }

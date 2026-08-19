@@ -1,60 +1,81 @@
 "use client"
 
-import { cn } from "@/lib/utils"
+import Link from "next/link"
 import {
-  type ClassDetailTab,
-} from "@/lib/classes/class-detail-tabs"
+  BookOpen,
+  ClipboardList,
+  GraduationCap,
+  PenTool,
+  Rss,
+  Users,
+  type LucideIcon,
+} from "lucide-react"
+
 import { useClassDetailTabState } from "@/components/classes/class-detail-tab-provider"
+import { Button } from "@/components/ui/button"
+import { tabsListVariants, tabsTriggerVariants } from "@/components/ui/tabs"
+import { useOrganizationPath } from "@/hooks/use-organization-path"
+import { type ClassDetailTab } from "@/lib/classes/class-detail-tabs"
+import { cn } from "@/lib/utils"
 
 type ClassDetailTabsProps = {
-  activeTab: ClassDetailTab
-  classColor: string
   classId: string
+  /** Tabs the current role can actually see (server-computed). */
+  visibleTabs: ClassDetailTab[]
 }
 
-const TABS: Array<{ id: ClassDetailTab; label: string }> = [
-  { id: "stream", label: "Stream" },
-  { id: "classwork", label: "Classwork" },
-  { id: "quizzes", label: "Quizzes" },
-  { id: "people", label: "People" },
-]
+const TAB_META: Record<ClassDetailTab, { label: string; icon: LucideIcon }> = {
+  stream: { label: "Stream", icon: Rss },
+  classwork: { label: "Classwork", icon: BookOpen },
+  quizzes: { label: "Quizzes", icon: ClipboardList },
+  gradebook: { label: "Gradebook", icon: GraduationCap },
+  people: { label: "People", icon: Users },
+}
 
 export function ClassDetailTabs({
-  activeTab: _activeTab,
-  classColor,
-  classId: _classId,
+  classId,
+  visibleTabs,
 }: ClassDetailTabsProps) {
   const { optimisticTab, isNavigating, navigateToTab, prefetchTab } = useClassDetailTabState()
-  const currentTab = optimisticTab
+  const organizationPath = useOrganizationPath()
+  const whiteboardHref = organizationPath(`/classes/${classId}/whiteboard`)
 
   return (
-    <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b w-full">
-      <div className="max-w-4xl mx-auto flex items-center gap-6 px-4 overflow-x-auto whitespace-nowrap scrollbar-none">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onMouseEnter={() => prefetchTab(tab.id)}
-            onClick={() => {
-              if (tab.id === currentTab && !isNavigating) return
-              navigateToTab(tab.id)
-            }}
-            className={cn(
-              "relative py-3 text-sm font-medium transition-colors hover:text-foreground flex-shrink-0",
-              currentTab === tab.id ? "text-primary" : "text-muted-foreground",
-              isNavigating && currentTab === tab.id ? "opacity-100" : "",
-            )}
-          >
-            {tab.label}
-            {currentTab === tab.id && (
-              <span
-                className="absolute bottom-0 left-0 h-0.5 w-full bg-primary rounded-t-full"
-                style={{ backgroundColor: classColor }}
-              />
-            )}
-          </button>
-        ))}
-      </div>
+    <div className="flex items-center justify-between gap-2 border-b border-hairline">
+      <nav aria-label="Class sections" className="min-w-0 flex-1 overflow-x-auto">
+        <div className={cn(tabsListVariants({ variant: "line" }), "min-w-max border-b-0")}>
+          {visibleTabs.map((tabId) => {
+            const { label, icon: Icon } = TAB_META[tabId]
+            const isActive = optimisticTab === tabId
+
+            return (
+              <button
+                key={tabId}
+                type="button"
+                data-state={isActive ? "active" : "inactive"}
+                aria-current={isActive ? "page" : undefined}
+                aria-busy={isNavigating && isActive ? true : undefined}
+                onMouseEnter={() => prefetchTab(tabId)}
+                onClick={() => {
+                  if (tabId === optimisticTab && !isNavigating) return
+                  navigateToTab(tabId)
+                }}
+                className={tabsTriggerVariants({ variant: "line" })}
+              >
+                <Icon aria-hidden="true" />
+                {label}
+              </button>
+            )
+          })}
+        </div>
+      </nav>
+
+      <Button asChild variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 rounded-lg border-hairline/80 bg-surface-raised/60 text-xs font-semibold shadow-2xs hover:bg-surface">
+        <Link href={whiteboardHref}>
+          <PenTool className="size-3.5" aria-hidden="true" />
+          Whiteboard
+        </Link>
+      </Button>
     </div>
   )
 }

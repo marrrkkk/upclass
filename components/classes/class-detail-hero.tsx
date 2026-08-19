@@ -1,71 +1,172 @@
-import Link from "next/link"
-import { PenTool } from "lucide-react"
+"use client"
 
-import { ClassDetailTeacherActions } from "@/components/classes/class-detail-teacher-actions"
+import { CalendarClock, Clock, Plus, Settings } from "lucide-react"
 
+import { ClassSettingsDialog } from "@/components/classes/class-settings-dialog"
+import { AvatarGroup, type AvatarGroupPerson } from "@/components/ui/avatar-group"
+import { Button } from "@/components/ui/button"
+import { CopyButton } from "@/components/ui/copy-button"
+import { CourseSwatch } from "@/components/ui/course-identity"
+import { EntityAvatar } from "@/components/ui/entity-avatar"
+import { StatusBadge } from "@/components/ui/status-badge"
+import { getGradeLevelFallback } from "@/lib/classes/class-identity"
 import type { ClassData } from "@/types/classes"
+
+type MemberPreview = {
+  id: string
+  name: string | null
+  image?: string | null
+}
 
 type ClassDetailHeroProps = {
   classData: ClassData
   classColor: string
   userRole: "teacher" | "student" | null
+  enrolledCount: number
+  teacherNames?: string[]
+  teachers?: MemberPreview[]
+  students?: MemberPreview[]
+  /** Nearest upcoming due date (student), used for the next-due chip. */
+  nextDueDate: string | null
 }
 
 export function ClassDetailHero({
   classData,
   classColor,
   userRole,
+  enrolledCount,
+  teacherNames = [],
+  teachers = [],
+  students = [],
+  nextDueDate,
 }: ClassDetailHeroProps) {
+  // Derive primary teacher
+  const primaryTeacher = teachers[0] || (teacherNames[0] ? { id: "teacher-1", name: teacherNames[0], image: null } : null)
+  const studentPeople: AvatarGroupPerson[] = students.map((s) => ({
+    id: s.id,
+    name: s.name,
+    image: s.image,
+  }))
+  
+  // Structured identity
+  const gradeLabel = getGradeLevelFallback(classData)
+  const sectionLabel = classData.section
+
   return (
-    <div className="-mx-4 sm:-mx-6 md:-mx-8">
-      <div
-        className="relative w-full rounded-b-xl overflow-hidden shadow-sm flex flex-col justify-end min-h-[220px] sm:min-h-[260px] md:min-h-[300px]"
-        style={{
-          background: `linear-gradient(135deg, ${classColor} 0%, ${classColor}dd 100%)`,
-        }}
-      >
-        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_1px_1px,white_1px,transparent_0)] [background-size:24px_24px]" />
+    <div className="overflow-hidden rounded-2xl border border-hairline/80 bg-card p-5 shadow-e1 sm:p-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-start gap-4">
+          <CourseSwatch
+            value={classColor}
+            courseKey={classData.id}
+            label={`${classData.title} course color`}
+            size="lg"
+            className="shrink-0 rounded-2xl shadow-sm"
+          />
 
-        <div className="relative z-10 w-full max-w-6xl mx-auto p-4 sm:p-6 md:p-8 text-white">
-          <div className="flex flex-col gap-6 items-start">
-            <div className="space-y-3 w-full max-w-3xl">
-              <div className="flex items-center gap-2 flex-wrap">
-                {classData.category && (
-                  <span className="inline-flex items-center rounded-full bg-white/20 px-3 py-1 text-xs font-medium backdrop-blur-sm border border-white/20">
-                    {classData.category}
+          <div className="min-w-0 flex-1 space-y-2">
+            <h1 className="truncate font-display text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+              {classData.title}
+            </h1>
+
+            {/* Metadata row: Grade + Section + Schedule + Teacher Avatar + Student AvatarGroup */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center rounded-md border border-hairline/70 bg-surface-raised px-2.5 py-0.5 text-xs font-semibold text-muted-foreground shadow-2xs">
+                {gradeLabel}
+              </span>
+
+              {sectionLabel ? (
+                <span className="inline-flex items-center rounded-md border border-hairline/70 bg-surface-raised px-2.5 py-0.5 text-xs font-medium text-muted-foreground shadow-2xs">
+                  {sectionLabel}
+                </span>
+              ) : null}
+
+              {classData.schedule ? (
+                <span className="inline-flex items-center gap-1 rounded-md border border-hairline/70 bg-surface-raised px-2.5 py-0.5 text-xs font-medium text-muted-foreground shadow-2xs">
+                  <CalendarClock className="size-3.5 opacity-70" aria-hidden="true" />
+                  <span>{classData.schedule}</span>
+                </span>
+              ) : null}
+
+              {/* Teacher avatar and name */}
+              {primaryTeacher ? (
+                <div className="inline-flex items-center gap-1.5 rounded-full border border-hairline/70 bg-surface-raised/80 py-0.5 pl-0.5 pr-2.5 text-xs font-semibold text-foreground shadow-2xs">
+                  <EntityAvatar
+                    name={primaryTeacher.name}
+                    image={primaryTeacher.image}
+                    size="xs"
+                  />
+                  <span className="truncate max-w-[150px]">{primaryTeacher.name}</span>
+                </div>
+              ) : null}
+
+              {/* Student avatar group / empty state circle */}
+              {enrolledCount > 0 ? (
+                <div className="inline-flex items-center gap-2 rounded-full border border-hairline/70 bg-surface-raised/80 py-0.5 pl-1 pr-2.5 text-xs font-medium text-muted-foreground shadow-2xs">
+                  <AvatarGroup
+                    people={studentPeople}
+                    total={enrolledCount}
+                    max={3}
+                    size="xs"
+                    label={`${enrolledCount} enrolled`}
+                  />
+                  <span className="font-semibold text-foreground/80">{enrolledCount} enrolled</span>
+                </div>
+              ) : (
+                <div className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-hairline/80 bg-surface-raised/50 py-0.5 pl-1 pr-2.5 text-xs text-muted-foreground shadow-2xs">
+                  <span className="flex size-5 items-center justify-center rounded-full bg-muted/60 text-muted-foreground">
+                    <Plus className="size-3" aria-hidden="true" />
                   </span>
-                )}
-                {classData.schedule && (
-                  <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-1 text-xs font-medium backdrop-blur-sm">
-                    {classData.schedule}
-                  </span>
-                )}
-              </div>
-              <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-white drop-shadow-sm text-left">
-                {classData.title}
-              </h1>
-              {classData.description && (
-                <p className="text-blue-50/90 text-sm sm:text-lg md:text-base max-w-2xl text-left">
-                  {classData.description}
-                </p>
+                  <span>0 enrolled</span>
+                </div>
               )}
             </div>
 
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
-              {userRole === "teacher" && (
-                <ClassDetailTeacherActions classData={classData} />
-              )}
-
-              <Link
-                href={`/classes/${classData.id}/whiteboard`}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-white text-blue-600 px-5 py-3 font-semibold shadow-sm hover:bg-blue-50 transition-colors w-full sm:w-auto whitespace-nowrap"
-              >
-                <PenTool className="h-4 w-4" />
-                Open Whiteboard
-              </Link>
-            </div>
+            {/* Description */}
+            {classData.description ? (
+              <p className="max-w-[70ch] text-xs leading-relaxed text-muted-foreground sm:text-sm pt-0.5">
+                {classData.description}
+              </p>
+            ) : null}
           </div>
         </div>
+
+        {/* Right actions */}
+        {userRole === "teacher" ? (
+          <div className="flex shrink-0 items-center gap-2 self-start">
+            <div className="inline-flex items-center gap-2 rounded-lg border border-hairline/80 bg-surface-raised/90 px-3 py-1.5 text-xs font-mono font-bold text-foreground shadow-2xs">
+              <span className="tracking-wider">{classData.code}</span>
+              <CopyButton
+                value={classData.code}
+                label="Join code"
+                size="sm"
+                className="text-muted-foreground hover:text-foreground"
+              />
+            </div>
+
+            <ClassSettingsDialog
+              classData={classData}
+              trigger={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="touch-target size-8 rounded-lg border-hairline/80 bg-surface-raised/90 hover:bg-surface md:size-8"
+                  aria-label="Class settings"
+                >
+                  <Settings className="size-4" aria-hidden="true" />
+                </Button>
+              }
+            />
+          </div>
+        ) : nextDueDate ? (
+          <div className="shrink-0 self-start">
+            <StatusBadge tone="warning" dot className="shadow-2xs">
+              <Clock className="size-3.5" aria-hidden="true" />
+              Due {new Date(nextDueDate).toLocaleDateString()}
+            </StatusBadge>
+          </div>
+        ) : null}
       </div>
     </div>
   )

@@ -9,6 +9,7 @@ import { usePageHeaderStore } from "@/stores/page-header-store"
 import type {
   AnnouncementData,
   ClassData,
+  ClassRailData,
   ClassworkData,
   MemberData,
   QuizData,
@@ -16,12 +17,16 @@ import type {
 } from "@/types/classes"
 import {
   ClassworkTabSkeleton,
+  GradebookTabSkeleton,
   PeopleTabSkeleton,
   QuizTabSkeleton,
   StreamTabSkeleton,
 } from "@/components/skeletons"
+import { Callout } from "@/components/ui/callout"
+import { Button } from "@/components/ui/button"
+import { Text } from "@/components/ui/typography"
 
-type ClassDetailTab = "stream" | "classwork" | "quizzes" | "people"
+type ClassDetailTab = "stream" | "classwork" | "quizzes" | "gradebook" | "people"
 
 type ClassDetailContentClientProps = {
   activeTab: ClassDetailTab
@@ -33,6 +38,9 @@ type ClassDetailContentClientProps = {
   submissions: SubmissionData[]
   quizzes: QuizData[]
   members: MemberData[]
+  railData: ClassRailData
+  showSetupChecklist?: boolean
+  showStudentWelcome?: boolean
 }
 
 const StreamTab = dynamic(() => import("@/components/classes/stream-tab").then((mod) => mod.StreamTab), {
@@ -43,6 +51,9 @@ const ClassworkTab = dynamic(() => import("@/components/classes/classwork-tab").
 })
 const QuizTab = dynamic(() => import("@/components/classes/quiz-tab").then((mod) => mod.QuizTab), {
   loading: () => <QuizTabSkeleton />,
+})
+const GradebookTab = dynamic(() => import("@/components/classes/gradebook-tab").then((mod) => mod.GradebookTab), {
+  loading: () => <GradebookTabSkeleton />,
 })
 const PeopleTab = dynamic(() => import("@/components/classes/people-tab").then((mod) => mod.PeopleTab), {
   loading: () => <PeopleTabSkeleton />,
@@ -58,8 +69,12 @@ export function ClassDetailContentClient({
   submissions,
   quizzes,
   members,
+  railData,
+  showSetupChecklist = false,
+  showStudentWelcome = false,
 }: ClassDetailContentClientProps) {
   const setPageTitle = usePageHeaderStore((state) => state.setPageTitle)
+  const [welcomeDismissed, setWelcomeDismissed] = useState(false)
   const [cachedDetail, setCachedDetail] = useState<{
     classData: ClassData
     announcements: AnnouncementData[]
@@ -67,6 +82,7 @@ export function ClassDetailContentClient({
     submissions: SubmissionData[]
     quizzes: QuizData[]
     members: MemberData[]
+    rail?: ClassRailData
     userId?: string
     userRole: "teacher" | "student" | null
   } | null>(null)
@@ -101,9 +117,10 @@ export function ClassDetailContentClient({
   const effectiveSubmissions = cachedDetail?.submissions ?? submissions
   const effectiveQuizzes = cachedDetail?.quizzes ?? quizzes
   const effectiveMembers = cachedDetail?.members ?? members
+  const effectiveRailData = cachedDetail?.rail ?? railData
   const effectiveUserId = cachedDetail?.userId ?? userId
   const effectiveUserRole = cachedDetail?.userRole ?? userRole
-  const classColor = effectiveClassData.color || "#3b82f6"
+  const classColor = effectiveClassData.color || "#0e6b52"
 
   useEffect(() => {
     setPageTitle(effectiveClassData.title)
@@ -121,12 +138,33 @@ export function ClassDetailContentClient({
     submissions: effectiveSubmissions,
     quizzes: effectiveQuizzes,
     members: effectiveMembers,
+    rail: effectiveRailData,
     userId: effectiveUserId,
     userRole: effectiveUserRole,
   })
 
   return (
-    <div className="px-1">
+    <div className="space-y-4">
+      {showStudentWelcome && effectiveUserRole === "student" && !welcomeDismissed ? (
+        <Callout tone="info" className="relative pr-12">
+          <div className="space-y-1">
+            <Text variant="h4">Welcome to {effectiveClassData.title}</Text>
+            <Text variant="small" tone="muted">
+              Check Classwork for assignments and Stream for announcements from your teacher.
+            </Text>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="absolute right-2 top-2"
+            onClick={() => setWelcomeDismissed(true)}
+          >
+            Dismiss
+          </Button>
+        </Callout>
+      ) : null}
+
       {activeTab === "stream" ? (
         <StreamTab
           classId={effectiveClassData.id}
@@ -155,12 +193,23 @@ export function ClassDetailContentClient({
           classColor={classColor}
         />
       ) : null}
+      {activeTab === "gradebook" ? (
+        <GradebookTab
+          classId={effectiveClassData.id}
+          members={effectiveMembers}
+          classwork={effectiveClasswork}
+          submissions={effectiveSubmissions}
+          quizzes={effectiveQuizzes}
+        />
+      ) : null}
       {activeTab === "people" ? (
         <PeopleTab
           classId={effectiveClassData.id}
+          classCode={effectiveClassData.code}
           userId={effectiveUserId}
           userRole={effectiveUserRole}
           members={effectiveMembers}
+          showSetupChecklist={showSetupChecklist}
         />
       ) : null}
     </div>

@@ -1,5 +1,5 @@
 const PRESENCE_COLORS = [
-  "#2563eb",
+  "#0369a1",
   "#dc2626",
   "#16a34a",
   "#9333ea",

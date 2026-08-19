@@ -7,6 +7,7 @@ export const size = {
 
 export const contentType = 'image/png'
 
+// Classroom Focus brand mark: UpClass blue on a quiet neutral canvas.
 export default function Icon() {
   return new ImageResponse(
     (
@@ -17,7 +18,7 @@ export default function Icon() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'rgba(59, 130, 246, 0.1)',
+          background: '#f7f8fa',
           borderRadius: '6px',
         }}
       >
@@ -29,7 +30,7 @@ export default function Icon() {
         >
           <path
             d="M10 22L22 10M22 10H14M22 10V18"
-            stroke="rgb(59, 130, 246)"
+            stroke="#0075de"
             strokeWidth="3"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -42,4 +43,3 @@ export default function Icon() {
     }
   )
 }
-

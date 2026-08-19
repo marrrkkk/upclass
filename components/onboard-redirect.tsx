@@ -4,18 +4,18 @@ import { useEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
 
 type OnboardRedirectProps = {
-  hasRole: boolean
+  hasOrganization: boolean
 }
 
-export function OnboardRedirect({ hasRole }: OnboardRedirectProps) {
+export function OnboardRedirect({ hasOrganization }: OnboardRedirectProps) {
   const router = useRouter()
   const pathname = usePathname()
 
   useEffect(() => {
-    if (!hasRole && !pathname?.includes("/onboard")) {
-      router.push("/onboard")
+    if (!hasOrganization && !pathname?.includes("/org")) {
+      router.push("/org")
     }
-  }, [hasRole, pathname, router])
+  }, [hasOrganization, pathname, router])
 
   return null
 }

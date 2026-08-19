@@ -34,7 +34,7 @@ export default function OnboardLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
+    <div className="flex min-h-dvh items-center justify-center bg-muted/40 p-4">
       <Suspense fallback={<div className="w-full max-w-4xl" />}>
         <ResolvedOnboardLayout>{children}</ResolvedOnboardLayout>
       </Suspense>

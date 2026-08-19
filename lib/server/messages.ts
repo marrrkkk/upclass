@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, or, sql } from "drizzle-orm"
+import { and, asc, desc, eq, inArray, or, sql } from "drizzle-orm"
 
 import { db } from "@/db"
 import {
@@ -6,9 +6,245 @@ import {
   classChannels,
   classMembership,
   classes,
+  directConversations,
+  directConversationMembers,
+  channelMemberState,
+  orgMembership,
+  organizations,
   messages,
   user,
 } from "@/db/schema"
+
+export type MessageCursor = {
+  createdAt: string
+  id: string
+}
+
+export function encodeMessageCursor(cursor: MessageCursor) {
+  return Buffer.from(JSON.stringify(cursor), "utf8").toString("base64url")
+}
+
+export function decodeMessageCursor(value: string | null | undefined): MessageCursor | null {
+  if (!value) return null
+  try {
+    const parsed = JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as MessageCursor
+    if (!parsed.createdAt || !parsed.id) return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function canonicalParticipants(left: string, right: string) {
+  return left < right ? [left, right] : [right, left]
+}
+
+export async function getOrgIdForSlug(slug: string) {
+  const [row] = await db
+    .select({ id: organizations.id })
+    .from(organizations)
+    .where(eq(organizations.slug, slug))
+    .limit(1)
+  return row?.id ?? null
+}
+
+export async function resolveDirectConversation(
+  currentUserId: string,
+  otherUserId: string,
+  orgSlug?: string,
+) {
+  const [participantOneId, participantTwoId] = canonicalParticipants(currentUserId, otherUserId)
+  const orgFilter = orgSlug ? eq(organizations.slug, orgSlug) : undefined
+
+  const rows = await db
+    .select({
+      id: directConversations.id,
+      orgId: directConversations.orgId,
+      orgSlug: organizations.slug,
+    })
+    .from(directConversations)
+    .innerJoin(organizations, eq(organizations.id, directConversations.orgId))
+    .where(
+      and(
+        eq(directConversations.participantOneId, participantOneId),
+        eq(directConversations.participantTwoId, participantTwoId),
+        orgFilter,
+      ),
+    )
+    .limit(2)
+
+  if (rows.length === 1) return rows[0]
+  return null
+}
+
+export async function assertSameOrganization(
+  currentUserId: string,
+  otherUserId: string,
+  orgSlug?: string,
+) {
+  const rows = await db
+    .select({ orgId: orgMembership.orgId, slug: organizations.slug })
+    .from(orgMembership)
+    .innerJoin(organizations, eq(organizations.id, orgMembership.orgId))
+    .where(eq(orgMembership.userId, currentUserId))
+
+  const otherRows = await db
+    .select({ orgId: orgMembership.orgId })
+    .from(orgMembership)
+    .where(eq(orgMembership.userId, otherUserId))
+
+  const otherOrgIds = new Set(otherRows.map((row) => row.orgId))
+  const matches = rows.filter((row) => otherOrgIds.has(row.orgId) && (!orgSlug || row.slug === orgSlug))
+  return matches.length === 1 ? matches[0] : null
+}
+
+export async function ensureDirectConversation(
+  currentUserId: string,
+  otherUserId: string,
+  orgId: string,
+) {
+  const [participantOneId, participantTwoId] = canonicalParticipants(currentUserId, otherUserId)
+  await db
+    .insert(directConversations)
+    .values({
+      id: crypto.randomUUID(),
+      orgId,
+      participantOneId,
+      participantTwoId,
+    })
+    .onConflictDoNothing({
+      target: [
+        directConversations.orgId,
+        directConversations.participantOneId,
+        directConversations.participantTwoId,
+      ],
+    })
+
+  const [conversation] = await db
+    .select()
+    .from(directConversations)
+    .where(
+      and(
+        eq(directConversations.orgId, orgId),
+        eq(directConversations.participantOneId, participantOneId),
+        eq(directConversations.participantTwoId, participantTwoId),
+      ),
+    )
+    .limit(1)
+
+  if (conversation) {
+    await db
+      .insert(directConversationMembers)
+      .values([
+        { conversationId: conversation.id, userId: currentUserId },
+        { conversationId: conversation.id, userId: otherUserId },
+      ])
+      .onConflictDoNothing()
+  }
+
+  return conversation ?? null
+}
+
+export async function getDirectMessagePage(
+  conversationId: string,
+  userId: string,
+  cursor: MessageCursor | null,
+  limit = 50,
+) {
+  const boundedLimit = Math.min(Math.max(limit, 1), 50)
+  const rows = await db
+    .select({
+      id: messages.id,
+      senderId: messages.senderId,
+      receiverId: messages.receiverId,
+      content: messages.content,
+      media: messages.media,
+      url: messages.url,
+      read: messages.read,
+      clientMessageId: messages.clientMessageId,
+      createdAt: messages.createdAt,
+    })
+    .from(messages)
+    .innerJoin(directConversations, eq(messages.conversationId, directConversations.id))
+    .innerJoin(organizations, eq(organizations.id, directConversations.orgId))
+    .innerJoin(
+      directConversations,
+      eq(messages.conversationId, directConversations.id),
+    )
+    .innerJoin(
+      directConversationMembers,
+      and(
+        eq(directConversationMembers.conversationId, directConversations.id),
+        eq(directConversationMembers.userId, userId),
+      ),
+    )
+    .where(
+      and(
+        eq(messages.conversationId, conversationId),
+        cursor
+          ? sql`(${messages.createdAt}, ${messages.id}) < (${new Date(cursor.createdAt)}, ${cursor.id})`
+          : undefined,
+      ),
+    )
+    .orderBy(desc(messages.createdAt), desc(messages.id))
+    .limit(boundedLimit + 1)
+
+  const hasMore = rows.length > boundedLimit
+  const page = rows.slice(0, boundedLimit).reverse()
+  const oldest = page[0]
+  return {
+    messages: page,
+    hasMore,
+    nextCursor: hasMore && oldest?.createdAt
+      ? encodeMessageCursor({ createdAt: oldest.createdAt.toISOString(), id: oldest.id })
+      : null,
+  }
+}
+
+export async function getChannelMessagePage(
+  channelId: string,
+  userId: string,
+  cursor: MessageCursor | null,
+  limit = 50,
+) {
+  const boundedLimit = Math.min(Math.max(limit, 1), 50)
+  const rows = await db
+    .select({
+      id: channelMessages.id,
+      senderId: channelMessages.senderId,
+      content: channelMessages.content,
+      media: channelMessages.media,
+      clientMessageId: channelMessages.clientMessageId,
+      createdAt: channelMessages.createdAt,
+      sender: { id: user.id, name: user.name, image: user.image },
+    })
+    .from(channelMessages)
+    .innerJoin(user, eq(channelMessages.senderId, user.id))
+    .innerJoin(classChannels, eq(channelMessages.channelId, classChannels.id))
+    .innerJoin(classMembership, eq(classMembership.classId, classChannels.classId))
+    .where(
+      and(
+        eq(channelMessages.channelId, channelId),
+        eq(classMembership.userId, userId),
+        cursor
+          ? sql`(${channelMessages.createdAt}, ${channelMessages.id}) < (${new Date(cursor.createdAt)}, ${cursor.id})`
+          : undefined,
+      ),
+    )
+    .orderBy(desc(channelMessages.createdAt), desc(channelMessages.id))
+    .limit(boundedLimit + 1)
+
+  const hasMore = rows.length > boundedLimit
+  const page = rows.slice(0, boundedLimit).reverse()
+  const oldest = page[0]
+  return {
+    messages: page,
+    hasMore,
+    nextCursor: hasMore && oldest?.createdAt
+      ? encodeMessageCursor({ createdAt: oldest.createdAt.toISOString(), id: oldest.id })
+      : null,
+  }
+}
 
 type ConversationRow = {
   userId: string
@@ -83,7 +319,7 @@ export async function ensureGeneralChannelsForUser(userId: string) {
   )
 }
 
-export async function getConversationSummaries(userId: string) {
+export async function getConversationSummaries(userId: string, orgSlug: string) {
   const result = await db.execute(sql<ConversationRow>`
     WITH conversation_rows AS (
       SELECT
@@ -139,11 +375,11 @@ export async function getConversationSummaries(userId: string) {
     lastMessage: row.lastMessage,
     lastMessageTime: toIsoString(row.lastMessageTime),
     unreadCount: Number(row.unreadCount) || 0,
-    href: `/messages/${row.userId}`,
+    href: `/${orgSlug}/messages/${row.userId}`,
   }))
 }
 
-export async function getChannelSummaries(userId: string) {
+export async function getChannelSummaries(userId: string, orgSlug: string) {
   await ensureGeneralChannelsForUser(userId)
 
   const result = await db.execute(sql<ChannelSummaryRow>`
@@ -208,16 +444,16 @@ export async function getChannelSummaries(userId: string) {
     classId: row.classId,
     title: `${row.className} · ${row.channelName}`,
     className: row.className,
-    classColor: row.classColor || "#3b82f6",
+    classColor: row.classColor || "#0369a1",
     channelName: row.channelName,
     lastMessage: row.lastMessage || "No messages yet",
     lastMessageTime: toIsoString(row.lastMessageTime),
     unreadCount: Number(row.unreadCount) || 0,
-    href: `/messages/class/${row.classId}`,
+    href: `/${orgSlug}/messages/class/${row.classId}`,
   }))
 }
 
-export async function searchMessageThreads(userId: string, query: string) {
+export async function searchMessageThreads(userId: string, query: string, orgSlug: string) {
   const trimmedQuery = query.trim()
   if (!trimmedQuery) return []
 
@@ -230,7 +466,7 @@ export async function searchMessageThreads(userId: string, query: string) {
       title: user.name,
       subtitle: sql<string>`'Direct message'`,
       snippet: messages.content,
-      href: sql<string>`'/messages/' || "user".id`,
+      href: sql<string>`'/' || ${orgSlug} || '/messages/' || "user".id`,
       createdAt: messages.createdAt,
     })
     .from(messages)
@@ -243,6 +479,7 @@ export async function searchMessageThreads(userId: string, query: string) {
     )
     .where(
       and(
+        eq(organizations.slug, orgSlug),
         or(eq(messages.senderId, userId), eq(messages.receiverId, userId)),
         or(
           sql`${messages.content} ILIKE ${pattern}`,
@@ -259,15 +496,17 @@ export async function searchMessageThreads(userId: string, query: string) {
       title: classes.title,
       subtitle: classChannels.name,
       snippet: channelMessages.content,
-      href: sql<string>`'/messages/class/' || ${classChannels.classId}`,
+      href: sql<string>`'/' || ${orgSlug} || '/messages/class/' || ${classChannels.classId}`,
       createdAt: channelMessages.createdAt,
     })
     .from(channelMessages)
     .innerJoin(classChannels, eq(channelMessages.channelId, classChannels.id))
     .innerJoin(classes, eq(classChannels.classId, classes.id))
+    .innerJoin(organizations, eq(organizations.id, classes.orgId))
     .innerJoin(classMembership, eq(classMembership.classId, classes.id))
     .where(
       and(
+        eq(organizations.slug, orgSlug),
         eq(classMembership.userId, userId),
         or(
           sql`${channelMessages.content} ILIKE ${pattern}`,

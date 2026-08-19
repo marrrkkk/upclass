@@ -230,31 +230,6 @@ export class BackgroundCache {
     })
   }
 
-  // Cache conversations (different from messages)
-  async cacheConversations(conversations: any[]): Promise<void> {
-    try {
-      const db = await this.ensureDB()
-      const tx = db.transaction('conversations', 'readwrite')
-      const store = tx.objectStore('conversations')
-      
-      await Promise.all(conversations.map(conv => {
-        // Ensure userId exists as key
-        if (!conv.userId) return Promise.resolve()
-        return new Promise<void>((resolve, reject) => {
-          const request = store.put({ ...conv, cachedAt: Date.now() })
-          request.onsuccess = () => resolve()
-          request.onerror = () => reject(request.error)
-        })
-      }))
-    } catch (error) {
-      console.error('Failed to cache conversations:', error)
-    }
-  }
-
-  async getCachedConversations(): Promise<any[]> {
-    return this.getAll<any>('conversations')
-  }
-
   // Cache notifications - optimized with batching
   async cacheNotifications(notifications: any[]): Promise<void> {
     if (!notifications || notifications.length === 0) return
@@ -368,10 +343,6 @@ export class BackgroundCache {
       console.error('Failed to get cached class detail:', error)
       return null
     }
-  }
-
-  async getCachedClassDetails(): Promise<any[]> {
-    return this.getAll<any>('classDetails')
   }
 
   // Clear old cache (older than 7 days)

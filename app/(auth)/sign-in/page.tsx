@@ -1,77 +1,36 @@
-import SocialButton from "@/components/auth/social-button"
 import Link from "next/link"
 import type { Metadata } from "next"
-import { Logo } from "@/components/logo"
+
+import { AuthShell } from "@/components/auth/auth-shell"
 
 export const metadata: Metadata = {
-    title: "Sign In",
-    description: "Sign in to UpClass to manage classes, collaborate in realtime, and keep classroom work moving.",
-    alternates: {
-        canonical: "/sign-in",
-    },
-    robots: {
-        index: false,
-        follow: false,
-    },
+  title: "Sign In",
+  description:
+    "Sign in to UpClass to manage classes, collaborate in realtime, and keep classroom work moving.",
+  alternates: {
+    canonical: "/sign-in",
+  },
+  robots: {
+    index: false,
+    follow: false,
+  },
 }
 
 export default function SignInPage() {
-    return (
-        <div className="flex min-h-screen w-full flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-background relative overflow-hidden">
-            {/* Background Effects */}
-            <div className="absolute inset-0 z-0">
-                <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-primary/5 rounded-full blur-[100px] opacity-70" />
-                <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-blue-500/5 rounded-full blur-[100px] opacity-70" />
-                <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:radial-gradient(ellipse_at_center,white,transparent_75%)] opacity-40" />
-            </div>
-
-            <div className="w-full max-w-md space-y-8 relative z-10">
-                <div className="flex flex-col items-center text-center">
-                    <div className="mb-6">
-                        <Logo href="/" size="lg" textClassName="bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent" />
-                    </div>
-
-                    <h2 className="mt-2 text-2xl font-bold tracking-tight text-foreground">
-                        Welcome back
-                    </h2>
-                    <p className="mt-2 text-sm text-muted-foreground max-w-sm">
-                        Sign in to your account to continue managing your classes and tracking student progress.
-                    </p>
-                </div>
-
-                <div className="bg-card px-4 py-8 shadow-sm ring-1 ring-border sm:rounded-xl sm:px-10">
-                    <div className="space-y-6">
-                        <SocialButton
-                            provider="google"
-                            className="w-full h-11 text-sm font-medium shadow-sm hover:shadow active:scale-[0.98] transition-all border-muted-foreground/20"
-                        >
-                            Continue with Google
-                        </SocialButton>
-
-                        <div className="relative">
-                            <div className="absolute inset-0 flex items-center">
-                                <div className="w-full border-t border-muted" />
-                            </div>
-                        </div>
-
-                        <div className="text-center text-xs text-muted-foreground">
-                            By continuing, you agree to our{" "}
-                            <Link href="/terms" className="underline underline-offset-4 hover:text-primary transition-colors">
-                                Terms of Service
-                            </Link>{" "}
-                            and{" "}
-                            <Link href="/privacy" className="underline underline-offset-4 hover:text-primary transition-colors">
-                                Privacy Policy
-                            </Link>
-                            .
-                        </div>
-                    </div>
-                </div>
-
-                <p className="text-center text-xs text-muted-foreground">
-                    Need help? <Link href="/contact" className="font-medium text-primary hover:text-primary/80 transition-colors">Contact Support</Link>
-                </p>
-            </div>
-        </div>
-    )
+  return (
+    <AuthShell
+      title="Welcome back"
+      description="Sign in to continue to your classes, conversations, and teaching workspace."
+      providerLabel="Continue with Google"
+      legalPrefix="By continuing, you agree to our"
+      footer={
+        <>
+          Need help?{" "}
+          <Link className="focus-ring rounded-sm font-medium text-foreground hover:text-primary-strong" href="/contact">
+            Contact support
+          </Link>
+        </>
+      }
+    />
+  )
 }

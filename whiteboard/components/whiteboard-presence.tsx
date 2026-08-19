@@ -1,9 +1,8 @@
 "use client"
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { cn } from "@/lib/utils"
+import { EntityAvatar } from "@/components/ui/entity-avatar"
+import { Text } from "@/components/ui/typography"
 import type { WhiteboardPresence, WhiteboardPresenceUser } from "@/whiteboard/types"
-import { getInitials } from "@/whiteboard/utils/presence"
 
 type WhiteboardPresenceListProps = {
   currentUser: WhiteboardPresenceUser
@@ -17,26 +16,43 @@ export function WhiteboardPresenceList({ currentUser, presences }: WhiteboardPre
       .map((presence) => presence.user)
       .filter((user) => user.id !== currentUser.id),
   ]
+  const visibleCollaborators = collaborators.slice(0, 4)
+  const hiddenCount = Math.max(0, collaborators.length - visibleCollaborators.length)
+  const presenceSummary = collaborators.length === 1
+    ? "Only you"
+    : `${collaborators.length} online`
+  const collaboratorLabel = collaborators.length === 1
+    ? "Only you are here"
+    : `${collaborators.length} collaborators online: ${collaborators
+        .map((user) => user.name)
+        .join(", ")}`
 
   return (
-    <div className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1">
-      {collaborators.map((user) => (
-        <div
-          key={user.id}
-          className={cn("shrink-0 rounded-full border bg-background p-1 shadow-sm")}
-          title={user.name}
-        >
-          <Avatar className="size-8">
-            <AvatarImage src={user.image || undefined} alt={user.name} />
-            <AvatarFallback
-              className="text-[10px] text-white"
-              style={{ backgroundColor: user.color }}
-            >
-              {getInitials(user.name)}
-            </AvatarFallback>
-          </Avatar>
-        </div>
-      ))}
+    <div
+      className="flex min-w-0 items-center gap-2"
+      role="group"
+      aria-label={collaboratorLabel}
+    >
+      <div className="flex -space-x-2" aria-hidden="true">
+        {visibleCollaborators.map((user) => (
+          <EntityAvatar
+            key={user.id}
+            name={user.name}
+            image={user.image}
+            colorKey={user.id}
+            size="sm"
+            className="ring-2 ring-card"
+          />
+        ))}
+        {hiddenCount > 0 ? (
+          <span className="flex size-8 items-center justify-center rounded-full bg-muted type-caption font-semibold text-muted-foreground ring-2 ring-card">
+            +{hiddenCount}
+          </span>
+        ) : null}
+      </div>
+      <Text variant="caption" tone="muted" className="whitespace-nowrap">
+        {presenceSummary}
+      </Text>
     </div>
   )
 }

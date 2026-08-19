@@ -2,20 +2,28 @@
 
 import dynamic from "next/dynamic"
 import { useEffect, useMemo, useState, useTransition } from "react"
-import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Search, Users } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { Hash, MessageSquare, MessageSquareText, Search, Sparkles, User, X } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 
 import { searchMessages } from "@/app/actions/messages"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
+import { EmptyState } from "@/components/ui/empty-state"
+import { EntityAvatar } from "@/components/ui/entity-avatar"
 import { Input } from "@/components/ui/input"
+import { ResponsiveSplitView } from "@/components/ui/responsive-split-view"
+import { PageContainer, PageHeading } from "@/components/ui/section"
+import { StatusBadge } from "@/components/ui/status-badge"
+import { Text } from "@/components/ui/typography"
 import { supabase } from "@/lib/supabase-client"
+import { authorizeSupabaseRealtime } from "@/lib/supabase-realtime-auth"
 import { cn } from "@/lib/utils"
 
 const NewConversationDialog = dynamic(
-  () => import("@/components/messages/new-conversation-dialog").then((mod) => mod.NewConversationDialog),
+  () =>
+    import("@/components/messages/new-conversation-dialog").then(
+      (mod) => mod.NewConversationDialog,
+    ),
 )
 
 type DirectThread = {
@@ -59,6 +67,7 @@ type MessagesClientProps = {
   threads: Array<DirectThread | ChannelThread>
   channels: ChannelThread[]
   userId: string
+  orgSlug: string
   showHeader?: boolean
 }
 
@@ -66,6 +75,7 @@ export function MessagesClient({
   threads,
   channels,
   userId,
+  orgSlug,
   showHeader = true,
 }: MessagesClientProps) {
   const router = useRouter()
@@ -75,8 +85,13 @@ export function MessagesClient({
 
   useEffect(() => {
     if (!supabase || !userId) return
+    let cancelled = false
+    let directChannel: ReturnType<typeof supabase.channel> | null = null
+    let classChannel: ReturnType<typeof supabase.channel> | null = null
 
-    const directChannel = supabase
+    void authorizeSupabaseRealtime().then((authorized) => {
+      if (!authorized || cancelled || !supabase) return
+      directChannel = supabase
       .channel(`messages:list:${userId}`)
       .on(
         "postgres_changes",
@@ -92,7 +107,7 @@ export function MessagesClient({
       )
       .subscribe()
 
-    const classChannel = supabase
+      classChannel = supabase
       .channel(`channel-messages:list:${userId}`)
       .on(
         "postgres_changes",
@@ -106,10 +121,12 @@ export function MessagesClient({
         },
       )
       .subscribe()
+    })
 
     return () => {
-      supabase?.removeChannel(directChannel)
-      supabase?.removeChannel(classChannel)
+      cancelled = true
+      if (directChannel) supabase?.removeChannel(directChannel)
+      if (classChannel) supabase?.removeChannel(classChannel)
     }
   }, [router, userId])
 
@@ -119,12 +136,12 @@ export function MessagesClient({
     }
 
     startSearchTransition(async () => {
-      const result = await searchMessages(searchQuery)
+      const result = await searchMessages(searchQuery, orgSlug)
       if (result.success) {
         setSearchResults(result.results)
       }
     })
-  }, [searchQuery])
+  }, [searchQuery, orgSlug])
 
   const filteredThreads = useMemo(() => {
     if (searchQuery.trim()) return []
@@ -134,47 +151,63 @@ export function MessagesClient({
     )
   }, [threads, searchQuery])
 
+  const totalUnread = useMemo(() => {
+    return threads.reduce((acc, t) => acc + (t.unreadCount || 0), 0)
+  }, [threads])
+
   const formatLastMessageTime = (dateString: string) => {
     try {
-      return dateString ? formatDistanceToNow(new Date(dateString), { addSuffix: true }) : "No activity"
+      return dateString
+        ? formatDistanceToNow(new Date(dateString), { addSuffix: true })
+        : "No activity"
     } catch {
       return "Just now"
     }
   }
 
-  const getInitials = (name: string) =>
-    name
-      .split(" ")
-      .map((part) => part[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2)
+  const newConversation = (
+    <NewConversationDialog currentUserId={userId} channels={channels} />
+  )
 
-  return (
-    <div className={cn("flex h-[calc(100vh-8rem)] flex-col", showHeader ? "gap-6" : "gap-4")}>
-      {showHeader ? (
-        <div className="flex flex-row items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Messages</h1>
-            <p className="mt-1 text-muted-foreground">Connect with your classmates and teachers.</p>
+  const list = (
+    <div className="flex h-full min-h-0 flex-col">
+      {/* Inbox Header & Search Controls */}
+      <div className="border-b border-hairline/70 bg-card/60 p-4 backdrop-blur-xs">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-bold tracking-tight text-foreground">Inbox</h2>
+            {totalUnread > 0 ? (
+              <span className="inline-flex items-center justify-center rounded-full bg-primary/15 px-2 py-0.5 text-xs font-semibold text-primary">
+                {totalUnread} new
+              </span>
+            ) : (
+              <span className="inline-flex items-center justify-center rounded-full bg-surface px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                {threads.length}
+              </span>
+            )}
           </div>
-          <NewConversationDialog currentUserId={userId} channels={channels} />
+          {!showHeader ? (
+            <NewConversationDialog
+              currentUserId={userId}
+              channels={channels}
+              triggerVariant="compact"
+            />
+          ) : null}
         </div>
-      ) : null}
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Direct messages and class channels
+        </p>
 
-      <div className="flex flex-1 flex-col gap-4 overflow-hidden">
-        {!showHeader ? (
-          <div className="flex justify-end">
-            <NewConversationDialog currentUserId={userId} channels={channels} />
-          </div>
-        ) : null}
-        <div className="relative">
-          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-            <Search className="h-4 w-4 text-muted-foreground" />
-          </div>
+        {/* Search Bar */}
+        <div className="relative mt-3.5">
+          <Search
+            aria-hidden="true"
+            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+          />
           <Input
-            type="text"
-            placeholder="Search chats and class channels..."
+            aria-label="Search messages"
+            type="search"
+            placeholder="Search conversations…"
             value={searchQuery}
             onChange={(event) => {
               const value = event.target.value
@@ -183,102 +216,244 @@ export function MessagesClient({
                 setSearchResults([])
               }
             }}
-            className="h-11 border-muted-foreground/20 bg-muted/40 pl-10 transition-all focus-visible:bg-background"
+            className="h-10 rounded-lg border-hairline/90 bg-surface/70 pl-9 pr-8 text-sm placeholder:text-muted-foreground/70 focus-visible:bg-card focus-visible:ring-1 focus-visible:ring-primary/40 shadow-2xs"
           />
+          {searchQuery ? (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery("")
+                setSearchResults([])
+              }}
+              aria-label="Clear search"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-0.5 text-muted-foreground hover:bg-surface-hover hover:text-foreground"
+            >
+              <X className="size-3.5" />
+            </button>
+          ) : null}
         </div>
+      </div>
 
-        <div className="flex-1 overflow-y-auto pr-1">
-          {searchQuery.trim() ? (
-            searchResults.length === 0 && !searchPending ? (
-              <EmptyState title="No results found" description={`Nothing matched "${searchQuery}".`} />
-            ) : (
-              <div className="space-y-2">
-                {searchResults.map((result) => (
-                  <Link key={result.id} href={result.href}>
-                    <div className="rounded-xl border bg-card/40 p-4 transition-all duration-200 hover:border-border hover:bg-card hover:shadow-sm">
-                      <div className="mb-1 flex items-center justify-between gap-2">
-                        <span className="font-semibold text-foreground">{result.title}</span>
-                        <span className="text-[10px] text-muted-foreground">
-                          {formatLastMessageTime(result.createdAt)}
-                        </span>
-                      </div>
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                        {result.subtitle}
-                      </p>
-                      <p className="mt-2 truncate text-sm text-muted-foreground">{result.snippet}</p>
-                    </div>
-                  </Link>
-                ))}
+      {/* Thread list / Search results */}
+      <div className="min-h-0 flex-1 overflow-y-auto p-2">
+        {searchQuery.trim() ? (
+          searchResults.length === 0 ? (
+            searchPending ? (
+              <div className="flex flex-col items-center justify-center gap-2 px-4 py-12 text-center" role="status">
+                <div className="size-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                <Text variant="small" tone="muted">
+                  Searching messages…
+                </Text>
               </div>
+            ) : (
+              <EmptyState
+                icon={<Search className="size-5" />}
+                title="No results found"
+                description={`Nothing matched “${searchQuery}”.`}
+                className="py-8"
+              />
             )
-          ) : filteredThreads.length === 0 ? (
-            <EmptyState title="No messages yet" description="Start a conversation to connect with others." />
           ) : (
-            <div className="space-y-2">
-              {filteredThreads.map((thread) => (
-                <Link key={thread.id} href={thread.href}>
-                  <div className="group flex cursor-pointer items-center gap-4 rounded-xl border border-transparent bg-card/40 p-4 transition-all duration-200 hover:border-border hover:bg-card hover:shadow-sm">
-                    {thread.kind === "direct" ? (
-                      <Avatar className="h-12 w-12 border border-border/50">
-                        <AvatarImage src={thread.userImage || undefined} alt={thread.userName} />
-                        <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-medium">
-                          {getInitials(thread.userName)}
-                        </AvatarFallback>
-                      </Avatar>
-                    ) : (
-                      <div
-                        className="flex h-12 w-12 items-center justify-center rounded-2xl text-sm font-semibold text-white"
-                        style={{ backgroundColor: thread.classColor }}
-                      >
-                        #
-                      </div>
-                    )}
+            <ul aria-label="Message search results" className="space-y-1.5">
+              {searchResults.map((result) => (
+                <li key={result.id}>
+                  <Link
+                    href={result.href}
+                    className="touch-target focus-ring group block rounded-xl border border-transparent p-3 transition-all hover:border-hairline/80 hover:bg-surface-raised hover:shadow-2xs active:scale-[0.99]"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="truncate text-sm font-semibold text-foreground group-hover:text-primary">
+                        {result.title}
+                      </span>
+                      <span className="shrink-0 text-xs font-medium text-muted-foreground/80">
+                        {formatLastMessageTime(result.createdAt)}
+                      </span>
+                    </div>
+                    <div className="mt-1 flex items-center gap-1.5">
+                      <span className="inline-flex items-center gap-1 rounded-md bg-surface px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        {result.subtitle}
+                      </span>
+                    </div>
+                    <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">
+                      {result.snippet}
+                    </p>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )
+        ) : filteredThreads.length === 0 ? (
+          <div className="py-8">
+            <EmptyState
+              icon={<MessageSquareText className="size-6" />}
+              title="No messages yet"
+              description="Start a conversation to connect with a classmate or teacher."
+              action={newConversation}
+            />
+          </div>
+        ) : (
+          <ul aria-label="Message threads" className="space-y-1">
+            {filteredThreads.map((thread) => {
+              const hasUnread = thread.unreadCount > 0
 
+              return (
+                <li key={thread.id}>
+                  <Link
+                    href={thread.href}
+                    className={cn(
+                      "touch-target focus-ring group relative flex items-center gap-3 rounded-xl border border-transparent p-3 transition-all duration-150",
+                      hasUnread
+                        ? "border-primary/20 bg-card shadow-2xs hover:border-primary/40 hover:bg-card"
+                        : "hover:border-hairline/80 hover:bg-surface-raised hover:shadow-2xs active:scale-[0.99]",
+                    )}
+                  >
+                    {/* Avatar with kind badge */}
+                    <div className="relative shrink-0">
+                      {thread.kind === "direct" ? (
+                        <EntityAvatar
+                          name={thread.userName}
+                          image={thread.userImage}
+                          size="md"
+                          className="ring-1 ring-hairline/60"
+                        />
+                      ) : (
+                        <EntityAvatar
+                          name={thread.className}
+                          colorKey={thread.classColor || thread.classId}
+                          shape="square"
+                          size="md"
+                          className="ring-1 ring-hairline/60 shadow-2xs"
+                        />
+                      )}
+                      {thread.kind === "channel" ? (
+                        <div className="absolute -bottom-1 -right-1 flex size-4 items-center justify-center rounded-full bg-surface-raised border border-hairline text-muted-foreground shadow-xs">
+                          <Hash className="size-2.5" />
+                        </div>
+                      ) : (
+                        <div className="absolute -bottom-1 -right-1 flex size-4 items-center justify-center rounded-full bg-surface-raised border border-hairline text-muted-foreground shadow-xs">
+                          <User className="size-2.5" />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Thread Info */}
                     <div className="min-w-0 flex-1">
-                      <div className="mb-1 flex items-center justify-between gap-2">
-                        <span className="truncate font-semibold text-foreground">{thread.title}</span>
-                        <span className="whitespace-nowrap text-[10px] text-muted-foreground">
+                      <div className="flex items-center justify-between gap-2">
+                        <span
+                          className={cn(
+                            "truncate text-sm tracking-tight",
+                            hasUnread
+                              ? "font-bold text-foreground"
+                              : "font-semibold text-foreground/90 group-hover:text-foreground",
+                          )}
+                        >
+                          {thread.title}
+                        </span>
+                        <span
+                          className={cn(
+                            "shrink-0 text-[11px]",
+                            hasUnread
+                              ? "font-semibold text-primary"
+                              : "font-normal text-muted-foreground/80",
+                          )}
+                        >
                           {formatLastMessageTime(thread.lastMessageTime)}
                         </span>
                       </div>
-                      <div className="flex items-center justify-between gap-2">
+
+                      <div className="mt-1 flex items-center justify-between gap-2">
                         <p
                           className={cn(
-                            "truncate pr-4 text-sm",
-                            thread.unreadCount > 0 ? "font-medium text-foreground" : "text-muted-foreground",
+                            "truncate text-xs leading-relaxed",
+                            hasUnread
+                              ? "font-medium text-foreground"
+                              : "text-muted-foreground",
                           )}
                         >
-                          {thread.lastMessage}
+                          {thread.lastMessage || (
+                            <span className="italic text-muted-foreground/60">No messages yet</span>
+                          )}
                         </p>
-                        {thread.unreadCount > 0 ? (
-                          <Badge
-                            variant="default"
-                            className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full px-1.5 text-[10px] font-bold"
+
+                        {hasUnread ? (
+                          <StatusBadge
+                            aria-label={`${thread.unreadCount} unread ${
+                              thread.unreadCount === 1 ? "message" : "messages"
+                            }`}
+                            tone="primary"
+                            size="sm"
+                            className="font-bold shadow-xs"
                           >
                             {thread.unreadCount}
-                          </Badge>
+                          </StatusBadge>
                         ) : null}
                       </div>
+
+                      <div className="mt-1 flex items-center gap-1.5">
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground/70">
+                          {thread.kind === "channel" ? (
+                            <>
+                              <Hash className="size-2.5" /> Class channel
+                            </>
+                          ) : (
+                            <>
+                              <User className="size-2.5" /> Direct message
+                            </>
+                          )}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        )}
       </div>
     </div>
   )
-}
 
-function EmptyState({ title, description }: { title: string; description: string }) {
+  const workspace = (
+    <ResponsiveSplitView
+      listLabel="Conversations"
+      detailLabel="Conversation detail"
+      list={list}
+      emptyDetail={
+        <div className="flex h-full min-h-[28rem] flex-col items-center justify-center p-8 text-center">
+          <div className="relative mb-4 flex size-16 items-center justify-center rounded-2xl bg-primary/10 border border-primary/20 shadow-xs">
+            <MessageSquare className="size-8 text-primary" />
+            <div className="absolute -bottom-1 -right-1 flex size-5 items-center justify-center rounded-full bg-card border border-primary/30 text-primary shadow-2xs">
+              <Sparkles className="size-3" />
+            </div>
+          </div>
+          <h3 className="text-base font-bold tracking-tight text-foreground">
+            Select a conversation
+          </h3>
+          <p className="mt-1.5 max-w-xs text-sm text-muted-foreground">
+            Choose a message thread from the left to read and reply, or start a brand new conversation.
+          </p>
+          <div className="mt-5">
+            {newConversation}
+          </div>
+        </div>
+      }
+      className="h-[calc(100dvh-14rem)]"
+    />
+  )
+
+  if (!showHeader) {
+    return workspace
+  }
+
   return (
-    <div className="flex h-full animate-in zoom-in-50 flex-col items-center justify-center py-16 text-center duration-500">
-      <div className="mb-6 rounded-full bg-muted/50 p-6">
-        <Users className="h-10 w-10 text-muted-foreground/50" />
-      </div>
-      <h3 className="text-xl font-semibold text-foreground">{title}</h3>
-      <p className="mt-2 max-w-sm text-muted-foreground">{description}</p>
-    </div>
+    <PageContainer width="wide">
+      <PageHeading
+        eyebrow="Communication"
+        title="Messages"
+        description="Connect with your classmates and teachers."
+        actions={newConversation}
+      />
+      {workspace}
+    </PageContainer>
   )
 }

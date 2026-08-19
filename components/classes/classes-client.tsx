@@ -1,82 +1,128 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, use, useLayoutEffect, useMemo, useState } from "react"
 
-import { BackgroundCache } from "@/lib/background-cache"
 import { ClassesGrid } from "@/components/classes/classes-grid"
+import { ClassesPageShell } from "@/components/classes/classes-page-shell"
 import { ClassesSearchControls } from "@/components/classes/classes-search-controls"
+import { CreateClassButton } from "@/components/classes/create-class-button"
+import { JoinClassButton } from "@/components/classes/join-class-button"
+import { ClassesGridSkeleton } from "@/components/skeletons"
 import { useClassesData } from "@/hooks/classes/use-classes-data"
-import { useClassesStore } from "@/stores/classes-store"
-
 import type { ClassCardData } from "@/types/classes"
 
-type ClassesClientProps = {
+export type ClassesData = {
   teachingClasses: ClassCardData[]
   enrolledClasses: ClassCardData[]
+}
+
+type ClassesClientProps = {
+  /**
+   * Streaming mode: the class rows resolve from a server-passed promise. The
+   * header and search controls render immediately; the grid suspends until
+   * the promise resolves. When absent, the array props drive the grid.
+   */
+  classesPromise?: Promise<ClassesData>
+  teachingClasses?: ClassCardData[]
+  enrolledClasses?: ClassCardData[]
   isAuthenticated?: boolean
+  canCreateClass?: boolean
+  orgSlug: string
 }
 
 export function ClassesClient({
+  classesPromise,
+  teachingClasses = [],
+  enrolledClasses = [],
+  isAuthenticated = false,
+  canCreateClass = false,
+  orgSlug,
+}: ClassesClientProps) {
+  const [searchQuery, setSearchQuery] = useState("")
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest")
+  const [resultCount, setResultCount] = useState<number | undefined>(undefined)
+
+  return (
+    <ClassesPageShell
+      actions={
+        isAuthenticated ? (
+          <div className="flex items-center gap-2.5">
+            <JoinClassButton />
+            {canCreateClass ? <CreateClassButton orgSlug={orgSlug} /> : null}
+          </div>
+        ) : null
+      }
+    >
+      <ClassesSearchControls
+        searchQuery={searchQuery}
+        resultCount={resultCount}
+        sortOrder={sortOrder}
+        onSearchChange={setSearchQuery}
+        onSortChange={setSortOrder}
+        onReset={() => {
+          setSearchQuery("")
+          setSortOrder("newest")
+        }}
+      />
+
+      <Suspense fallback={<ClassesGridSkeleton />}>
+        <ClassesGridResolved
+          classesPromise={classesPromise}
+          teachingClasses={teachingClasses}
+          enrolledClasses={enrolledClasses}
+          searchQuery={searchQuery}
+          sortOrder={sortOrder}
+          onCountChange={setResultCount}
+        />
+      </Suspense>
+    </ClassesPageShell>
+  )
+}
+
+function ClassesGridResolved({
+  classesPromise,
   teachingClasses,
   enrolledClasses,
-  isAuthenticated = false,
-}: ClassesClientProps) {
-  const setTeachingClasses = useClassesStore((state) => state.setTeachingClasses)
-  const setEnrolledClasses = useClassesStore((state) => state.setEnrolledClasses)
-  const setStoreIsAuthenticated = useClassesStore((state) => state.setIsAuthenticated)
-  const [activeTab, setActiveTab] = useState<"teaching" | "enrolled">("teaching")
-  const [searchQuery, setSearchQuery] = useState("")
+  searchQuery,
+  sortOrder,
+  onCountChange,
+}: {
+  classesPromise?: Promise<ClassesData>
+  teachingClasses: ClassCardData[]
+  enrolledClasses: ClassCardData[]
+  searchQuery: string
+  sortOrder: "newest" | "oldest"
+  onCountChange: (count: number) => void
+}) {
+  const resolved = classesPromise
+    ? use(classesPromise)
+    : { teachingClasses, enrolledClasses }
+
   const { filteredClasses, prefetchOnHover, cancelPrefetch } = useClassesData({
-    teachingClasses,
-    enrolledClasses,
-    isAuthenticated,
-    activeTab,
+    teachingClasses: resolved.teachingClasses,
+    enrolledClasses: resolved.enrolledClasses,
     searchQuery,
   })
 
-  useEffect(() => {
-    if (typeof window === "undefined" || navigator.onLine) return
+  const sortedClasses = useMemo(
+    () =>
+      [...filteredClasses].sort((a, b) => {
+        const difference = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        return sortOrder === "newest" ? difference : -difference
+      }),
+    [filteredClasses, sortOrder],
+  )
 
-    let cancelled = false
-
-    const hydrateOfflineClasses = async () => {
-      const cachedClasses = await BackgroundCache.getInstance().getCachedClasses()
-      if (cancelled || cachedClasses.length === 0) return
-
-      const teaching = cachedClasses.filter((classItem) => classItem.role === "teaching")
-      const enrolled = cachedClasses.filter((classItem) => classItem.role !== "teaching")
-
-      setTeachingClasses(teaching)
-      setEnrolledClasses(enrolled)
-      setStoreIsAuthenticated(true)
-
-      if (teaching.length === 0 && enrolled.length > 0) {
-        setActiveTab("enrolled")
-      }
-    }
-
-    void hydrateOfflineClasses()
-
-    return () => {
-      cancelled = true
-    }
-  }, [setEnrolledClasses, setStoreIsAuthenticated, setTeachingClasses])
+  useLayoutEffect(() => {
+    onCountChange(sortedClasses.length)
+  }, [onCountChange, sortedClasses.length])
 
   return (
-    <div className="flex flex-col gap-8">
-      <ClassesSearchControls
-        activeTab={activeTab}
-        searchQuery={searchQuery}
-        onTabChange={setActiveTab}
-        onSearchChange={setSearchQuery}
-      />
-      <ClassesGrid
-        activeTab={activeTab}
-        searchQuery={searchQuery}
-        classes={filteredClasses}
-        onHoverStart={prefetchOnHover}
-        onHoverEnd={cancelPrefetch}
-      />
-    </div>
+    <ClassesGrid
+      searchQuery={searchQuery}
+      classes={sortedClasses}
+      onHoverStart={prefetchOnHover}
+      onHoverEnd={cancelPrefetch}
+    />
   )
 }
