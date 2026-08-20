@@ -1,13 +1,10 @@
 import type { ReactNode } from "react"
 import Link from "next/link"
-import { GraduationCap } from "lucide-react"
+import { ArrowUpRight, Check, GraduationCap } from "lucide-react"
 
 import SocialButton from "@/components/auth/social-button"
 import { Logo } from "@/components/logo"
-import { IconBadge } from "@/components/ui/icon-badge"
-import { Panel, PanelBody } from "@/components/ui/panel"
-import { PageContainer, PageHeading } from "@/components/ui/section"
-import { Text } from "@/components/ui/typography"
+import { PageContainer } from "@/components/ui/section"
 
 type AuthShellProps = {
   title: string
@@ -26,45 +23,34 @@ export function AuthShell({
   footer,
 }: AuthShellProps) {
   return (
-    <main className="flex min-h-dvh items-center bg-background py-10">
-      <PageContainer width="narrow" className="flex flex-col gap-6 px-4 sm:px-6">
-        <div className="flex justify-center">
-          <Logo href="/" size="lg" />
+    <main className="auth-entry flex min-h-dvh items-center py-8 sm:py-12">
+      <PageContainer width="wide" className="auth-entry-container px-4 sm:px-6">
+        <div className="auth-layout">
+          <aside className="auth-visual">
+            <Logo href="/" size="lg" />
+            <div className="auth-visual-copy">
+              <span className="auth-kicker">UPCLASS / CLASSROOM WORKSPACE</span>
+              <h1>The class is already moving.</h1>
+              <p>Open one dependable place for the work, the people, and the conversations that make a class feel like a class.</p>
+              <ul>
+                <li><Check /> Keep lessons and resources together</li>
+                <li><Check /> Give every conversation a home</li>
+                <li><Check /> Pick up where you left off</li>
+              </ul>
+            </div>
+            <div className="auth-visual-note">Made for the everyday pace of teaching and learning <ArrowUpRight /></div>
+          </aside>
+          <div className="auth-form-column">
+            <div className="auth-form-card">
+              <div className="auth-form-mark"><GraduationCap /></div>
+              <div className="auth-form-heading"><span>ACCOUNT ACCESS</span><h2>{title}</h2><p>{description}</p></div>
+              <SocialButton provider="google" className="auth-google-button w-full">{providerLabel}</SocialButton>
+              <div className="auth-divider"><span>or continue with Google</span></div>
+              <p className="auth-legal">{legalPrefix} <Link href="/terms">Terms of Service</Link> and <Link href="/privacy">Privacy Policy</Link>.</p>
+            </div>
+            <p className="auth-footer-copy">{footer}</p>
+          </div>
         </div>
-
-        <Panel padding="none">
-          <PanelBody className="flex flex-col gap-6 p-6 sm:p-8">
-            <PageHeading
-              title={title}
-              description={description}
-              media={
-                <IconBadge tone="primary" size="lg">
-                  <GraduationCap />
-                </IconBadge>
-              }
-            />
-
-            <SocialButton provider="google" className="w-full">
-              {providerLabel}
-            </SocialButton>
-
-            <Text variant="caption" tone="muted" className="text-center">
-              {legalPrefix}{" "}
-              <Link className="focus-ring rounded-sm underline underline-offset-4 hover:text-foreground" href="/terms">
-                Terms of Service
-              </Link>{" "}
-              and{" "}
-              <Link className="focus-ring rounded-sm underline underline-offset-4 hover:text-foreground" href="/privacy">
-                Privacy Policy
-              </Link>
-              .
-            </Text>
-          </PanelBody>
-        </Panel>
-
-        <Text variant="small" tone="muted" className="text-center">
-          {footer}
-        </Text>
       </PageContainer>
     </main>
   )
