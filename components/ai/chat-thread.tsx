@@ -10,7 +10,6 @@ import { useChat, type UIMessage } from "@ai-sdk/react"
 import { DefaultChatTransport } from "ai"
 import { useStickToBottom } from "use-stick-to-bottom"
 import {
-  ArrowLeft,
   ArrowUp,
   BookOpen,
   CornerDownRight,
@@ -19,7 +18,6 @@ import {
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import {
   AiBubble,
@@ -51,13 +49,13 @@ export type ChatThreadProps = {
   initialMessages: ChatInitialMessage[]
   variant?: ChatThreadVariant
   className?: string
-  onBack?: () => void
   conversationReady?: boolean
   draftInput?: string
   onDraftInputChange?: (value: string) => void
   queuedMessage?: string | null
   onQueueMessage?: (value: string) => void
   onQueuedMessageSent?: () => void
+  contextLabel?: string
 }
 
 function toUiMessage(message: ChatInitialMessage): UIMessage {
@@ -127,13 +125,13 @@ export function ChatThread({
   initialMessages,
   variant = "page",
   className,
-  onBack,
   conversationReady = true,
   draftInput,
   onDraftInputChange,
   queuedMessage,
   onQueueMessage,
   onQueuedMessageSent,
+  contextLabel,
 }: ChatThreadProps) {
   const params = useParams<{ orgSlug: string }>()
   const orgSlug = params.orgSlug
@@ -246,27 +244,14 @@ export function ChatThread({
     }
   }
 
-  const defaultSuggestions = DEFAULT_SUGGESTIONS[surface] || DEFAULT_SUGGESTIONS.dashboard
+  const defaultSuggestions = useMemo(() => {
+    if (surface === "resource" && contextLabel) {
+      return [`Summarize ${contextLabel}`, `What are the key takeaways from ${contextLabel}?`, `Explain the main concepts in ${contextLabel}`, `Quiz me on ${contextLabel}`]
+    }
+    return DEFAULT_SUGGESTIONS[surface] || DEFAULT_SUGGESTIONS.dashboard
+  }, [contextLabel, surface])
   return (
     <div className={cn("flex h-full min-h-0 flex-col", className)}>
-      {isPanel && onBack ? (
-        <div className="flex shrink-0 items-center gap-2 border-b border-hairline/80 px-3 py-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            onClick={onBack}
-            className="rounded-lg"
-            aria-label="Back to chat list"
-          >
-            <ArrowLeft className="size-4" aria-hidden="true" />
-          </Button>
-          <span className="truncate text-xs font-semibold text-muted-foreground">
-            All conversations
-          </span>
-        </div>
-      ) : null}
-
       {/* Messages / Empty State viewport */}
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto" ref={scrollRef}>
         <div

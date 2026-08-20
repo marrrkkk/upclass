@@ -11,6 +11,7 @@ import {
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb"
 import { NotificationBell } from "@/components/notifications/notification-bell"
+import { AiToggleButton } from "@/components/ai/ai-toggle-button"
 import { UserAvatarMenu } from "@/components/user-avatar-menu"
 import { usePageHeaderStore } from "@/stores/page-header-store"
 
@@ -89,6 +90,7 @@ export function PageHeader({ user, userId }: PageHeaderProps) {
         {rightSideContent ? (
           <div className="hidden items-center gap-1.5 md:flex">{rightSideContent}</div>
         ) : null}
+        {userId ? <AiToggleButton /> : null}
         {userId ? <NotificationBell userId={userId} /> : null}
         {user ? (
           <UserAvatarMenu

@@ -4,8 +4,6 @@
  * Header toggle for the assistant side panel (Ctrl+J). Visible at all
  * breakpoints; `aria-controls` points at the panel aside.
  */
-import { Sparkles } from "lucide-react"
-
 import { useAiPanel } from "@/components/ai/ai-panel-provider"
 import { Button } from "@/components/ui/button"
 import {
@@ -24,15 +22,15 @@ export function AiToggleButton() {
         <TooltipTrigger asChild>
           <Button
             type="button"
-            variant="ghost"
-            size="icon"
+            variant="default"
+            size="sm"
             onClick={toggle}
             aria-label="Ask AI"
             aria-expanded={open}
             aria-controls="assistant-panel"
-            className="text-muted-foreground hover:text-foreground"
+            className="ai-toggle-button min-h-9 px-3 font-semibold shadow-e1 transition-[box-shadow,transform,background-color] hover:-translate-y-px hover:shadow-e2"
           >
-            <Sparkles className="size-5" aria-hidden="true" />
+            Ask AI
           </Button>
         </TooltipTrigger>
         <TooltipContent side="bottom">Ask AI (Ctrl+J)</TooltipContent>

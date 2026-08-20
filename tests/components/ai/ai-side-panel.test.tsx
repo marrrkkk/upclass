@@ -108,8 +108,9 @@ function renderPanel(organizationRole: "owner" | "admin" | "member" = "member") 
   )
 }
 
-async function openHistory(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByRole("button", { name: "View conversation history" }))
+async function openHistory() {
+  fireEvent.click(screen.getByRole("button", { name: "View conversation history" }))
+  await waitFor(() => expect(screen.getByRole("button", { name: "View conversation history" })).toHaveAttribute("data-state", "open"))
 }
 
 describe("AiSidePanel", () => {
@@ -135,9 +136,6 @@ describe("AiSidePanel", () => {
   })
 
   afterEach(() => {
-    // Clean up Radix portal nodes left on document.body
-    document.body.querySelectorAll("[data-radix-popper-content-wrapper]").forEach((el) => el.remove())
-    document.body.querySelectorAll("[data-radix-portal]").forEach((el) => el.remove())
     window.localStorage.clear()
     vi.restoreAllMocks()
   })
@@ -154,7 +152,7 @@ describe("AiSidePanel", () => {
     expect(screen.getByRole("heading", { name: "Ask me anything." })).toBeInTheDocument()
     expect(screen.queryByText("Starting conversation...")).not.toBeInTheDocument()
 
-    await openHistory(user)
+    await openHistory()
     await waitFor(() => {
       expect(screen.getByText("Homework help")).toBeInTheDocument()
     })
@@ -172,7 +170,7 @@ describe("AiSidePanel", () => {
       expect.stringContaining("/api/ai/conversations/c1/messages?limit=50"),
       expect.any(Object),
     )
-    expect(screen.getByRole("button", { name: "Back to chat list" })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Back to chat list" })).not.toBeInTheDocument()
   })
 
   test("inline new chat creates a dashboard conversation without redirecting", async () => {
@@ -236,14 +234,14 @@ describe("AiSidePanel", () => {
     })
   })
 
-  test("back exposes history without loading it until requested", async () => {
-    const user = userEvent.setup()
+  test("history stays hidden until requested", async () => {
     mockFetch({ conversations: [{ id: "c1", title: "Homework help", updatedAt: null }] })
 
     renderPanel()
-    await user.click(screen.getByRole("button", { name: "View conversation history" }))
 
     expect(screen.getByRole("button", { name: "View conversation history" })).toBeInTheDocument()
+    expect(screen.queryByText("Homework help")).not.toBeInTheDocument()
+    await openHistory()
     await waitFor(() => expect(screen.getByText("Homework help")).toBeInTheDocument())
   })
 
@@ -252,7 +250,7 @@ describe("AiSidePanel", () => {
     mockFetch({ conversations: [{ id: "c1", title: "Homework help", updatedAt: null }] })
 
     renderPanel()
-    await openHistory(user)
+    await openHistory()
     await waitFor(() => {
       expect(screen.getByText("Homework help")).toBeInTheDocument()
     })
@@ -277,7 +275,7 @@ describe("AiSidePanel", () => {
     mockFetch({ conversations: [{ id: "c1", title: "Homework help", updatedAt: null }] })
 
     renderPanel()
-    await openHistory(user)
+    await openHistory()
     await user.click(await screen.findByText("Homework help"))
     const expand = await screen.findByRole("link", { name: "Open chat in full page" })
     expect(expand).toHaveAttribute("href", "/acme/chat/c1")
@@ -316,7 +314,6 @@ describe("AiSidePanel", () => {
       )
     })
 
-    await user.click(await screen.findByRole("button", { name: "Back to chat list" }))
     await user.click(screen.getByRole("button", { name: "Start fresh" }))
     await waitFor(() => {
       expect(mocks.resetClassConversationAction).toHaveBeenCalledWith({
@@ -331,7 +328,8 @@ describe("AiSidePanel", () => {
     mockFetch()
     renderPanel("admin")
 
-    await user.click(screen.getByRole("button", { name: "View conversation history" }))
+    fireEvent.click(screen.getByRole("button", { name: "View conversation history" }))
+    await waitFor(() => expect(screen.getByRole("button", { name: "View conversation history" })).toHaveAttribute("data-state", "open"))
     await user.click(screen.getByRole("button", { name: "Manage knowledge base" }))
     expect(screen.getByTestId("org-memory-manager")).toBeInTheDocument()
   })

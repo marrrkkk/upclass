@@ -26,7 +26,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
   Popover,
-  PopoverClose,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
@@ -179,12 +178,28 @@ export function AiSidePanel({
   const returnFocusRef = useRef<HTMLElement | null>(null)
   const openedInitialChatRef = useRef(false)
   const conversationRequestRef = useRef(0)
+  const previousSeedKeyRef = useRef<string | null>(null)
   const toast = useToast()
 
   const orgSlug = pathname.split("/").filter(Boolean)[0] ?? ""
   const isAdmin = organizationRole === "owner" || organizationRole === "admin"
   const mode: "launcher" | "thread" =
     showLauncher ? "launcher" : activeConversationId || draftConversation ? "thread" : "launcher"
+
+  useEffect(() => {
+    const nextSeedKey = seed ? `${seed.surface}:${seed.entityId}` : null
+    if (previousSeedKeyRef.current === nextSeedKey) return
+    previousSeedKeyRef.current = nextSeedKey
+    if (!nextSeedKey) return
+    openedInitialChatRef.current = false
+    conversationRequestRef.current += 1
+    setConversations([])
+    setThreadMessages([])
+    setThreadReadyFor(null)
+    setThreadInput("")
+    setQueuedMessage(null)
+    setShowLauncher(false)
+  }, [seed?.entityId, seed?.surface])
 
   // Load conversations
   const loadConversations = useCallback(async () => {
@@ -553,6 +568,18 @@ export function AiSidePanel({
 
           {/* Right Action Icons: [+] [↗] [×] */}
           <div className="flex shrink-0 items-center gap-1 text-muted-foreground">
+            {mode === "thread" && seed?.surface === "class" ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleReset}
+                disabled={resetting}
+                className="h-7 px-2 type-caption"
+              >
+                Start fresh
+              </Button>
+            ) : null}
             <Button
               type="button"
               variant="ghost"
@@ -597,6 +624,12 @@ export function AiSidePanel({
         {/* Panel Body: Chat Thread or Knowledge Base Launcher */}
         {mode === "thread" && activeConversationId ? (
           <div className="flex min-h-0 flex-1 flex-col">
+            {seed?.surface === "resource" ? (
+              <div className="shrink-0 border-b border-hairline/80 bg-primary/5 px-4 py-2.5">
+                <p className="type-caption font-medium text-muted-foreground">Sharing resource</p>
+                <p className="truncate type-small font-semibold text-foreground" title={seed.label}>{seed.label}</p>
+              </div>
+            ) : null}
             {!activeConversationId.startsWith("temp-") && threadReadyFor !== activeConversationId ? (
               <div className="flex flex-1 items-center justify-center">
                 <Spinner className="size-4" aria-hidden="true" />
@@ -621,10 +654,7 @@ export function AiSidePanel({
                 queuedMessage={queuedMessage}
                 onQueueMessage={setQueuedMessage}
                 onQueuedMessageSent={() => setQueuedMessage(null)}
-                onBack={() => {
-                  conversationRequestRef.current += 1
-                  setShowLauncher(true)
-                }}
+                contextLabel={seed?.surface === "resource" ? seed.label : undefined}
               />
             )}
           </div>

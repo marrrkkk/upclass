@@ -38,6 +38,7 @@ type AiPanelContextValue = {
   toggle: () => void
   seed: AiPanelSeed | null
   openFor: (seed: AiPanelSeed) => void
+  setContext: (seed: AiPanelSeed) => void
   clearSeed: () => void
   activeConversationId: string | null
   setActiveConversationId: (conversationId: string | null) => void
@@ -103,6 +104,16 @@ export function AiPanelProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const setContext = useCallback((nextSeed: AiPanelSeed) => {
+    setSeed((current) => {
+      if (current?.surface === nextSeed.surface && current.entityId === nextSeed.entityId && current.label === nextSeed.label) return current
+      setActiveConversationIdState(null)
+      setDraftConversation(null)
+      setHistoryLoaded(false)
+      return nextSeed
+    })
+  }, [])
+
   const clearSeed = useCallback(() => {
     setSeed(null)
   }, [])
@@ -143,6 +154,7 @@ export function AiPanelProvider({ children }: { children: ReactNode }) {
         toggle,
         seed,
         openFor,
+        setContext,
         clearSeed,
         activeConversationId,
         setActiveConversationId,

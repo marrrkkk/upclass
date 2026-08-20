@@ -48,7 +48,6 @@ const emptyMessages: ChatInitialMessage[] = []
 
 function renderThread(options: {
   variant?: "page" | "panel"
-  onBack?: () => void
   initialMessages?: ChatInitialMessage[]
 } = {}) {
   return render(
@@ -59,7 +58,6 @@ function renderThread(options: {
         entityId="dashboard"
         initialMessages={options.initialMessages ?? emptyMessages}
         variant={options.variant ?? "page"}
-        onBack={options.onBack}
       />
     </ToastProvider>,
   )
@@ -150,18 +148,8 @@ describe("ChatThread", () => {
     expect(screen.getByText(/Too many requests/)).toBeInTheDocument()
   })
 
-  test("panel variant renders a back button and hides the page caption", () => {
-    const onBack = vi.fn()
-    renderThread({ variant: "panel", onBack })
-    expect(screen.getByRole("button", { name: "Back to chat list" })).toBeInTheDocument()
+  test("panel variant hides the page caption", () => {
+    renderThread({ variant: "panel" })
     expect(screen.queryByText(/Ctrl\+J toggles the assistant panel/)).not.toBeInTheDocument()
-  })
-
-  test("panel variant back button invokes onBack", async () => {
-    const user = userEvent.setup()
-    const onBack = vi.fn()
-    renderThread({ variant: "panel", onBack })
-    await user.click(screen.getByRole("button", { name: "Back to chat list" }))
-    expect(onBack).toHaveBeenCalled()
   })
 })
