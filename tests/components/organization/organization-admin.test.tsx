@@ -38,7 +38,7 @@ const members: OrganizationMember[] = [
     name: "Student One",
     email: "student@example.com",
     image: null,
-    role: "member",
+    role: "student",
     joinedAt: "2024-01-03T00:00:00.000Z",
   },
 ]
@@ -47,7 +47,7 @@ const invitations: OrganizationInvitation[] = [
   {
     id: "invite-member",
     email: "learner@example.com",
-    role: "member",
+    role: "student",
     token: "student-token",
     expiresAt: "2099-01-07T00:00:00.000Z",
     createdAt: "2099-01-01T00:00:00.000Z",
@@ -114,7 +114,7 @@ describe("organization admin rows", () => {
     await actor.click(screen.getByRole("button", { name: "Manage Teacher One" }))
     const roleAction = await screen.findByRole("menuitem", { name: "Change to Student" })
     await actor.click(roleAction)
-    expect(onChangeRole).toHaveBeenCalledWith(members[1], "member")
+    expect(onChangeRole).toHaveBeenCalledWith(members[1], "student")
   })
 
   it("renders invitation lifecycle rows, copy controls, and admin-safe revoke actions", async () => {
@@ -141,7 +141,7 @@ describe("organization admin rows", () => {
     expect(adminRow).not.toBeNull()
 
     expect(within(memberRow!).getByText("Student")).toBeInTheDocument()
-    expect(within(adminRow!).getByText("Teacher")).toBeInTheDocument()
+    expect(within(adminRow!).getByText("Admin")).toBeInTheDocument()
     expect(
       within(memberRow!).getByRole("button", { name: "Revoke invitation for learner@example.com" }),
     ).toBeInTheDocument()
@@ -226,7 +226,7 @@ describe("OrganizationAdminClient", () => {
       expect(actionMocks.createInvitation).toHaveBeenCalledWith({
         orgId: "org-1",
         email: "newstudent@example.com",
-        role: "member",
+        role: "student",
       }),
     )
     expect(writeText).toHaveBeenCalledWith(

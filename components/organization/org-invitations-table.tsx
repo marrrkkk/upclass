@@ -86,7 +86,8 @@ export function OrgInvitationsTable({
         ) : (
           invitations.map((invitation) => {
             const status = expiry(invitation.expiresAt)
-            const canRevoke = currentRole === "owner" || invitation.role === "member"
+            const canRevoke =
+              currentRole === "owner" || invitation.role === "member" || invitation.role === "student"
             const inviteLink = `${inviteOrigin}/org/join?token=${invitation.token}`
 
             return (

@@ -186,15 +186,15 @@ export function OrgMembersTable({
                             onClick={() =>
                               onChangeRole(
                                 member,
-                                member.role === "admin"
-                                  ? ("teacher" as AssignableOrgRole)
+                              member.role === "admin"
+                                  ? ("student" as AssignableOrgRole)
                                   : ("admin" as AssignableOrgRole),
                               )
                             }
                           >
                             <ShieldCheck aria-hidden="true" />
                             {member.role === "admin"
-                              ? `Change to ${ORG_ROLE_LABELS.teacher}`
+                              ? `Change to ${ORG_ROLE_LABELS.student}`
                               : `Change to ${ORG_ROLE_LABELS.admin}`}
                           </DropdownMenuItem>
                         ) : null}

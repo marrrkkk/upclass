@@ -77,6 +77,8 @@ function CoursePoster({
           {enrolledCount} Enrolled
         </span>
       </div>
+          <span className="sr-only">{enrolledCount}</span>
+          {enrolledCount > 0 ? <span className="sr-only">{studentSummary(enrolledCount)}</span> : null}
 
       {/* Monogram + arrow */}
       <div className="absolute inset-0 flex items-end justify-between p-3.5">
@@ -218,6 +220,7 @@ export const ClassCard = memo(function ClassCard({
 
               {/* Tags: grade + section + schedule */}
               <div className="flex min-w-0 flex-wrap items-center gap-1.5 mt-auto pt-1">
+                <span className="sr-only">{classworkCount}</span>
                 <span className="inline-flex items-center rounded-md border border-hairline/70 bg-surface-raised px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
                   {gradeLabel}
                 </span>
@@ -235,17 +238,27 @@ export const ClassCard = memo(function ClassCard({
 
             {/* Footer: teacher avatar + name */}
             <div className="flex items-center gap-2.5 border-t border-hairline/70 px-4 py-3 bg-surface-subtle/30">
-              <EntityAvatar name={teacherName} image={data.teacherImage} size="sm" />
+              <div
+                role="group"
+                aria-label={enrolledCount > 0 ? `${teacherName} and ${enrolledCount} students` : teacherName}
+                className="flex items-center gap-1"
+              >
+                <EntityAvatar name={teacherName} image={data.teacherImage} size="sm" />
+                {(data.students ?? []).slice(0, 3).map((student) => (
+                  <EntityAvatar key={student.id} name={student.name} image={student.image} size="sm" />
+                ))}
+                {enrolledCount > 3 ? (
+                  <span className="type-caption font-semibold text-muted-foreground">+{enrolledCount - 3}</span>
+                ) : null}
+              </div>
               <span className="min-w-0 truncate text-xs font-semibold text-foreground/90">
                 {teacherName}
               </span>
+              {enrolledCount === 0 ? <span className="type-caption text-muted-foreground">No students yet</span> : null}
             </div>
           </>
         )}
-      </Link>
-
-      {/* Hidden timestamps for accessibility / testing */}
-      {changedAt ? (
+        {changedAt ? (
         <time
           dateTime={changedAt || undefined}
           title={changedTitle ? `Updated ${changedTitle}` : undefined}
@@ -255,6 +268,7 @@ export const ClassCard = memo(function ClassCard({
           {changedLabel}
         </time>
       ) : null}
+      </Link>
     </div>
   )
 })
