@@ -29,6 +29,16 @@ describe("sidebar collapse", () => {
       configurable: true,
       value: 1024,
     });
+    vi.mocked(window.matchMedia).mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
   });
 
   it("renders rail nav links with an accessible name instead of visible text", () => {
@@ -47,6 +57,23 @@ describe("sidebar collapse", () => {
     expect(link).toHaveAttribute("data-active", "false");
     expect(link.className).toContain("justify-center");
     expect(screen.queryByText("Messages")).not.toBeInTheDocument();
+  });
+
+  it("keeps the active collapsed destination named and visually contained", () => {
+    render(
+      <SidebarProvider defaultOpen={false}>
+        <SidebarNavLink
+          href="/dashboard"
+          icon={<MessageSquare />}
+          label="Messages"
+          active
+        />
+      </SidebarProvider>,
+    );
+
+    const link = screen.getByRole("link", { name: "Messages" });
+    expect(link).toHaveAttribute("aria-current", "page");
+    expect(link.querySelector("span")).toHaveClass("bg-primary/10", "rounded-md");
   });
 
   it("keeps the full label row when not collapsed", () => {
@@ -68,6 +95,16 @@ describe("sidebar collapse", () => {
       configurable: true,
       value: 500,
     });
+    vi.mocked(window.matchMedia).mockImplementation((query: string) => ({
+      matches: query.includes("max-width"),
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
 
     render(
       <SidebarProvider defaultOpen={false}>

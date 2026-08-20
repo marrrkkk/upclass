@@ -5,7 +5,6 @@ import { useEffect, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import {
   Calendar,
-  ChevronRight,
   Download,
   Edit,
   FileIcon,
@@ -56,6 +55,7 @@ import {
 import { StatusBadge } from "@/components/ui/status-badge"
 import { Textarea } from "@/components/ui/textarea"
 import { PageContainer } from "@/components/ui/section"
+import { useAiPanel } from "@/components/ai/ai-panel-provider"
 
 import type { Tone } from "@/lib/design-system"
 import { cn } from "@/lib/utils"
@@ -139,16 +139,6 @@ function formatDateShort(dateString: string) {
   })
 }
 
-function formatDate(dateString: string) {
-  return new Date(dateString).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  })
-}
-
 function canPreview(fileType: string) {
   return fileType === "pdf" || fileType === "txt"
 }
@@ -185,6 +175,7 @@ export function ResourceDetailClient({
   const resourcesPath = `/${orgSlug}/resources`
   const ownerPath = `/${orgSlug}/user/${resource.owner.id}`
   const setPageTitle = usePageHeaderStore((state) => state.setPageTitle)
+  const { setContext, clearSeed } = useAiPanel()
   const [editOpen, setEditOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [title, setTitle] = useState(resource.title)
@@ -208,6 +199,11 @@ export function ResourceDetailClient({
   useEffect(() => {
     document.title = `${resource.title} | UpClass`
   }, [resource.title])
+
+  useEffect(() => {
+    setContext({ surface: "resource", entityId: resource.id, label: resource.title })
+    return () => clearSeed()
+  }, [clearSeed, resource.id, resource.title, setContext])
 
   const handleOpenEdit = () => {
     setTitle(resource.title)
@@ -267,28 +263,15 @@ export function ResourceDetailClient({
     <PageContainer width="wide" className="space-y-0 pb-safe-bottom pb-10 sm:space-y-0 sm:pb-10">
 
       {/* ── Top bar: Breadcrumb + Actions ────────────────────────────── */}
-      <div className="flex flex-col gap-3 py-1 mb-5 sm:mb-7 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-        {/* Breadcrumb */}
-        <nav aria-label="breadcrumb" className="flex items-center gap-1.5 min-w-0">
-          <Link
-            href={resourcesPath}
-            className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors duration-150 shrink-0"
-          >
-            Resources
-          </Link>
-          <ChevronRight className="size-3.5 text-muted-foreground/50 shrink-0" />
-          <span className="text-xs font-semibold text-foreground truncate">
-            {resource.title}
-          </span>
-        </nav>
-
+      <div className="mb-5 flex justify-end py-1 sm:mb-7">
         {/* Actions */}
         <div className="flex items-center gap-2 shrink-0">
           <Button
             type="button"
             size="sm"
             onClick={handleDownload}
-            className="gap-1.5 rounded-xl font-semibold shadow-2xs"
+            variant="default"
+            className="gap-1.5 rounded-md font-semibold shadow-2xs"
           >
             <Download className="size-4" />
             <span className="hidden sm:inline">Download</span>
@@ -302,7 +285,7 @@ export function ResourceDetailClient({
                   type="button"
                   variant="outline"
                   size="icon-sm"
-                  className="rounded-xl shadow-2xs"
+                  className="rounded-md shadow-2xs"
                   aria-label="More actions"
                 >
                   <MoreHorizontal className="size-4" />
@@ -406,16 +389,6 @@ export function ResourceDetailClient({
             <StatusBadge tone={fileInfo.tone} className="font-bold text-[11px]">
               {resource.fileType.toUpperCase()}
             </StatusBadge>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              onClick={handleDownload}
-              className="rounded-lg text-muted-foreground hover:text-foreground"
-              aria-label="Download file"
-            >
-              <Download className="size-4" />
-            </Button>
           </div>
         </div>
 
@@ -434,17 +407,6 @@ export function ResourceDetailClient({
               tone={fileInfo.tone}
               title="Preview unavailable"
               description={`${fileInfo.label} files cannot be previewed directly in the browser.`}
-              action={
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleDownload}
-                  className="gap-1.5 rounded-xl font-semibold shadow-2xs"
-                >
-                  <Download className="size-4" />
-                  <span>Download file</span>
-                </Button>
-              }
             />
           </div>
         )}

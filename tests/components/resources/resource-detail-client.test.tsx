@@ -22,6 +22,10 @@ vi.mock("@/stores/page-header-store", () => ({
   usePageHeaderStore: () => mocks.setPageTitle,
 }))
 
+vi.mock("@/components/ai/ai-panel-provider", () => ({
+  useAiPanel: () => ({ setContext: vi.fn(), clearSeed: vi.fn() }),
+}))
+
 const resource = {
   id: "resource-1",
   title: "Calculus reference",
@@ -69,16 +73,16 @@ describe("ResourceDetailClient", () => {
     expect(screen.queryByText("Word document")).not.toBeInTheDocument()
     expect(screen.getByText("2.00 KB")).toBeInTheDocument()
 
-    const ownerLink = screen.getByText("ada@example.com").closest("a")
+    const ownerLink = screen.getByRole("link", { name: /Ada Lovelace/i })
     expect(ownerLink).toHaveAttribute("href", "/academy/user/user-1")
 
-    await user.click(screen.getByRole("button", { name: "Download" }))
+    await user.click(screen.getByRole("button", { name: /Download/i }))
     expect(openSpy).toHaveBeenCalledWith("https://files.example/calculus.pdf", "_blank")
 
     openSpy.mockRestore()
   })
 
-  it("shows a download fallback and hides mutation controls from non-owners", () => {
+  it("keeps one canonical download action and hides mutation controls from non-owners", () => {
     render(
       <ResourceDetailClient
         resource={{
@@ -93,7 +97,8 @@ describe("ResourceDetailClient", () => {
     )
 
     expect(screen.getByText("Preview unavailable")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Download file" })).toBeInTheDocument()
+    expect(screen.getAllByRole("button", { name: /Download/i })).toHaveLength(1)
+    expect(screen.queryByRole("button", { name: "Download file" })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Delete Calculus reference" })).not.toBeInTheDocument()
   })
@@ -104,7 +109,8 @@ describe("ResourceDetailClient", () => {
 
     render(<ResourceDetailClient resource={resource} isOwner orgSlug="academy" />)
 
-    await user.click(screen.getByRole("button", { name: "Edit" }))
+    await user.click(screen.getByRole("button", { name: "More actions" }))
+    await user.click(await screen.findByRole("menuitem", { name: "Edit resource" }))
     await user.clear(screen.getByLabelText("Title"))
     await user.type(screen.getByLabelText("Title"), "Updated calculus reference")
     await user.click(screen.getByRole("button", { name: "Save changes" }))

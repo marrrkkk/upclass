@@ -12,7 +12,6 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { AiPanelProvider } from "@/components/ai/ai-panel-provider";
 import { AiSidePanel } from "@/components/ai/ai-side-panel";
-import { AiToggleButton } from "@/components/ai/ai-toggle-button";
 import { Sidebar } from "@/components/sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { responsive } from "@/lib/design-system";
@@ -79,7 +78,6 @@ export function HomeShell({
                 {isAuthenticated && userInfo ? (
                   <>
                     <PageHeader user={userInfo} userId={userId} />
-                    <AiToggleButton />
                   </>
                 ) : (
                   <div className="flex w-full items-center justify-between gap-3">
@@ -108,7 +106,7 @@ export function HomeShell({
               id="main-content"
               tabIndex={-1}
               className={cn(
-                "min-w-0 flex-1 overflow-y-auto scroll-mt-16",
+                "minimal-scrollbar min-w-0 flex-1 overflow-y-auto scroll-mt-16",
                 responsive.pagePadding,
               )}
             >

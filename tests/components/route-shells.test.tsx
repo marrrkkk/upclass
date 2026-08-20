@@ -72,14 +72,14 @@ describe("route static shells", () => {
     expect(screen.getByText("data region")).toBeInTheDocument()
   })
 
-  it("renders the Profile shell scaffold with the static Profile label and a data slot", () => {
+  it("renders the Profile shell container with a data slot", () => {
     render(
       <ProfilePageShell>
         <div>data region</div>
       </ProfilePageShell>,
     )
 
-    expect(screen.getByText("Profile")).toBeInTheDocument()
     expect(screen.getByText("data region")).toBeInTheDocument()
+    expect(screen.getByRole("region", { name: "Profile content" })).toBeInTheDocument()
   })
 })

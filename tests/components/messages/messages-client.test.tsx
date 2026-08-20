@@ -56,7 +56,6 @@ describe("MessagesClient", () => {
     const { container } = render(
       <MessagesClient
         threads={[directThread, channelThread]}
-        channels={[channelThread]}
         userId="user-1"
         orgSlug="academy"
         showHeader={false}
@@ -99,7 +98,6 @@ describe("MessagesClient", () => {
     render(
       <MessagesClient
         threads={[directThread]}
-        channels={[]}
         userId="user-1"
         orgSlug="academy"
         showHeader={false}

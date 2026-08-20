@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
-import { Hash, Mail, MessageSquarePlus, Plus, Search } from "lucide-react"
+import { Mail, MessageSquarePlus, Plus, Search } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Callout } from "@/components/ui/callout"
@@ -16,7 +16,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { EntityAvatar } from "@/components/ui/entity-avatar"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useOrganizationPath } from "@/hooks/use-organization-path"
@@ -25,12 +24,6 @@ import { cn } from "@/lib/utils"
 
 type NewConversationDialogProps = {
   currentUserId: string
-  channels: Array<{
-    channelId: string
-    classId: string
-    className: string
-    classColor: string
-  }>
   triggerVariant?: "compact" | "default" | "icon"
   className?: string
   label?: string
@@ -38,7 +31,6 @@ type NewConversationDialogProps = {
 
 export function NewConversationDialog({
   currentUserId,
-  channels,
   triggerVariant = "default",
   className,
   label = "New conversation",
@@ -158,69 +150,13 @@ export function NewConversationDialog({
             <div>
               <DialogTitle className="text-lg font-bold tracking-tight">Start a conversation</DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">
-                Send a direct message or open an active class channel.
+                Find a classmate or teacher by their registered email address.
               </DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
-        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto py-2">
-          {/* Class Channels Section */}
-          <section aria-labelledby="class-channels-heading" className="space-y-2.5">
-            <div className="flex items-center gap-1.5 px-0.5">
-              <Hash className="size-3.5 text-muted-foreground" />
-              <span id="class-channels-heading" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Class channels
-              </span>
-            </div>
-            {channels.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-hairline p-4 text-center">
-                <p className="text-xs text-muted-foreground">
-                  No class channels available yet.
-                </p>
-              </div>
-            ) : (
-              <ul className="space-y-1.5">
-                {channels.map((channel) => (
-                  <li key={channel.channelId}>
-                    <button
-                      type="button"
-                      aria-label={`Open ${channel.className} general channel`}
-                      onClick={() => {
-                        setOpen(false)
-                        router.push(
-                          organizationPath(`/messages/class/${channel.classId}`),
-                        )
-                      }}
-                      className="group flex w-full items-center gap-3 rounded-xl border border-hairline/70 bg-card p-3 text-left transition-all hover:border-primary/40 hover:bg-surface-raised hover:shadow-2xs active:scale-[0.99]"
-                    >
-                      <EntityAvatar
-                        name={channel.className}
-                        colorKey={channel.classColor || channel.classId}
-                        shape="square"
-                        size="md"
-                        className="ring-1 ring-hairline/60 shadow-2xs"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between">
-                          <span className="truncate text-sm font-semibold text-foreground group-hover:text-primary">
-                            {channel.className}
-                          </span>
-                          <span className="inline-flex items-center gap-1 rounded-md bg-surface px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                            General
-                          </span>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          Public discussion for all enrolled students & teachers
-                        </p>
-                      </div>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
+        <div className="minimal-scrollbar min-h-0 flex-1 space-y-6 overflow-y-auto py-2">
           {/* Direct Message Section */}
           <section aria-labelledby="direct-message-heading" className="space-y-2.5">
             <div className="flex items-center gap-1.5 px-0.5">
@@ -259,7 +195,7 @@ export function NewConversationDialog({
                     }
                   }}
                   className="h-10 rounded-lg border-hairline/90 bg-surface/70 pl-9 pr-3 text-sm focus-visible:bg-card shadow-2xs"
-                  disabled={userQuery.isPending}
+                  disabled={userQuery.isFetching}
                 />
               </div>
             </div>
@@ -289,11 +225,11 @@ export function NewConversationDialog({
           <Button
             type="button"
             onClick={handleSearch}
-            disabled={userQuery.isPending || !email.trim()}
-            isLoading={userQuery.isPending}
+            disabled={userQuery.isFetching || !email.trim()}
+            isLoading={userQuery.isFetching}
             className="h-10 rounded-lg px-4 font-semibold shadow-2xs"
           >
-            {userQuery.isPending ? "Searching…" : "Start chat"}
+            {userQuery.isFetching ? "Searching…" : "Start chat"}
           </Button>
         </DialogFooter>
       </DialogContent>

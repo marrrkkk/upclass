@@ -69,10 +69,10 @@ export function SidebarNavLink({
           <span
             aria-hidden="true"
             className={cn(
-              "flex shrink-0 items-center justify-center transition-colors [&>svg]:size-4 [&>svg]:stroke-[2]",
+              "flex size-7 shrink-0 items-center justify-center rounded-md transition-colors [&>svg]:size-4 [&>svg]:stroke-[2]",
               active
-                ? "text-primary [&>svg]:text-primary"
-                : "text-muted-foreground/75 group-hover/nav-link:text-foreground",
+                ? "bg-primary/10 text-primary [&>svg]:text-primary"
+                : "text-muted-foreground/75 group-hover/nav-link:bg-sidebar-accent/70 group-hover/nav-link:text-foreground",
             )}
           >
             {icon}

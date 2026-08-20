@@ -26,7 +26,6 @@ export async function MessagesData({ params }: { params: Promise<{ orgSlug: stri
   return (
     <MessagesClient
       threads={threads}
-      channels={channels}
       userId={session.user.id}
       orgSlug={orgSlug}
       showHeader={false}

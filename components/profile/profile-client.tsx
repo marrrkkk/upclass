@@ -32,11 +32,10 @@ import {
   PanelHeading,
   PanelTitle,
 } from "@/components/ui/panel"
-import { PageContainer, PageHeading } from "@/components/ui/section"
+import { PageHeading } from "@/components/ui/section"
 import { StatGroup, StatTile } from "@/components/ui/stat-tile"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Text } from "@/components/ui/typography"
 import { useOrganizationPath } from "@/hooks/use-organization-path"
 import { cn } from "@/lib/utils"
 import { usePageHeaderStore } from "@/stores/page-header-store"
@@ -110,7 +109,7 @@ export function ProfileClient({
 
   if (isPrivate && !isOwnProfile) {
     return (
-      <PageContainer width="narrow">
+      <div className="mx-auto w-full max-w-3xl">
         <PageHeading
           eyebrow="Profile"
           title={user.name}
@@ -123,76 +122,67 @@ export function ProfileClient({
             description="This profile is visible only to the account owner and approved contacts."
           />
         </Panel>
-      </PageContainer>
+      </div>
     )
   }
 
   const classCount = createdClasses.length + enrolledClasses.length
 
   return (
-    <PageContainer width="content">
-      <Panel padding="none" className="overflow-hidden">
+    <>
+      <Panel padding="none" className="overflow-hidden shadow-e1">
         <ProfileCover color={user.coverColor} image={user.cover} name={user.name} />
-        <div className="p-5 sm:p-6">
-          <PageHeading
-            eyebrow="Profile"
-            title={user.name}
-            description={
-              user.email ? (
-                <span className="inline-flex items-center gap-2">
-                  <Mail aria-hidden="true" className="size-4" />
-                  {user.email}
-                </span>
-              ) : undefined
-            }
-            media={
-              <EntityAvatar
-                name={user.name}
-                image={user.image}
-                colorKey={user.id}
-                size="xl"
-              />
-            }
-            actions={
-              <>
+        <div className="flex flex-col gap-5 p-5 sm:-mt-10 sm:flex-row sm:items-end sm:justify-between sm:p-6">
+          <div className="flex min-w-0 items-end gap-4">
+            <EntityAvatar
+              name={user.name}
+              image={user.image}
+              colorKey={user.id}
+              size="xl"
+              className="size-24 shrink-0 border-4 border-card sm:size-28"
+            />
+            <div className="min-w-0 space-y-1.5 pb-1">
+              <p className="type-overline text-muted-foreground">Profile</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="type-h1 break-words">{user.name}</h1>
                 {user.role ? (
                   <StatusBadge tone={user.role === "teacher" ? "info" : "neutral"} dot>
                     {user.role === "teacher" ? "Teacher" : "Student"}
                   </StatusBadge>
                 ) : null}
-                {isOwnProfile ? (
-                  <EditProfileDialog user={user} />
-                ) : (
-                  <Link
-                    href={organizationPath(`/messages/${user.id}`)}
-                    className={cn(buttonVariants({ size: "sm" }), "gap-2")}
-                  >
-                    <MessageSquare aria-hidden="true" className="size-4" />
-                    Message
-                  </Link>
-                )}
-              </>
-            }
-          />
+              </div>
+              {user.email ? (
+                <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <Mail aria-hidden="true" className="size-3.5 shrink-0" />
+                  <span className="truncate">{user.email}</span>
+                </p>
+              ) : null}
+              <p className="max-w-2xl whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                {user.bio || "No biography shared."}
+              </p>
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-2 sm:pb-1">
+            {isOwnProfile ? (
+              <EditProfileDialog user={user} />
+            ) : (
+              <Link
+                href={organizationPath(`/messages/${user.id}`)}
+                className={cn(buttonVariants({ size: "sm" }), "gap-2")}
+              >
+                <MessageSquare aria-hidden="true" className="size-4" />
+                Message
+              </Link>
+            )}
+          </div>
         </div>
       </Panel>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
-        <Panel>
-          <PanelHeading>
-            <PanelTitle>About</PanelTitle>
-          </PanelHeading>
-          <Text tone={user.bio ? "default" : "muted"} className="mt-4 whitespace-pre-wrap">
-            {user.bio || "No biography shared."}
-          </Text>
-        </Panel>
-
-        <StatGroup columns={3}>
-          <StatTile label="Teaching" value={createdClasses.length} tone="info" />
-          <StatTile label="Enrolled" value={enrolledClasses.length} tone="primary" />
-          <StatTile label="Resources" value={createdResources.length} tone="success" />
-        </StatGroup>
-      </div>
+      <StatGroup columns={3} className="gap-2 sm:gap-3">
+        <StatTile label="Teaching" value={createdClasses.length} tone="info" />
+        <StatTile label="Enrolled" value={enrolledClasses.length} tone="primary" />
+        <StatTile label="Shared resources" value={createdResources.length} tone="success" />
+      </StatGroup>
 
       <Tabs defaultValue="classes" variant="line">
         <TabsList aria-label={`${user.name} profile sections`}>
@@ -241,7 +231,7 @@ export function ProfileClient({
                     <PanelTitle>Shared resources</PanelTitle>
                   </PanelHeading>
                 </PanelHeader>
-                <PanelBody className="divide-y divide-hairline p-0">
+                <PanelBody className="minimal-scrollbar max-h-[32rem] divide-y divide-hairline overflow-y-auto p-0">
                   {createdResources.map((resource) => (
                     <ResourceRow key={resource.id} data={resource} />
                   ))}
@@ -261,7 +251,7 @@ export function ProfileClient({
           </Panel>
         </TabsContent>
       </Tabs>
-    </PageContainer>
+    </>
   )
 }
 
@@ -283,7 +273,7 @@ function ClassList({
           <PanelTitle>{title}</PanelTitle>
         </PanelHeading>
       </PanelHeader>
-      <PanelBody className="divide-y divide-hairline p-0">
+      <PanelBody className="minimal-scrollbar max-h-[32rem] divide-y divide-hairline overflow-y-auto p-0">
         {classes.map((classItem) => {
           const enrolledCount = classItem.enrolledCount ?? 0
           const metadata =

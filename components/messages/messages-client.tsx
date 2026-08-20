@@ -65,7 +65,6 @@ type SearchResult = {
 
 type MessagesClientProps = {
   threads: Array<DirectThread | ChannelThread>
-  channels: ChannelThread[]
   userId: string
   orgSlug: string
   showHeader?: boolean
@@ -73,7 +72,6 @@ type MessagesClientProps = {
 
 export function MessagesClient({
   threads,
-  channels,
   userId,
   orgSlug,
   showHeader = true,
@@ -166,7 +164,7 @@ export function MessagesClient({
   }
 
   const newConversation = (
-    <NewConversationDialog currentUserId={userId} channels={channels} />
+    <NewConversationDialog currentUserId={userId} />
   )
 
   const list = (
@@ -189,7 +187,6 @@ export function MessagesClient({
           {!showHeader ? (
             <NewConversationDialog
               currentUserId={userId}
-              channels={channels}
               triggerVariant="compact"
             />
           ) : null}
@@ -235,7 +232,7 @@ export function MessagesClient({
       </div>
 
       {/* Thread list / Search results */}
-      <div className="min-h-0 flex-1 overflow-y-auto p-2">
+      <div className="minimal-scrollbar min-h-0 flex-1 overflow-y-auto p-2">
         {searchQuery.trim() ? (
           searchResults.length === 0 ? (
             searchPending ? (
