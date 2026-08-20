@@ -158,7 +158,6 @@ export function AiSidePanel({
     activeConversationId,
     setActiveConversationId,
     draftConversation,
-    historyLoaded,
     setHistoryLoaded,
   } = useAiPanel()
   const pathname = usePathname()
@@ -174,10 +173,12 @@ export function AiSidePanel({
   const [threadReadyFor, setThreadReadyFor] = useState<string | null>(null)
   const [threadInput, setThreadInput] = useState("")
   const [queuedMessage, setQueuedMessage] = useState<string | null>(null)
+  const [historyOpen, setHistoryOpen] = useState(false)
   const panelRef = useRef<HTMLElement>(null)
   const returnFocusRef = useRef<HTMLElement | null>(null)
   const openedInitialChatRef = useRef(false)
   const conversationRequestRef = useRef(0)
+  const historyRequestRef = useRef(0)
   const previousSeedKeyRef = useRef<string | null>(null)
   const toast = useToast()
 
@@ -204,6 +205,7 @@ export function AiSidePanel({
   // Load conversations
   const loadConversations = useCallback(async () => {
     if (!orgSlug) return
+    const requestId = ++historyRequestRef.current
     setLoading(true)
     try {
       const params = new URLSearchParams({
@@ -217,12 +219,13 @@ export function AiSidePanel({
       })
       if (!response.ok) return
       const data = (await response.json()) as { conversations?: ConversationRow[] }
+      if (historyRequestRef.current !== requestId) return
       setConversations(data.conversations ?? [])
       setHistoryLoaded(true)
     } catch {
       // Keep whatever we have.
     } finally {
-      setLoading(false)
+      if (historyRequestRef.current === requestId) setLoading(false)
     }
   }, [orgSlug, seed, setHistoryLoaded])
 
@@ -362,9 +365,8 @@ export function AiSidePanel({
   useEffect(() => {
     if (!open) return
     returnFocusRef.current = document.activeElement as HTMLElement | null
-    const focusTimer = window.setTimeout(() => panelRef.current?.focus(), 50)
+    panelRef.current?.focus()
     return () => {
-      window.clearTimeout(focusTimer)
       returnFocusRef.current?.focus()
     }
   }, [open])
@@ -424,11 +426,11 @@ export function AiSidePanel({
         <div className="flex h-[var(--app-header-height)] shrink-0 items-center justify-between gap-2 border-b border-hairline/80 px-3 bg-card">
           {/* History Popover Dropdown Trigger */}
           <Popover
+            open={historyOpen}
             onOpenChange={(nextOpen) => {
+              setHistoryOpen(nextOpen)
               if (nextOpen) {
-                if (!historyLoaded) {
-                  void loadConversations()
-                }
+                void loadConversations()
               } else {
                 setSearchQuery("")
               }
@@ -453,6 +455,7 @@ export function AiSidePanel({
             <PopoverContent
               align="start"
               sideOffset={8}
+              onFocusOutside={(event) => event.preventDefault()}
               className="w-[18.5rem] rounded-2xl border border-hairline bg-card p-3 shadow-e3"
             >
               {/* Search input */}
@@ -497,6 +500,7 @@ export function AiSidePanel({
                               <button
                                 type="button"
                                 onClick={() => {
+                                  setHistoryOpen(false)
                                   setThreadInput("")
                                   setShowLauncher(false)
                                   setActiveConversationId(conv.id)
