@@ -109,7 +109,7 @@ MISTRAL_API_KEY=
 OPENROUTER_API_KEY=
 GROQ_API_KEY=
 AI_CANARY_SECRET=
-# Cron route protection (token-log cleanup); also used by Vercel Cron
+# Cron route protection for scheduled maintenance and notification delivery
 CRON_SECRET=
 RESEND_API_KEY=
 EMAIL_FROM="UpClass <notifications@your-domain.com>"
@@ -119,6 +119,17 @@ EMAIL_FROM="UpClass <notifications@your-domain.com>"
 > `BETTER_AUTH_URL` can be omitted in some hosted environments because the app falls back to `VERCEL_URL`, but setting it explicitly is safer.
 > `NEXT_PUBLIC_APP_URL` is also used for SEO metadata, sitemap, robots, and canonical URLs. In production, set it to `https://upclass.xyz`.
 > For email delivery, verify your sending domain in Resend and set `EMAIL_FROM` to an address on that domain.
+
+### Scheduled jobs on Vercel Hobby
+
+Vercel Hobby supports the daily token-log cleanup schedule used by this project, but it does not support the every-minute schedule required for prompt message email notifications. The notification worker remains available at:
+
+```text
+GET https://upclass.xyz/api/cron/message-notifications
+Authorization: Bearer <CRON_SECRET>
+```
+
+Configure an external scheduler such as cron-job.org, EasyCron, GitHub Actions, or Supabase `pg_cron` to call that URL every 1–5 minutes. Keep `CRON_SECRET` set in Vercel and send it as a secret; do not put the token in the URL. If near-real-time email is not required, a once-daily scheduler is also valid and requires no paid Vercel plan.
 
 ### 3. Run database migrations
 
