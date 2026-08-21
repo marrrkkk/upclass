@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Inter } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
@@ -13,9 +13,9 @@ import {
   socialImagePath,
 } from "@/lib/seo";
 
-const geist = Geist({
+const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-geist-sans",
+  variable: "--font-inter",
   display: "swap",
 });
 
@@ -101,13 +101,13 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geist.variable} ${geistMono.variable} font-sans antialiased`}
+        className={`${inter.variable} ${geistMono.variable} font-sans antialiased`}
         suppressHydrationWarning
       >
         {/*
           DESIGN.md contract — Classroom Focus, light-only.
           Neutral #F7F8FA canvas, white working surfaces, graphite text,
-          UpClass Blue #0075DE as the functional signal, and Geist typography.
+          UpClass Blue #0075DE as the functional signal, and Inter typography.
         */}
         {children}
         <Analytics />

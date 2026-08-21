@@ -1,8 +1,31 @@
-import { act, render, screen } from "@testing-library/react"
+import { act, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
 import { ClassesClient } from "@/components/classes/classes-client"
+import { ToastProvider } from "@/components/ui/toast"
 import type { ClassCardData } from "@/types/classes"
+
+const mocks = vi.hoisted(() => ({
+  createClass: vi.fn(),
+  joinClass: vi.fn(),
+  executeWithOfflineHandling: vi.fn(),
+  listOfflineActions: vi.fn(),
+  subscribeToOfflineQueue: vi.fn(),
+}))
+
+vi.mock("@/app/actions/classes", () => ({
+  createClass: mocks.createClass,
+  joinClass: mocks.joinClass,
+}))
+
+vi.mock("@/lib/offline-action-handler", () => ({
+  executeWithOfflineHandling: mocks.executeWithOfflineHandling,
+}))
+
+vi.mock("@/lib/offline-queue", () => ({
+  listOfflineActions: mocks.listOfflineActions,
+  subscribeToOfflineQueue: mocks.subscribeToOfflineQueue,
+}))
 
 vi.mock("@/hooks/classes/use-classes-data", () => ({
   useClassesData: ({ teachingClasses, enrolledClasses }: { teachingClasses: ClassCardData[]; enrolledClasses: ClassCardData[] }) => ({
@@ -13,6 +36,11 @@ vi.mock("@/hooks/classes/use-classes-data", () => ({
 }))
 
 describe("ClassesClient", () => {
+  beforeEach(() => {
+    mocks.subscribeToOfflineQueue.mockImplementation(() => () => {})
+    mocks.listOfflineActions.mockResolvedValue([])
+  })
+
   it("keeps class actions in the page and shows one combined collection", () => {
     renderClassesClient()
 
@@ -69,12 +97,14 @@ describe("ClassesClient streaming", () => {
     let container: HTMLElement | undefined
     await act(async () => {
       container = render(
-        <ClassesClient
-          classesPromise={classesPromise}
-          isAuthenticated
-          canCreateClass
-          orgSlug="academy"
-        />,
+        <ToastProvider>
+          <ClassesClient
+            classesPromise={classesPromise}
+            isAuthenticated
+            canCreateClass
+            orgSlug="academy"
+          />
+        </ToastProvider>,
       ).container
     })
 
@@ -100,15 +130,107 @@ describe("ClassesClient streaming", () => {
   })
 })
 
+describe("ClassesClient offline queued creation", () => {
+  beforeEach(() => {
+    mocks.subscribeToOfflineQueue.mockImplementation(() => () => {})
+    mocks.listOfflineActions.mockResolvedValue([])
+  })
+
+  async function createClassOffline(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole("button", { name: "Create class" }))
+    await user.type(screen.getByLabelText("Subject or class name"), "Physics 101")
+    const dialog = screen.getByRole("dialog")
+    const gradeTrigger = within(dialog).getByRole("combobox")
+    gradeTrigger.focus()
+    await user.keyboard("{Enter}")
+    await screen.findByRole("listbox")
+    await user.click(await screen.findByRole("option", { name: "Grade 1" }))
+    await user.click(within(dialog).getByRole("button", { name: "Create class" }))
+    await waitFor(
+      () => {
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+      },
+      { timeout: 10_000 },
+    )
+    return dialog
+  }
+
+  it("keeps a created class pending while offline and clears it once the queue syncs", async () => {
+    const user = userEvent.setup()
+    let reconcile: (() => Promise<void>) | null = null
+    mocks.subscribeToOfflineQueue.mockImplementation(
+      (listener: () => Promise<void>) => {
+        reconcile = listener
+        return () => {}
+      },
+    )
+    mocks.executeWithOfflineHandling.mockResolvedValue({ success: true, queued: true })
+
+    renderClassesClient()
+
+    await createClassOffline(user)
+
+    // Offline: no server action ran; the optimistic card stays pending.
+    expect(mocks.executeWithOfflineHandling).toHaveBeenCalledOnce()
+    expect(mocks.createClass).not.toHaveBeenCalled()
+    expect(screen.getByText("Physics 101")).toBeInTheDocument()
+    expect(screen.getByText("Creating…")).toBeInTheDocument()
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+
+    // The queue syncs (the queued action is gone), so the placeholder clears.
+    await act(async () => {
+      await reconcile?.()
+    })
+
+    expect(screen.queryByText("Physics 101")).not.toBeInTheDocument()
+  }, 15_000)
+
+  it("removes a pending class and shows a toast when the queued creation fails", async () => {
+    const user = userEvent.setup()
+    let reconcile: (() => Promise<void>) | null = null
+    let tempId: string | undefined
+    mocks.subscribeToOfflineQueue.mockImplementation(
+      (listener: () => Promise<void>) => {
+        reconcile = listener
+        return () => {}
+      },
+    )
+    mocks.executeWithOfflineHandling.mockImplementation(
+      async (_action: () => Promise<unknown>, _type: string, payload: unknown) => {
+        tempId = (payload as { tempId?: string }).tempId
+        return { success: true, queued: true }
+      },
+    )
+    renderClassesClient()
+
+    await createClassOffline(user)
+    expect(screen.getByText("Physics 101")).toBeInTheDocument()
+
+    mocks.listOfflineActions.mockResolvedValue([
+      { status: "failed", lastError: "Network unreachable", payload: { tempId } },
+    ])
+
+    await act(async () => {
+      await reconcile?.()
+    })
+
+    expect(screen.queryByText("Physics 101")).not.toBeInTheDocument()
+    expect(screen.getByText("Couldn't save changes")).toBeInTheDocument()
+    expect(screen.getByText("Network unreachable")).toBeInTheDocument()
+  }, 15_000)
+})
+
 function renderClassesClient() {
   return render(
-    <ClassesClient
-      teachingClasses={[createClass("teaching-1", "Interface Design", "teaching")]}
-      enrolledClasses={[createClass("enrolled-1", "Computer Science", "enrolled")]}
-      isAuthenticated
-      canCreateClass
-      orgSlug="academy"
-    />,
+    <ToastProvider>
+      <ClassesClient
+        teachingClasses={[createClass("teaching-1", "Interface Design", "teaching")]}
+        enrolledClasses={[createClass("enrolled-1", "Computer Science", "enrolled")]}
+        isAuthenticated
+        canCreateClass
+        orgSlug="academy"
+      />
+    </ToastProvider>,
   )
 }
 

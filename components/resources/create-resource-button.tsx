@@ -20,6 +20,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { useSupabaseUpload } from "@/lib/supabase-storage"
 import type { ClassCardData } from "@/types/classes"
+import type { OptimisticResourceCard, ResourceListMutate } from "@/components/resources/resources-client"
 import { formatClassIdentity } from "@/lib/classes/class-identity"
 
 // Resource type options
@@ -41,6 +42,8 @@ type CreateResourceButtonProps = {
   className?: string
   label?: string
   userClasses?: ClassCardData[]
+  mutate: ResourceListMutate
+  pending: boolean
 }
 
 function getFileType(extension: string) {
@@ -61,11 +64,13 @@ export function CreateResourceButton({
   className,
   label = "Upload",
   userClasses = [],
+  mutate,
+  pending,
 }: CreateResourceButtonProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [pending, startTransition] = useTransition()
+  const [, startTransition] = useTransition()
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [title, setTitle] = useState("")
   const [resourceType, setResourceType] = useState<string>("other")
@@ -129,21 +134,47 @@ export function CreateResourceButton({
         formData.set("fileSize", uploadedFile.size || selectedFile.size.toString())
         formData.set("fileType", getFileType(fileExtension))
         formData.set("resourceType", resourceType)
-        formData.set("storagePath", uploadedFile.url?.split("/").pop() || fileName)
+        formData.set("storagePath", uploadedFile.path || fileName)
         if (selectedClassId !== NO_CLASS_VALUE) formData.set("classId", selectedClassId)
         else formData.delete("classId")
         if (orgSlug) formData.set("orgSlug", orgSlug)
 
-        const result = await createResource(formData)
-
-        if (!result.success) {
-          setError(result.error || "Failed to create resource")
-          return
+        const tempId = `resource-${crypto.randomUUID()}`
+        const optimisticCard: OptimisticResourceCard = {
+          id: tempId,
+          tempId,
+          pending: true,
+          title: title.trim() || fileName.replace(/\.[^.]+$/, ""),
+          description: String(formData.get("description") || "") || null,
+          category: resourceType,
+          fileUrl: uploadedFile.url || "",
+          fileName,
+          fileType: getFileType(fileExtension),
+          fileSize: uploadedFile.size || selectedFile.size.toString(),
+          createdAt: new Date().toISOString(),
+          authorName: null,
+          authorImage: null,
         }
 
-        setOpen(false)
-        resetForm()
-        router.refresh()
+        void mutate(
+          (previous) => [optimisticCard, ...previous],
+          () => createResource(formData),
+          {
+            // The file is already uploaded; the resource row appears
+            // immediately and settles when the server refresh lands.
+            onSuccess: (_result, current) => {
+              setOpen(false)
+              resetForm()
+              router.refresh()
+              return current.filter((card) => card.tempId !== tempId)
+            },
+            onError: (_message, current) => {
+              setOpen(false)
+              resetForm()
+              return current.filter((card) => card.tempId !== tempId)
+            },
+          },
+        )
       } catch (uploadError) {
         if (!navigator.onLine) {
           setError("You're offline. Please check your internet connection and try again.")
@@ -217,7 +248,7 @@ export function CreateResourceButton({
               disabled={!selectedFile}
               className="h-10 rounded-lg px-4 font-semibold shadow-2xs"
             >
-              {pending || isUploading ? "Uploading..." : "Upload resource"}
+              Upload resource
             </Button>
           </>
         }

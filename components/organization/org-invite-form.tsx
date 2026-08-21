@@ -3,14 +3,13 @@
 import * as React from "react"
 import { Send } from "lucide-react"
 
-import { cn } from "@/lib/utils"
-import { typographyVariants } from "@/lib/design-system"
 import { Button } from "@/components/ui/button"
-import { Field, FieldHelp, FieldLabel } from "@/components/ui/field"
+import { Field, FieldGroup, FieldHelp, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -30,10 +29,10 @@ type OrgInviteFormProps = {
 }
 
 /**
- * Invite composer.
+ * Invite composer for the admin rail.
  *
- * Laid out as a single row on desktop and a stack on mobile, with the access
- * level's meaning spelled out under the control rather than hidden in a tooltip.
+ * Stacked so it sits beside People / Classes / Invitations without competing
+ * with the directory table.
  */
 export function OrgInviteForm({ currentRole, pending, onSubmit }: OrgInviteFormProps) {
   const [email, setEmail] = React.useState("")
@@ -49,8 +48,8 @@ export function OrgInviteForm({ currentRole, pending, onSubmit }: OrgInviteFormP
   }
 
   return (
-    <form onSubmit={submit} noValidate className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_11rem_auto] sm:items-end">
+    <form onSubmit={submit} noValidate>
+      <FieldGroup>
         <Field>
           <FieldLabel htmlFor="invite-email">Email address</FieldLabel>
           <Input
@@ -75,25 +74,25 @@ export function OrgInviteForm({ currentRole, pending, onSubmit }: OrgInviteFormP
               <SelectValue />
             </SelectTrigger>
             <SelectContent align="start">
-              <SelectItem value="student">{ORG_ROLE_LABELS.student}</SelectItem>
-              <SelectItem value="teacher">{ORG_ROLE_LABELS.teacher}</SelectItem>
-              {currentRole === "owner" ? (
-                <SelectItem value="admin">{ORG_ROLE_LABELS.admin}</SelectItem>
-              ) : null}
+              <SelectGroup>
+                <SelectItem value="student">{ORG_ROLE_LABELS.student}</SelectItem>
+                <SelectItem value="teacher">{ORG_ROLE_LABELS.teacher}</SelectItem>
+                {currentRole === "owner" ? (
+                  <SelectItem value="admin">{ORG_ROLE_LABELS.admin}</SelectItem>
+                ) : null}
+              </SelectGroup>
             </SelectContent>
           </Select>
+          <FieldHelp>
+            {ORG_ROLE_LABELS[role]} {ORG_ROLE_DESCRIPTIONS[role].toLowerCase()}. Invites expire after 7 days.
+          </FieldHelp>
         </Field>
 
-        <Button type="submit" isLoading={pending} disabled={!canSubmit} className="w-full sm:w-auto">
-          {!pending ? <Send aria-hidden="true" /> : null}
+        <Button type="submit" isLoading={pending} disabled={!canSubmit} className="w-full">
+          {!pending ? <Send data-icon="inline-start" /> : null}
           Send invite
         </Button>
-      </div>
-
-      <FieldHelp className={cn(typographyVariants({ variant: "caption", tone: "muted" }))}>
-        <span className="font-medium text-foreground">{ORG_ROLE_LABELS[role]}</span>{" "}
-        {ORG_ROLE_DESCRIPTIONS[role].toLowerCase()}. Invites expire after 7 days.
-      </FieldHelp>
+      </FieldGroup>
     </form>
   )
 }

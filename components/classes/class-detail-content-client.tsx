@@ -31,6 +31,7 @@ type ClassDetailTab = "stream" | "classwork" | "quizzes" | "gradebook" | "people
 type ClassDetailContentClientProps = {
   activeTab: ClassDetailTab
   classData: ClassData
+  currentUser: { id: string; name: string; image: string | null }
   userId?: string
   userRole: "teacher" | "student" | null
   announcements: AnnouncementData[]
@@ -62,6 +63,7 @@ const PeopleTab = dynamic(() => import("@/components/classes/people-tab").then((
 export function ClassDetailContentClient({
   activeTab,
   classData,
+  currentUser,
   userId,
   userRole,
   announcements,
@@ -168,6 +170,7 @@ export function ClassDetailContentClient({
       {activeTab === "stream" ? (
         <StreamTab
           classId={effectiveClassData.id}
+          currentUser={currentUser}
           userId={effectiveUserId}
           userRole={effectiveUserRole}
           announcements={effectiveAnnouncements}

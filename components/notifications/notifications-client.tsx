@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useTransition, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { formatDistanceToNow } from "date-fns"
 import Link from "next/link"
 import {
@@ -26,6 +26,7 @@ import {
 import { PageHeading } from "@/components/ui/section"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { TimelineRow } from "@/components/ui/timeline-row"
+import { useOptimisticMutation } from "@/hooks/use-optimistic-mutation"
 import { useOrganizationPath } from "@/hooks/use-organization-path"
 import { BackgroundCache } from "@/lib/background-cache"
 import { useCacheData, useOfflineCollectionCache } from "@/lib/cache-hooks"
@@ -71,7 +72,10 @@ export function NotificationsClient({
 }: NotificationsClientProps) {
   const [notifications, setNotifications] = useState<NotificationData[]>(initialNotifications)
   const setNotificationUnread = useUnreadStore((state) => state.setNotificationUnread)
-  const [pending, startTransition] = useTransition()
+  const { mutate, pending } = useOptimisticMutation<NotificationData[]>(
+    notifications,
+    setNotifications,
+  )
   const organizationPath = useOrganizationPath()
 
   useEffect(() => {
@@ -158,19 +162,17 @@ export function NotificationsClient({
   }, [userId])
 
   const handleMarkAsRead = (notificationId: string) => {
-    startTransition(async () => {
-      await markNotificationAsRead(notificationId)
-      setNotifications((current) =>
-        current.map((n) => (n.id === notificationId ? { ...n, read: true } : n)),
-      )
-    })
+    void mutate(
+      (current) => current.map((n) => (n.id === notificationId ? { ...n, read: true } : n)),
+      () => markNotificationAsRead(notificationId),
+    )
   }
 
   const handleMarkAllAsRead = () => {
-    startTransition(async () => {
-      await markAllNotificationsAsRead()
-      setNotifications((current) => current.map((n) => ({ ...n, read: true })))
-    })
+    void mutate(
+      (current) => current.map((n) => ({ ...n, read: true })),
+      () => markAllNotificationsAsRead(),
+    )
   }
 
   const getNotificationLink = (notification: NotificationData) => {
@@ -183,6 +185,7 @@ export function NotificationsClient({
   const markAllAction = unreadCount > 0 ? (
     <Button
       onClick={handleMarkAllAsRead}
+      isLoading={pending}
       disabled={pending}
       variant="outline"
       size="sm"
@@ -267,6 +270,7 @@ export function NotificationsClient({
                           type="button"
                           size="icon"
                           variant="ghost"
+                          isLoading={pending}
                           disabled={pending}
                           onClick={() => handleMarkAsRead(notification.id)}
                           aria-label={`Mark ${notification.title} as read`}

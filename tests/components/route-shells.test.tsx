@@ -61,14 +61,13 @@ describe("route static shells", () => {
     expect(screen.getByText("grid region")).toBeInTheDocument()
   })
 
-  it("renders the Admin shell with the static Organization label and a data slot", () => {
+  it("renders the Admin shell with a data slot", () => {
     render(
       <AdminPageShell>
         <div>data region</div>
       </AdminPageShell>,
     )
 
-    expect(screen.getByText("Organization")).toBeInTheDocument()
     expect(screen.getByText("data region")).toBeInTheDocument()
   })
 

@@ -13,7 +13,11 @@ import { cn } from "@/lib/utils"
 import type { ClassCardData } from "@/types/classes"
 
 type ClassCardProps = {
-  data: ClassCardData
+  /** Display data; may carry client-only optimistic markers. */
+  data: ClassCardData & {
+    tempId?: string
+    pending?: boolean
+  }
   layout?: "grid" | "list"
   onHoverStart: (href: string) => void
   onHoverEnd: (href: string) => void
@@ -44,11 +48,13 @@ function CoursePoster({
   title,
   enrolledCount,
   isList = false,
+  isOptimistic = false,
 }: {
   tone: CourseTone
   title: string
   enrolledCount: number
   isList?: boolean
+  isOptimistic?: boolean
 }) {
   return (
     <div
@@ -77,6 +83,15 @@ function CoursePoster({
           {enrolledCount} Enrolled
         </span>
       </div>
+
+      {isOptimistic ? (
+        <div className="absolute right-3 top-3">
+          <span className="inline-flex items-center gap-1.5 rounded-lg bg-card/90 px-2.5 py-1 text-[11px] font-bold text-foreground shadow-sm backdrop-blur-md ring-1 ring-black/5 dark:ring-white/10">
+            <span className="size-2 animate-pulse rounded-full bg-primary" aria-hidden="true" />
+            Creating…
+          </span>
+        </div>
+      ) : null}
           <span className="sr-only">{enrolledCount}</span>
           {enrolledCount > 0 ? <span className="sr-only">{studentSummary(enrolledCount)}</span> : null}
 
@@ -110,6 +125,7 @@ export const ClassCard = memo(function ClassCard({
   const classHref = organizationPath(`/classes/${data.id}`)
   const courseTone = courseToneFromValue(data.color, data.id)
   const isList = layout === "list"
+  const isOptimistic = Boolean(data.tempId) && Boolean(data.pending)
 
   const teacherName = data.teacherName || "Teacher"
   const enrolledCount = data.enrolledCount
@@ -160,6 +176,7 @@ export const ClassCard = memo(function ClassCard({
           title={data.title}
           enrolledCount={enrolledCount}
           isList={isList}
+          isOptimistic={isOptimistic}
         />
 
         {isList ? (

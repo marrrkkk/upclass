@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
 import { ResourcesClient } from "@/components/resources/resources-client"
+import { ToastProvider } from "@/components/ui/toast"
 
 const mocks = vi.hoisted(() => ({
   getCachedResources: vi.fn(),
@@ -92,7 +93,11 @@ describe("ResourcesClient", () => {
   it("renders tenant-aware resource cards and filters by search and grouped file type", async () => {
     const user = userEvent.setup()
 
-    render(<ResourcesClient resources={resources} orgSlug="academy" />)
+    render(
+      <ToastProvider>
+        <ResourcesClient resources={resources} orgSlug="academy" />
+      </ToastProvider>,
+    )
 
     const list = await screen.findByRole("list", { name: "Resources" })
     expect(list).toHaveClass("grid", "sm:grid-cols-2", "xl:grid-cols-3")
@@ -131,7 +136,11 @@ describe("ResourcesClient", () => {
     setOnline(false)
     mocks.getCachedResources.mockResolvedValue([resources[0]])
 
-    render(<ResourcesClient resources={[]} orgSlug="academy" />)
+    render(
+      <ToastProvider>
+        <ResourcesClient resources={[]} orgSlug="academy" />
+      </ToastProvider>,
+    )
 
     expect(
       await screen.findByText("You're offline. Showing resources saved on this device."),

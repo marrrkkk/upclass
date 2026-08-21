@@ -39,7 +39,7 @@ import {
   PanelTitle,
   PanelDescription,
 } from "@/components/ui/panel"
-import { PageContainer, PageHeading } from "@/components/ui/section"
+import { PageHeading } from "@/components/ui/section"
 import { StatGroup, StatTile } from "@/components/ui/stat-tile"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -223,8 +223,9 @@ export function OrganizationAdminClient({
   }, [confirm, organization.id, organization.name, run])
 
   return (
-    <PageContainer width="wide">
+    <div className="flex flex-col gap-6 pb-safe-bottom sm:gap-8">
       <PageHeading
+        className="animate-rise"
         eyebrow="Organization"
         title={organization.name}
         description={organization.description || "Manage members, invitations, and classes."}
@@ -234,16 +235,16 @@ export function OrganizationAdminClient({
             image={organization.logo}
             colorKey={organization.slug}
             shape="square"
-            size="xl"
+            size="lg"
             className="hidden sm:flex"
           />
         }
         actions={
-          <div className="flex items-center gap-2">
-            <StatusBadge tone={ORG_ROLE_TONES[currentRole]} size="md" dot>
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge tone={ORG_ROLE_TONES[currentRole]} size="sm" dot>
               {ORG_ROLE_LABELS[currentRole]} access
             </StatusBadge>
-            <span className="flex items-center gap-0.5 rounded-md border border-hairline bg-card px-2 py-1">
+            <span className="flex items-center gap-0.5 rounded-md bg-surface-sunken px-2 py-1">
               <span className={typographyVariants({ variant: "mono", tone: "muted" })}>
                 /{organization.slug}
               </span>
@@ -253,151 +254,162 @@ export function OrganizationAdminClient({
         }
       />
 
-      <StatGroup columns={4}>
-        <StatTile label="People" value={members.length} tone="primary" />
-        <StatTile label="Teachers" value={teacherCount} tone="info" />
-        <StatTile label="Students" value={studentCount} />
-        <StatTile
-          label="Pending invites"
-          value={invitations.length}
-          tone={invitations.length > 0 ? "warning" : "success"}
-        />
-      </StatGroup>
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_17.5rem] lg:gap-6">
+        <div className="flex min-w-0 flex-col gap-4">
+          <StatGroup columns={4}>
+            <StatTile label="People" value={members.length} tone="primary" />
+            <StatTile label="Teachers" value={teacherCount} tone="info" />
+            <StatTile label="Students" value={studentCount} />
+            <StatTile
+              label="Pending invites"
+              value={invitations.length}
+              tone={invitations.length > 0 ? "warning" : "success"}
+            />
+          </StatGroup>
 
-      {feedback ? (
-        <Callout
-          tone={feedback.tone}
-          role={feedback.tone === "danger" ? "alert" : "status"}
-          action={
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              onClick={() => setFeedback(null)}
-              aria-label="Dismiss message"
-              className="-my-1 text-current/70 hover:bg-current/10 hover:text-current"
+          {feedback ? (
+            <Callout
+              tone={feedback.tone}
+              role={feedback.tone === "danger" ? "alert" : "status"}
+              action={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => setFeedback(null)}
+                  aria-label="Dismiss message"
+                  className="-my-1 text-current/70 hover:bg-current/10 hover:text-current"
+                >
+                  <X aria-hidden="true" />
+                </Button>
+              }
             >
-              <X aria-hidden="true" className="size-3.5" />
-            </Button>
-          }
+              {feedback.message}
+            </Callout>
+          ) : null}
+
+          <Tabs defaultValue="people" variant="line">
+            <TabsList aria-label="Organization sections">
+              <TabsTrigger value="people">
+                <Users />
+                People
+                <TabCount value={members.length} />
+              </TabsTrigger>
+              <TabsTrigger value="classes">
+                <GraduationCap />
+                Classes
+                <TabCount value={classes.length} />
+              </TabsTrigger>
+              <TabsTrigger value="invitations">
+                <MailPlus />
+                Invitations
+                <TabCount value={invitations.length} />
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="people" className="flex flex-col gap-3">
+              <CollectionFilter
+                label="Filter people"
+                placeholder="Name, email, or access"
+                value={peopleQuery}
+                onChange={setPeopleQuery}
+                visible={filteredMembers.length}
+                total={members.length}
+              />
+              <Panel padding="none" className="overflow-hidden">
+                {filteredMembers.length === 0 && members.length > 0 ? (
+                  <EmptyState
+                    icon={<Search />}
+                    title="No matching people"
+                    description="Try a different name, email, or access level."
+                  />
+                ) : (
+                  <OrgMembersTable
+                    members={filteredMembers}
+                    currentRole={currentRole}
+                    currentUserId={currentUserId}
+                    pending={pending}
+                    onChangeRole={handleChangeRole}
+                    onRemove={(member) => setConfirm({ kind: "remove-member", member })}
+                  />
+                )}
+              </Panel>
+            </TabsContent>
+
+            <TabsContent value="classes" className="flex flex-col gap-3">
+              <CollectionFilter
+                label="Filter classes"
+                placeholder="Class, teacher, or join code"
+                value={classQuery}
+                onChange={setClassQuery}
+                visible={filteredClasses.length}
+                total={classes.length}
+              />
+              <Panel padding="none" className="overflow-hidden">
+                {filteredClasses.length === 0 && classes.length > 0 ? (
+                  <EmptyState
+                    icon={<Search />}
+                    title="No matching classes"
+                    description="Try a different class, teacher, or join code."
+                  />
+                ) : (
+                  <OrgClassesTable classes={filteredClasses} orgSlug={organization.slug} />
+                )}
+              </Panel>
+            </TabsContent>
+
+            <TabsContent value="invitations" className="flex flex-col gap-3">
+              <CollectionFilter
+                label="Filter invitations"
+                placeholder="Email, inviter, or access"
+                value={invitationQuery}
+                onChange={setInvitationQuery}
+                visible={filteredInvitations.length}
+                total={invitations.length}
+              />
+              <Panel padding="none" className="overflow-hidden">
+                {filteredInvitations.length === 0 && invitations.length > 0 ? (
+                  <EmptyState
+                    icon={<Search />}
+                    title="No matching invitations"
+                    description="Try a different email, inviter, or access level."
+                  />
+                ) : (
+                  <OrgInvitationsTable
+                    invitations={filteredInvitations}
+                    currentRole={currentRole}
+                    pending={pending}
+                    inviteOrigin={inviteOrigin}
+                    onRevoke={(invitation) => setConfirm({ kind: "revoke-invite", invitation })}
+                  />
+                )}
+              </Panel>
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        <aside
+          aria-labelledby="invite-people-title"
+          className="lg:sticky lg:top-[calc(var(--app-header-height)+1.25rem)]"
         >
-          {feedback.message}
-        </Callout>
-      ) : null}
-
-      <Panel padding="none">
-        <PanelHeader>
-          <PanelHeading>
-            <PanelTitle>
-              <MailPlus aria-hidden="true" className="size-4 text-muted-foreground" />
-              Invite people
-            </PanelTitle>
-            <PanelDescription>Invitation links expire after seven days.</PanelDescription>
-          </PanelHeading>
-        </PanelHeader>
-        <PanelBody className="p-5 sm:p-6">
-          <OrgInviteForm currentRole={currentRole} pending={pending} onSubmit={handleInvite} />
-        </PanelBody>
-      </Panel>
-
-      <Tabs defaultValue="people" variant="solid">
-        <TabsList aria-label="Organization sections">
-          <TabsTrigger value="people">
-            <Users aria-hidden="true" />
-            People
-            <TabCount value={members.length} />
-          </TabsTrigger>
-          <TabsTrigger value="classes">
-            <GraduationCap aria-hidden="true" />
-            Classes
-            <TabCount value={classes.length} />
-          </TabsTrigger>
-          <TabsTrigger value="invitations">
-            <MailPlus aria-hidden="true" />
-            Invitations
-            <TabCount value={invitations.length} />
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="people" className="space-y-3">
-          <CollectionFilter
-            label="Filter people"
-            placeholder="Name, email, or access"
-            value={peopleQuery}
-            onChange={setPeopleQuery}
-            visible={filteredMembers.length}
-            total={members.length}
-          />
           <Panel padding="none" className="overflow-hidden">
-            {filteredMembers.length === 0 && members.length > 0 ? (
-              <EmptyState
-                icon={<Search />}
-                title="No matching people"
-                description="Try a different name, email, or access level."
-              />
-            ) : (
-              <OrgMembersTable
-                members={filteredMembers}
-                currentRole={currentRole}
-                currentUserId={currentUserId}
-                pending={pending}
-                onChangeRole={handleChangeRole}
-                onRemove={(member) => setConfirm({ kind: "remove-member", member })}
-              />
-            )}
+            <PanelHeader className="border-b border-hairline px-4 py-3.5">
+              <PanelHeading>
+                <Text variant="overline" tone="muted">
+                  Get started
+                </Text>
+                <PanelTitle id="invite-people-title" className="mt-1">
+                  Invite people
+                </PanelTitle>
+                <PanelDescription>Invitation links expire after seven days.</PanelDescription>
+              </PanelHeading>
+            </PanelHeader>
+            <PanelBody className="p-4">
+              <OrgInviteForm currentRole={currentRole} pending={pending} onSubmit={handleInvite} />
+            </PanelBody>
           </Panel>
-        </TabsContent>
-
-        <TabsContent value="classes" className="space-y-3">
-          <CollectionFilter
-            label="Filter classes"
-            placeholder="Class, teacher, or join code"
-            value={classQuery}
-            onChange={setClassQuery}
-            visible={filteredClasses.length}
-            total={classes.length}
-          />
-          <Panel padding="none" className="overflow-hidden">
-            {filteredClasses.length === 0 && classes.length > 0 ? (
-              <EmptyState
-                icon={<Search />}
-                title="No matching classes"
-                description="Try a different class, teacher, or join code."
-              />
-            ) : (
-              <OrgClassesTable classes={filteredClasses} orgSlug={organization.slug} />
-            )}
-          </Panel>
-        </TabsContent>
-
-        <TabsContent value="invitations" className="space-y-3">
-          <CollectionFilter
-            label="Filter invitations"
-            placeholder="Email, inviter, or access"
-            value={invitationQuery}
-            onChange={setInvitationQuery}
-            visible={filteredInvitations.length}
-            total={invitations.length}
-          />
-          <Panel padding="none" className="overflow-hidden">
-            {filteredInvitations.length === 0 && invitations.length > 0 ? (
-              <EmptyState
-                icon={<Search />}
-                title="No matching invitations"
-                description="Try a different email, inviter, or access level."
-              />
-            ) : (
-              <OrgInvitationsTable
-                invitations={filteredInvitations}
-                currentRole={currentRole}
-                pending={pending}
-                inviteOrigin={inviteOrigin}
-                onRevoke={(invitation) => setConfirm({ kind: "revoke-invite", invitation })}
-              />
-            )}
-          </Panel>
-        </TabsContent>
-      </Tabs>
+        </aside>
+      </div>
 
       <AlertDialog open={confirm !== null} onOpenChange={(open) => !open && setConfirm(null)}>
         <AlertDialogContent>
@@ -426,7 +438,7 @@ export function OrganizationAdminClient({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </PageContainer>
+    </div>
   )
 }
 

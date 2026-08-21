@@ -58,7 +58,8 @@ type ClassworkCardProps = {
   classId: string
   deleting: boolean
   error: string | null
-  item: ClassworkData
+  /** Display data; may carry client-only optimistic markers. */
+  item: ClassworkData & { tempId?: string; pending?: boolean }
   pending: boolean
   submission?: SubmissionData
   userRole: "teacher" | "student" | null
@@ -186,6 +187,13 @@ export function ClassworkCard({
         </div>
 
         <PanelActions className="flex-wrap justify-end">
+          {item.tempId && item.pending ? (
+            <StatusBadge tone="info">
+              <span className="size-2 animate-pulse rounded-full bg-current" aria-hidden="true" />
+              Creating…
+            </StatusBadge>
+          ) : null}
+
           {item.dueDate ? (
             <StatusBadge tone={isDueSoon ? "warning" : "neutral"} dot={!!isDueSoon}>
               <Clock aria-hidden="true" />
@@ -265,24 +273,24 @@ export function ClassworkCard({
                       type="submit"
                       form="classwork-submit-form"
                       variant="outline"
+                      isLoading={pending || isUploading}
                       disabled={pending || isUploading}
                       onClick={() => setSubmitMode("draft")}
                     >
                       <Save aria-hidden="true" />
-                      {pending && submitMode === "draft" ? "Saving..." : "Save draft"}
+                      Save draft
                     </Button>
                     <Button
                       type="submit"
                       form="classwork-submit-form"
+                      isLoading={pending || isUploading}
                       disabled={pending || isUploading}
                       onClick={() => setSubmitMode("submit")}
                     >
                       <Upload aria-hidden="true" />
-                      {pending || isUploading
-                        ? "Sending..."
-                        : submission?.status === "graded" || submission?.status === "submitted"
-                          ? "Resubmit"
-                          : "Submit"}
+                      {submission?.status === "graded" || submission?.status === "submitted"
+                        ? "Resubmit"
+                        : "Submit"}
                     </Button>
                   </div>
                 </>

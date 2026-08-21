@@ -46,8 +46,8 @@ export function ClassworkCreateDialog({
         footer={
           <>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit" form="classwork-create-form" disabled={pending}>
-              {pending ? "Creating..." : "Create"}
+            <Button type="submit" form="classwork-create-form" isLoading={pending} disabled={pending}>
+              Create
             </Button>
           </>
         }

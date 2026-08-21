@@ -6,7 +6,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "focus-ring relative inline-flex shrink-0 select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-[var(--radius-buttons)] type-small font-medium transition-[color,background-color,border-color,opacity,transform] duration-200 ease-out disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-45 active:scale-[0.985] [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5 aria-invalid:ring-2 aria-invalid:ring-destructive/25",
+  "focus-ring relative inline-flex shrink-0 select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-[var(--radius-buttons)] type-small font-medium transition-[color,background-color,border-color,opacity] duration-[var(--duration-base)] ease-out-expo disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-45 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5 aria-invalid:ring-2 aria-invalid:ring-destructive/25",
   {
     variants: {
       variant: {
@@ -22,7 +22,7 @@ const buttonVariants = cva(
         inverse: "border border-transparent bg-foreground text-background hover:bg-foreground/90",
         ghost: "border border-transparent text-foreground hover:bg-muted active:bg-secondary",
         /** Inline text action. */
-        link: "rounded-[var(--radius-small)] border-0 text-primary-strong underline-offset-4 hover:underline active:translate-y-0 active:scale-100",
+        link: "rounded-[var(--radius-small)] border-0 text-primary-strong underline-offset-4 hover:underline",
       },
       size: {
         xs: "h-6 gap-1 px-2 type-caption [&_svg:not([class*='size-'])]:size-3",

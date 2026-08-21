@@ -34,7 +34,7 @@ async function ResolvedSetupPage({ searchParams }: SetupPageProps) {
       // Resume org setup only after account is ready when explicitly resuming.
     } else if (await needsAccountSetup()) {
       return (
-        <OrgOnboardingShell width="content">
+        <OrgOnboardingShell width="content" viewer={context.viewer}>
           <AccountSetupForm
             initialName={context.viewer.name}
             returnTo={
@@ -51,7 +51,7 @@ async function ResolvedSetupPage({ searchParams }: SetupPageProps) {
 
   if (params.scope === "account") {
     return (
-      <OrgOnboardingShell width="content">
+      <OrgOnboardingShell width="content" viewer={context.viewer}>
         <AccountSetupForm initialName={context.viewer.name} returnTo={returnTo} />
       </OrgOnboardingShell>
     )

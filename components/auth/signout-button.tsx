@@ -55,9 +55,7 @@ export default function SignoutButton() {
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction onClick={handleSignOut} disabled={pending} asChild>
-            <Button isLoading={pending}>
-              {pending ? "Signing out..." : "Sign out"}
-            </Button>
+            <Button isLoading={pending}>Sign out</Button>
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

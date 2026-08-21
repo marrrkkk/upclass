@@ -299,8 +299,8 @@ export function QuizReviewDialog({
                   <div className="flex gap-2">
                     <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Close</Button>
                     {quizHasShortAnswer ? (
-                      <Button type="button" disabled={pending} onClick={handleSave}>
-                        {pending ? "Saving..." : "Save grade"}
+                      <Button type="button" isLoading={pending} disabled={pending} onClick={handleSave}>
+                        Save grade
                       </Button>
                     ) : null}
                   </div>

@@ -86,8 +86,8 @@ export function JoinClassButton({ iconOnly = false }: JoinClassButtonProps) {
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" form="join-class-form" isLoading={pending}>
-              {pending ? "Joining..." : "Join class"}
+            <Button type="submit" form="join-class-form" isLoading={pending} disabled={pending}>
+              Join class
             </Button>
           </>
         }

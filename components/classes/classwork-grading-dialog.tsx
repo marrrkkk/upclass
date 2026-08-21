@@ -70,8 +70,8 @@ export function ClassworkGradingDialog({
       footer={
         <>
           <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button type="submit" form="grading-form" disabled={pending}>
-            {pending ? "Saving..." : "Save grade"}
+          <Button type="submit" form="grading-form" isLoading={pending} disabled={pending}>
+            Save grade
           </Button>
         </>
       }

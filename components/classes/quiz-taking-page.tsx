@@ -343,8 +343,13 @@ export function QuizTakingPage({ classId, classTitle, classColor, quiz }: QuizTa
           </Button>
 
           {isLastQuestion ? (
-            <Button type="button" onClick={() => submitAttempt(false)} disabled={submitPending}>
-              {submitPending ? "Submitting..." : "Submit quiz"}
+            <Button
+              type="button"
+              onClick={() => submitAttempt(false)}
+              isLoading={submitPending}
+              disabled={submitPending}
+            >
+              Submit quiz
               <CheckCircle2 aria-hidden="true" />
             </Button>
           ) : (

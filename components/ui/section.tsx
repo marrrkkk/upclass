@@ -65,9 +65,9 @@ function PageHeading({
           ) : null}
           <Tag className={typographyVariants({ variant: Tag === "h1" ? "h1" : "h2" })}>{title}</Tag>
           {description ? (
-            <p className={cn(typographyVariants({ variant: "body", tone: "muted" }), "max-w-2xl")}>
+            <div className={cn(typographyVariants({ variant: "body", tone: "muted" }), "max-w-2xl")}>
               {description}
-            </p>
+            </div>
           ) : null}
         </div>
       </div>

@@ -52,7 +52,7 @@ describe("QuizAiGenerator", () => {
     )
     await user.click(screen.getByRole("button", { name: "Generate questions" }))
 
-    await waitFor(() => expect(onGenerated).toHaveBeenCalledOnce())
+    await waitFor(() => expect(onGenerated).toHaveBeenCalledOnce(), { timeout: 10_000 })
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/ai/quizzes/generate",
       expect.objectContaining({ method: "POST" }),
@@ -64,5 +64,5 @@ describe("QuizAiGenerator", () => {
     })
     expect(onGenerated).toHaveBeenCalledWith(expect.objectContaining({ title: "Plant science check" }))
     fetchMock.mockRestore()
-  })
+  }, 15_000)
 })

@@ -1,11 +1,9 @@
 "use client"
 
-import { useMemo, useOptimistic, useState, useTransition } from "react"
-import { useRouter } from "next/navigation"
+import { useMemo, useOptimistic, useState } from "react"
 import { Edit, MoreVertical, SmilePlus, Trash2 } from "lucide-react"
 
-import { deleteAnnouncement, toggleReaction, updateAnnouncement } from "@/app/actions/class-detail"
-import { AnnouncementSkeleton } from "@/components/skeletons"
+import { toggleReaction } from "@/app/actions/class-detail"
 import { Button } from "@/components/ui/button"
 import { Callout } from "@/components/ui/callout"
 import {
@@ -26,6 +24,7 @@ import {
 import { EntityAvatar } from "@/components/ui/entity-avatar"
 import { IconBadge } from "@/components/ui/icon-badge"
 import { Panel } from "@/components/ui/panel"
+import { StatusBadge } from "@/components/ui/status-badge"
 import { Text } from "@/components/ui/typography"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
@@ -59,13 +58,18 @@ export function AnnouncementCard({
   announcement,
   userId,
   userRole,
+  pending,
+  onUpdate,
+  onDelete,
 }: {
-  announcement: AnnouncementData
+  announcement: AnnouncementData & { tempId?: string; pending?: boolean }
   userId?: string
   userRole: "teacher" | "student" | null
   classColor: string
+  pending: boolean
+  onUpdate: (content: string) => void
+  onDelete: () => void
 }) {
-  const router = useRouter()
   const reactionState = useMemo(() => {
     const userReaction = userId
       ? announcement.reactions.find((reaction) => reaction.userId === userId)?.reaction ?? null
@@ -96,8 +100,6 @@ export function AnnouncementCard({
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [editContent, setEditContent] = useState(announcement.content)
-  const [editPending, startEditTransition] = useTransition()
-  const [deletePending, startDeleteTransition] = useTransition()
 
   const isAuthor = userId === announcement.author.id
   const canEdit = isAuthor
@@ -116,29 +118,13 @@ export function AnnouncementCard({
   }
 
   const handleEdit = () => {
-    startEditTransition(async () => {
-      const result = await updateAnnouncement(announcement.id, editContent)
-      if (result.success) {
-        setEditOpen(false)
-        router.refresh()
-      }
-    })
+    onUpdate(editContent)
+    setEditOpen(false)
   }
 
   const handleDelete = () => {
     setDeleteOpen(false)
-    startDeleteTransition(async () => {
-      const result = await deleteAnnouncement(announcement.id)
-      if (result.success) {
-        router.refresh()
-      } else {
-        console.error("Failed to delete")
-      }
-    })
-  }
-
-  if (deletePending) {
-    return <AnnouncementSkeleton />
+    onDelete()
   }
 
   const reactionCounts: Record<string, number> = {}
@@ -162,9 +148,17 @@ export function AnnouncementCard({
             />
             <div className="min-w-0">
               <Text variant="h4" truncate className="font-semibold">{announcement.author.name}</Text>
-              <Text variant="caption" tone="muted">
-                {formatAnnouncementDate(announcement.createdAt)}
-              </Text>
+              <div className="flex items-center gap-2">
+                <Text variant="caption" tone="muted">
+                  {formatAnnouncementDate(announcement.createdAt)}
+                </Text>
+                {announcement.tempId && announcement.pending ? (
+                  <StatusBadge tone="info" className="gap-1.5">
+                    <span className="size-1.5 animate-pulse rounded-full bg-current" aria-hidden="true" />
+                    Posting…
+                  </StatusBadge>
+                ) : null}
+              </div>
             </div>
           </div>
 
@@ -286,8 +280,8 @@ export function AnnouncementCard({
             <Button type="button" variant="ghost" onClick={() => setEditOpen(false)}>
               Cancel
             </Button>
-            <Button type="button" onClick={handleEdit} disabled={editPending || !editContent.trim()}>
-              {editPending ? "Saving..." : "Save"}
+            <Button type="button" onClick={handleEdit} isLoading={pending} disabled={pending || !editContent.trim()}>
+              Save
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -308,12 +302,12 @@ export function AnnouncementCard({
             </Text>
           </Callout>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setDeleteOpen(false)} disabled={deletePending}>
+            <Button type="button" variant="outline" onClick={() => setDeleteOpen(false)} disabled={pending}>
               Cancel
             </Button>
-            <Button type="button" variant="destructive" onClick={handleDelete} disabled={deletePending}>
+            <Button type="button" variant="destructive" onClick={handleDelete} disabled={pending}>
               <Trash2 aria-hidden="true" />
-              {deletePending ? "Deleting..." : "Delete"}
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>

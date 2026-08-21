@@ -102,7 +102,7 @@ export function OrgJoinClient({
 
   if (mode === "org") {
     return (
-      <OrgOnboardingShell width="content">
+      <OrgOnboardingShell width="content" viewer={viewer}>
         <OrgJoinForm
           pending={pending}
           error={error}
@@ -121,15 +121,15 @@ export function OrgJoinClient({
   }
 
   return (
-    <OrgOnboardingShell width="content">
+    <OrgOnboardingShell width="content" viewer={viewer}>
       <form onSubmit={handleClassJoin} noValidate>
         <Panel padding="none" className="animate-rise overflow-hidden">
           <PanelHeader>
-            <PanelHeading className="flex flex-row items-center gap-3 space-y-0">
+            <PanelHeading className="flex flex-row items-center gap-3">
               <IconBadge tone="info" size="md">
                 <KeyRound />
               </IconBadge>
-              <div className="min-w-0 space-y-0.5">
+              <div className="min-w-0 flex flex-col gap-0.5">
                 <PanelTitle>Join a class</PanelTitle>
                 <PanelDescription>
                   Enter the 6-character code from your teacher. You will join the workspace automatically.
@@ -140,7 +140,7 @@ export function OrgJoinClient({
               Back
             </Button>
           </PanelHeader>
-          <PanelBody className="space-y-6 p-5 sm:p-6">
+          <PanelBody className="flex flex-col gap-6 p-5 sm:p-6">
             <Field>
               <FieldLabel htmlFor="class-code">Class code</FieldLabel>
               <Input

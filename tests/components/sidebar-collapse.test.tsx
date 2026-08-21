@@ -25,6 +25,7 @@ describe("sidebar collapse", () => {
   afterEach(() => {
     cleanup();
     document.cookie = "sidebar_state=; path=/; max-age=0";
+    window.localStorage.removeItem("upclass:sidebar-recents-open");
     Object.defineProperty(window, "innerWidth", {
       configurable: true,
       value: 1024,
@@ -73,7 +74,7 @@ describe("sidebar collapse", () => {
 
     const link = screen.getByRole("link", { name: "Messages" });
     expect(link).toHaveAttribute("aria-current", "page");
-    expect(link.querySelector("span")).toHaveClass("bg-primary/10", "rounded-md");
+    expect(link).toHaveAttribute("data-active", "true");
   });
 
   it("keeps the full label row when not collapsed", () => {
@@ -201,5 +202,27 @@ describe("sidebar collapse", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Biology 101")).toBeInTheDocument();
     expect(screen.getByText("Dashboard")).toBeInTheDocument();
+  });
+
+  it("collapses recent classes from the section heading", async () => {
+    const user = userEvent.setup();
+    render(
+      <SidebarProvider>
+        <Sidebar
+          userId="user-1"
+          userInfo={{
+            name: "Ms. Frizzle",
+            email: "frizzle@school.test",
+            image: null,
+          }}
+          recentClasses={[{ id: "bio-101", title: "Biology 101", color: null }]}
+        />
+      </SidebarProvider>,
+    );
+
+    expect(screen.getByRole("link", { name: "Biology 101" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Recent classes" }));
+    expect(screen.queryByRole("link", { name: "Biology 101" })).not.toBeInTheDocument();
+    expect(window.localStorage.getItem("upclass:sidebar-recents-open")).toBe("0");
   });
 });

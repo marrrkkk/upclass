@@ -200,11 +200,16 @@ export function QuizBuilderDialog({
         </Text>
         <div className="flex flex-wrap justify-end gap-2">
           <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
-          <Button type="button" variant="outline" onClick={onSave} disabled={pending}>
-            {pending ? "Saving..." : isCreateMode ? "Save draft" : "Save changes"}
+          <Button type="button" variant="outline" onClick={onSave} isLoading={pending} disabled={pending}>
+            {isCreateMode ? "Save draft" : "Save changes"}
           </Button>
-          <Button type="button" onClick={onPrimaryAction} disabled={pending}>
-            {pending ? (isCreateMode ? "Publishing..." : "Saving...") : isCreateMode ? "Publish quiz" : "Save and publish"}
+          <Button
+            type="button"
+            onClick={onPrimaryAction}
+            isLoading={pending}
+            disabled={pending}
+          >
+            {isCreateMode ? "Publish quiz" : "Save and publish"}
           </Button>
         </div>
       </DialogFooter>

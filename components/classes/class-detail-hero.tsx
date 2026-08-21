@@ -1,14 +1,16 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { CalendarClock, Clock, Plus, Settings } from "lucide-react"
 
-import { ClassSettingsDialog } from "@/components/classes/class-settings-dialog"
+import { ClassSettingsDialog, type ClassSettingsMutate } from "@/components/classes/class-settings-dialog"
 import { AvatarGroup, type AvatarGroupPerson } from "@/components/ui/avatar-group"
 import { Button } from "@/components/ui/button"
 import { CopyButton } from "@/components/ui/copy-button"
 import { CourseSwatch } from "@/components/ui/course-identity"
 import { EntityAvatar } from "@/components/ui/entity-avatar"
 import { StatusBadge } from "@/components/ui/status-badge"
+import { useOptimisticMutation } from "@/hooks/use-optimistic-mutation"
 import { getGradeLevelFallback } from "@/lib/classes/class-identity"
 import type { ClassData } from "@/types/classes"
 
@@ -40,6 +42,16 @@ export function ClassDetailHero({
   students = [],
   nextDueDate,
 }: ClassDetailHeroProps) {
+  // Local display copy of the class record so optimistic settings updates can
+  // render immediately and roll back on failure. Re-synced whenever the server
+  // revalidates with fresh data.
+  const [displayClass, setDisplayClass] = useState(classData)
+  useEffect(() => {
+    setDisplayClass(classData)
+  }, [classData])
+  const { mutate, pending } = useOptimisticMutation<ClassData>(displayClass, setDisplayClass)
+  const mutateSettings = mutate as ClassSettingsMutate
+
   // Derive primary teacher
   const primaryTeacher = teachers[0] || (teacherNames[0] ? { id: "teacher-1", name: teacherNames[0], image: null } : null)
   const studentPeople: AvatarGroupPerson[] = students.map((s) => ({
@@ -49,24 +61,24 @@ export function ClassDetailHero({
   }))
   
   // Structured identity
-  const gradeLabel = getGradeLevelFallback(classData)
-  const sectionLabel = classData.section
+  const gradeLabel = getGradeLevelFallback(displayClass)
+  const sectionLabel = displayClass.section
 
   return (
     <div className="overflow-hidden rounded-2xl border border-hairline/80 bg-card p-5 shadow-e1 sm:p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 items-start gap-4">
           <CourseSwatch
-            value={classColor}
-            courseKey={classData.id}
-            label={`${classData.title} course color`}
+            value={displayClass.color || classColor}
+            courseKey={displayClass.id}
+            label={`${displayClass.title} course color`}
             size="lg"
             className="shrink-0 rounded-2xl shadow-sm"
           />
 
           <div className="min-w-0 flex-1 space-y-2">
             <h1 className="truncate font-display text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-              {classData.title}
+              {displayClass.title}
             </h1>
 
             {/* Metadata row: Grade + Section + Schedule + Teacher Avatar + Student AvatarGroup */}
@@ -81,10 +93,10 @@ export function ClassDetailHero({
                 </span>
               ) : null}
 
-              {classData.schedule ? (
+              {displayClass.schedule ? (
                 <span className="inline-flex items-center gap-1 rounded-md border border-hairline/70 bg-surface-raised px-2.5 py-0.5 text-xs font-medium text-muted-foreground shadow-2xs">
                   <CalendarClock className="size-3.5 opacity-70" aria-hidden="true" />
-                  <span>{classData.schedule}</span>
+                  <span>{displayClass.schedule}</span>
                 </span>
               ) : null}
 
@@ -123,9 +135,9 @@ export function ClassDetailHero({
             </div>
 
             {/* Description */}
-            {classData.description ? (
+            {displayClass.description ? (
               <p className="max-w-[70ch] text-xs leading-relaxed text-muted-foreground sm:text-sm pt-0.5">
-                {classData.description}
+                {displayClass.description}
               </p>
             ) : null}
           </div>
@@ -135,9 +147,9 @@ export function ClassDetailHero({
         {userRole === "teacher" ? (
           <div className="flex shrink-0 items-center gap-2 self-start">
             <div className="inline-flex items-center gap-2 rounded-lg border border-hairline/80 bg-surface-raised/90 px-3 py-1.5 text-xs font-mono font-bold text-foreground shadow-2xs">
-              <span className="tracking-wider">{classData.code}</span>
+              <span className="tracking-wider">{displayClass.code}</span>
               <CopyButton
-                value={classData.code}
+                value={displayClass.code}
                 label="Join code"
                 size="sm"
                 className="text-muted-foreground hover:text-foreground"
@@ -145,7 +157,9 @@ export function ClassDetailHero({
             </div>
 
             <ClassSettingsDialog
-              classData={classData}
+              classData={displayClass}
+              mutate={mutateSettings}
+              pending={pending}
               trigger={
                 <Button
                   type="button"

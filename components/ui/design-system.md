@@ -23,6 +23,24 @@ Use `Button` for commands, `IconButton` patterns with tooltips for compact symbo
 
 Every interactive primitive must expose hover, focus-visible, active, disabled, and loading behavior where applicable.
 
+## Motion
+
+Motion is functional feedback only — never decorative choreography. The full system lives in `app/globals.css` (tokens, keyframes, `motion-*` utilities) and `lib/design-system.ts` (`motion` presets).
+
+- **Durations** come from one ramp: `--duration-fast` 150ms, `--duration-base` 200ms, `--duration-slow` 260ms. No ad-hoc `duration-300` or seconds.
+- **Easings** come from the approved set: `--ease-out-expo` (default), `--ease-out-quint` (drawers/large surfaces). No Tailwind default `ease-out`, springs, or bounce.
+- **Properties**: transform and opacity only. Never animate width, height, top/left, or large shadows.
+- **Shared utilities** (prefer over ad-hoc classes):
+  - `motion-enter` — content entrance, opacity + ≤8px rise
+  - `motion-fade` — opacity-only entrance (tabs, inline panels)
+  - `motion-overlay` — overlays, dialogs, sheets, popovers (opacity + faint scale)
+  - `motion-shimmer` — restrained loading shimmer (the only looping one)
+  - `motion-interactive` / `motion-icon` — hover/focus colour and small icon movement
+  - `motion-feedback` — state-change opacity/colour, never layout
+  - `motion-lift` — card/row hover lift, pointer devices only
+  - `motion-delay-1/2/3` — entrance stagger steps (80ms)
+- **Reduced motion**: the global `prefers-reduced-motion` override collapses all non-essential animation to near-instant. Do not add per-component overrides; the OS preference is the only policy. Hover movement is additionally gated behind `@media (hover: hover)` so touch contexts never move surfaces.
+
 
 ## Dashboard Composition
 

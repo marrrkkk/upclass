@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition, useMemo } from "react"
+import { useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { Settings, Trash2 } from "lucide-react"
 import { Slot } from "@radix-ui/react-slot"
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Callout } from "@/components/ui/callout"
 import { CopyButton } from "@/components/ui/copy-button"
 import { CourseSwatch } from "@/components/ui/course-identity"
+import { useToast } from "@/components/ui/toast"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,6 +29,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Mono, Text } from "@/components/ui/typography"
 import { Textarea } from "@/components/ui/textarea"
 import { useOrganizationPath } from "@/hooks/use-organization-path"
+import type {
+  OptimisticMutationOptions,
+  OptimisticMutationResult,
+} from "@/hooks/use-optimistic-mutation"
 import { cn } from "@/lib/utils"
 
 type ClassData = {
@@ -43,9 +48,20 @@ type ClassData = {
   schedule: string | null
 }
 
+/** The `mutate` handle from `useOptimisticMutation` for a single class record. */
+export type ClassSettingsMutate = <TResult extends OptimisticMutationResult>(
+  next: ClassData,
+  action: () => Promise<TResult>,
+  options?: OptimisticMutationOptions<ClassData, TResult>,
+) => Promise<void>
+
 type ClassSettingsDialogProps = {
   classData: ClassData
   trigger?: React.ReactNode
+  /** Optimistic mutation handle owned by the class detail hero. */
+  mutate: ClassSettingsMutate
+  /** Whether a settings update is currently in flight. */
+  pending: boolean
 }
 
 const GRADE_LEVELS = [
@@ -100,13 +116,13 @@ function parseSchedule(schedule: string | null) {
   }
 }
 
-export function ClassSettingsDialog({ classData, trigger }: ClassSettingsDialogProps) {
+export function ClassSettingsDialog({ classData, trigger, mutate, pending }: ClassSettingsDialogProps) {
   const router = useRouter()
   const organizationPath = useOrganizationPath()
+  const toast = useToast()
   const [open, setOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [pending, startTransition] = useTransition()
   const [deletePending, startDeleteTransition] = useTransition()
   const [selectedColor, setSelectedColor] = useState(classData.color || "#0e6b52")
   const initialSchedule = parseSchedule(classData.schedule)
@@ -143,29 +159,46 @@ export function ClassSettingsDialog({ classData, trigger }: ClassSettingsDialogP
     return parts.length > 0 ? parts.join(" - ") : "Preview will appear here"
   }, [title, gradeLevel, customGrade, section])
 
-  const handleUpdate = async (formData: FormData) => {
+  const handleUpdate = (formData: FormData) => {
     setError(null)
-    startTransition(async () => {
-      const res = await updateClass(classData.id, formData)
-      if (!res.success) {
-        setError(res.error)
-        return
-      }
-      setOpen(false)
-    })
+
+    const nextClass: ClassData = {
+      ...classData,
+      title: String(formData.get("title") || "").trim(),
+      description: String(formData.get("description") || "") || null,
+      gradeLevel: String(formData.get("gradeLevel") || "") || null,
+      customGrade:
+        gradeLevel === "other" ? String(formData.get("customGrade") || "") || null : null,
+      section: String(formData.get("section") || "") || null,
+      schedule: String(formData.get("schedule") || "") || null,
+      color: selectedColor,
+    }
+
+    void mutate(
+      nextClass,
+      () => updateClass(classData.id, formData),
+      {
+        onSuccess: (_result, current) => {
+          setOpen(false)
+          // Revalidate so the server-rendered hero matches the optimistic record.
+          router.refresh()
+          return current
+        },
+      },
+    )
   }
 
   const handleDelete = () => {
+    setDeleteDialogOpen(false)
+    setOpen(false)
+    // Leave immediately; the class still exists server-side if the delete fails,
+    // so it reappears in the classes list and a toast explains the failure.
+    router.push(organizationPath("/classes"))
     startDeleteTransition(async () => {
       const res = await deleteClass(classData.id)
       if (!res.success) {
-        setError(res.error)
-        setDeleteDialogOpen(false)
-        return
+        toast.error("Couldn't delete class", res.error)
       }
-      setDeleteDialogOpen(false)
-      setOpen(false)
-      router.push(organizationPath("/classes"))
     })
   }
 
@@ -190,8 +223,8 @@ export function ClassSettingsDialog({ classData, trigger }: ClassSettingsDialogP
         footer={
           <>
             <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button type="submit" form="class-settings-form" disabled={pending}>
-              {pending ? "Updating..." : "Save changes"}
+            <Button type="submit" form="class-settings-form" isLoading={pending} disabled={pending}>
+              Save changes
             </Button>
           </>
         }
@@ -417,7 +450,7 @@ export function ClassSettingsDialog({ classData, trigger }: ClassSettingsDialogP
               disabled={deletePending}
             >
               <Trash2 aria-hidden="true" />
-              {deletePending ? "Deleting..." : "Delete class"}
+              Delete class
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

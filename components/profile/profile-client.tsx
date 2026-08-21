@@ -2,381 +2,41 @@
 
 import * as React from "react"
 import Link from "next/link"
-import {
-  BookOpen,
-  Download,
-  FileIcon,
-  FileSpreadsheet,
-  FileText,
-  FileType,
-  FolderOpen,
-  GraduationCap,
-  Lock,
-  Mail,
-  MessageSquare,
-  Presentation,
-} from "lucide-react"
-
+import { ArrowUpRight, BookOpen, CalendarDays, Download, FileIcon, FileSpreadsheet, FileText, FileType, FolderOpen, GraduationCap, Lock, Mail, MessageSquare, Presentation, Search, Sparkles } from "lucide-react"
 import { EditProfileDialog } from "@/components/profile/edit-profile-dialog"
 import { ProfileCover } from "@/components/profile/profile-cover"
+import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
+import { Card, CardContent, CardTitle } from "@/components/ui/card"
 import { CourseSwatch } from "@/components/ui/course-identity"
 import { EmptyState } from "@/components/ui/empty-state"
 import { EntityAvatar } from "@/components/ui/entity-avatar"
-import { EntityRow } from "@/components/ui/entity-row"
+import { FilterToolbar } from "@/components/ui/filter-toolbar"
 import { IconBadge } from "@/components/ui/icon-badge"
-import {
-  Panel,
-  PanelBody,
-  PanelHeader,
-  PanelHeading,
-  PanelTitle,
-} from "@/components/ui/panel"
-import { PageHeading } from "@/components/ui/section"
-import { StatGroup, StatTile } from "@/components/ui/stat-tile"
+import { Input } from "@/components/ui/input"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useOrganizationPath } from "@/hooks/use-organization-path"
 import { cn } from "@/lib/utils"
 import { usePageHeaderStore } from "@/stores/page-header-store"
 
-type UserData = {
-  id: string
-  name: string
-  email: string | null
-  image: string | null
-  cover: string | null
-  coverColor: string | null
-  bio: string | null
-  role: "teacher" | "student" | null
+type UserData={id:string;name:string;email:string|null;image:string|null;cover:string|null;coverColor:string|null;bio:string|null;role:"teacher"|"student"|null}
+type ClassData={id:string;title:string;description:string|null;category:string|null;color:string|null;createdAt:string;enrolledCount?:number;role?:"teacher"|"student";teacherName?:string|null}
+type ResourceData={id:string;title:string;description:string|null;category:string|null;fileType:string;fileUrl:string;fileName:string;fileSize:string|null;createdAt:string}
+type Props={user:UserData;createdClasses:ClassData[];enrolledClasses:ClassData[];createdResources:ResourceData[];isOwnProfile?:boolean;isPrivate?:boolean}
+
+export function ProfileClient({user,createdClasses,enrolledClasses,createdResources,isOwnProfile=false,isPrivate=false}:Props){
+ const path=useOrganizationPath(); const setPageTitle=usePageHeaderStore(s=>s.setPageTitle)
+ React.useEffect(()=>{setPageTitle(user.name);document.title=`${user.name} | UpClass`;return()=>setPageTitle(null)},[setPageTitle,user.name])
+ if(isPrivate&&!isOwnProfile)return <div className="mx-auto flex w-full max-w-3xl flex-col gap-5"><Intro user={user}/><Card><CardContent className="p-0"><EmptyState icon={<Lock/>} title="Private profile" description="This profile is visible only to the account owner and approved contacts."/></CardContent></Card></div>
+ const all=[...createdClasses,...enrolledClasses,...createdResources]; const categories=new Set(all.map(x=>x.category).filter(Boolean)); const latest=all.map(x=>new Date(x.createdAt).getTime()).filter(Number.isFinite).sort((a,b)=>b-a)[0]
+ return <div className="flex flex-col gap-5 sm:gap-6"><Card className="overflow-hidden shadow-e1"><ProfileCover color={user.coverColor} image={user.cover} name={user.name} className="h-28 sm:h-36"/><div className="relative px-5 pb-5 sm:px-7 sm:pb-7"><div className="-mt-12 flex flex-col gap-5 sm:-mt-16 sm:flex-row sm:items-end sm:justify-between"><div className="flex min-w-0 items-end gap-4"><EntityAvatar name={user.name} image={user.image} colorKey={user.id} size="xl" className="size-24 shrink-0 border-4 border-card shadow-e2 sm:size-32"/><div className="min-w-0 space-y-2 pb-1"><div className="flex flex-wrap items-center gap-2"><h1 className="font-display text-2xl font-bold tracking-tight sm:text-3xl">{user.name}</h1>{user.role?<StatusBadge tone={user.role==="teacher"?"info":"neutral"} dot>{user.role==="teacher"?"Teacher":"Student"}</StatusBadge>:null}</div><div className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted-foreground">{user.email?<span className="inline-flex items-center gap-1.5"><Mail className="size-3.5"/>{user.email}</span>:null}{latest?<span className="inline-flex items-center gap-1.5"><CalendarDays className="size-3.5"/>Active {fmt(new Date(latest).toISOString())}</span>:null}</div></div></div><div className="flex shrink-0 items-center gap-2 sm:pb-1">{isOwnProfile?<EditProfileDialog user={user}/>:<Link href={path(`/messages/${user.id}`)} className={cn(buttonVariants({size:"sm"}),"gap-2")}><MessageSquare className="size-4"/>Message</Link>}</div></div><div className="mt-5 grid gap-4 border-t border-hairline pt-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end"><p className="max-w-3xl whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">{user.bio||"No biography shared."}</p><div className="flex flex-wrap gap-2"><Badge variant="outline"><Sparkles className="size-3"/> {categories.size} focus areas</Badge><Badge variant="outline"><GraduationCap className="size-3"/> {all.length} contributions</Badge></div></div></div></Card><div className="grid grid-cols-2 gap-3 sm:grid-cols-4"><Metric label="Teaching" value={createdClasses.length}/><Metric label="Learning" value={enrolledClasses.length}/><Metric label="Resources" value={createdResources.length}/><Metric label="Focus areas" value={categories.size}/></div><Tabs defaultValue="classes" variant="line"><TabsList aria-label={`${user.name} profile sections`}><TabsTrigger value="classes"><BookOpen/> Classes <Count value={createdClasses.length+enrolledClasses.length}/></TabsTrigger><TabsTrigger value="resources"><FolderOpen/> Resources <Count value={createdResources.length}/></TabsTrigger></TabsList><TabsContent value="classes" className="pt-1"><ClassCollection items={[...createdClasses,...enrolledClasses]} created={createdClasses} path={path} own={isOwnProfile}/></TabsContent><TabsContent value="resources" className="pt-1"><ResourceCollection items={createdResources} path={path} own={isOwnProfile}/></TabsContent></Tabs></div>
 }
-
-type ClassData = {
-  id: string
-  title: string
-  description: string | null
-  category: string | null
-  color: string | null
-  createdAt: string
-  enrolledCount?: number
-  role?: "teacher" | "student"
-  teacherName?: string | null
-  teacherImage?: string | null
-}
-
-type ResourceData = {
-  id: string
-  title: string
-  description: string | null
-  category: string | null
-  fileType: string
-  fileUrl: string
-  fileName: string
-  fileSize: string | null
-  createdAt: string
-  authorName?: string | null
-  authorImage?: string | null
-}
-
-type ProfileClientProps = {
-  user: UserData
-  createdClasses: ClassData[]
-  enrolledClasses: ClassData[]
-  createdResources: ResourceData[]
-  isOwnProfile?: boolean
-  isPrivate?: boolean
-}
-
-export function ProfileClient({
-  user,
-  createdClasses,
-  enrolledClasses,
-  createdResources,
-  isOwnProfile = false,
-  isPrivate = false,
-}: ProfileClientProps) {
-  const organizationPath = useOrganizationPath()
-  const setPageTitle = usePageHeaderStore((state) => state.setPageTitle)
-
-  React.useEffect(() => {
-    setPageTitle(user.name)
-    return () => setPageTitle(null)
-  }, [setPageTitle, user.name])
-
-  React.useEffect(() => {
-    document.title = `${user.name} | UpClass`
-  }, [user.name])
-
-  if (isPrivate && !isOwnProfile) {
-    return (
-      <div className="mx-auto w-full max-w-3xl">
-        <PageHeading
-          eyebrow="Profile"
-          title={user.name}
-          media={<EntityAvatar name={user.name} image={user.image} colorKey={user.id} size="xl" />}
-        />
-        <Panel padding="none">
-          <EmptyState
-            icon={<Lock />}
-            title="Private profile"
-            description="This profile is visible only to the account owner and approved contacts."
-          />
-        </Panel>
-      </div>
-    )
-  }
-
-  const classCount = createdClasses.length + enrolledClasses.length
-
-  return (
-    <>
-      <Panel padding="none" className="overflow-hidden shadow-e1">
-        <ProfileCover color={user.coverColor} image={user.cover} name={user.name} />
-        <div className="flex flex-col gap-5 p-5 sm:-mt-10 sm:flex-row sm:items-end sm:justify-between sm:p-6">
-          <div className="flex min-w-0 items-end gap-4">
-            <EntityAvatar
-              name={user.name}
-              image={user.image}
-              colorKey={user.id}
-              size="xl"
-              className="size-24 shrink-0 border-4 border-card sm:size-28"
-            />
-            <div className="min-w-0 space-y-1.5 pb-1">
-              <p className="type-overline text-muted-foreground">Profile</p>
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="type-h1 break-words">{user.name}</h1>
-                {user.role ? (
-                  <StatusBadge tone={user.role === "teacher" ? "info" : "neutral"} dot>
-                    {user.role === "teacher" ? "Teacher" : "Student"}
-                  </StatusBadge>
-                ) : null}
-              </div>
-              {user.email ? (
-                <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <Mail aria-hidden="true" className="size-3.5 shrink-0" />
-                  <span className="truncate">{user.email}</span>
-                </p>
-              ) : null}
-              <p className="max-w-2xl whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-                {user.bio || "No biography shared."}
-              </p>
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-2 sm:pb-1">
-            {isOwnProfile ? (
-              <EditProfileDialog user={user} />
-            ) : (
-              <Link
-                href={organizationPath(`/messages/${user.id}`)}
-                className={cn(buttonVariants({ size: "sm" }), "gap-2")}
-              >
-                <MessageSquare aria-hidden="true" className="size-4" />
-                Message
-              </Link>
-            )}
-          </div>
-        </div>
-      </Panel>
-
-      <StatGroup columns={3} className="gap-2 sm:gap-3">
-        <StatTile label="Teaching" value={createdClasses.length} tone="info" />
-        <StatTile label="Enrolled" value={enrolledClasses.length} tone="primary" />
-        <StatTile label="Shared resources" value={createdResources.length} tone="success" />
-      </StatGroup>
-
-      <Tabs defaultValue="classes" variant="line">
-        <TabsList aria-label={`${user.name} profile sections`}>
-          <TabsTrigger value="classes">
-            <BookOpen aria-hidden="true" />
-            Classes
-            {classCount > 0 ? <span className="numeric-tabular">{classCount}</span> : null}
-          </TabsTrigger>
-          <TabsTrigger value="resources">
-            <FolderOpen aria-hidden="true" />
-            Resources
-            {createdResources.length > 0 ? (
-              <span className="numeric-tabular">{createdResources.length}</span>
-            ) : null}
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="classes" className="space-y-5">
-          {user.role === "teacher" && createdClasses.length > 0 ? (
-            <ClassList title="Teaching" classes={createdClasses} kind="created" />
-          ) : null}
-          {enrolledClasses.length > 0 ? (
-            <ClassList title="Enrolled" classes={enrolledClasses} kind="enrolled" />
-          ) : null}
-          {classCount === 0 ? (
-            <Panel padding="none">
-              <EmptyState
-                icon={<GraduationCap />}
-                title="No visible classes"
-                description={
-                  isOwnProfile
-                    ? "Classes you teach or join will appear here."
-                    : "This person has no classes available to view."
-                }
-              />
-            </Panel>
-          ) : null}
-        </TabsContent>
-
-        <TabsContent value="resources">
-          <Panel padding="none" className="overflow-hidden">
-            {createdResources.length > 0 ? (
-              <>
-                <PanelHeader>
-                  <PanelHeading>
-                    <PanelTitle>Shared resources</PanelTitle>
-                  </PanelHeading>
-                </PanelHeader>
-                <PanelBody className="minimal-scrollbar max-h-[32rem] divide-y divide-hairline overflow-y-auto p-0">
-                  {createdResources.map((resource) => (
-                    <ResourceRow key={resource.id} data={resource} />
-                  ))}
-                </PanelBody>
-              </>
-            ) : (
-              <EmptyState
-                icon={<FolderOpen />}
-                title="No visible resources"
-                description={
-                  isOwnProfile
-                    ? "Resources you share will appear here."
-                    : "This person has no resources available to view."
-                }
-              />
-            )}
-          </Panel>
-        </TabsContent>
-      </Tabs>
-    </>
-  )
-}
-
-function ClassList({
-  title,
-  classes,
-  kind,
-}: {
-  title: string
-  classes: ClassData[]
-  kind: "created" | "enrolled"
-}) {
-  const organizationPath = useOrganizationPath()
-
-  return (
-    <Panel padding="none" className="overflow-hidden">
-      <PanelHeader>
-        <PanelHeading>
-          <PanelTitle>{title}</PanelTitle>
-        </PanelHeading>
-      </PanelHeader>
-      <PanelBody className="minimal-scrollbar max-h-[32rem] divide-y divide-hairline overflow-y-auto p-0">
-        {classes.map((classItem) => {
-          const enrolledCount = classItem.enrolledCount ?? 0
-          const metadata =
-            kind === "created"
-              ? `${enrolledCount} ${enrolledCount === 1 ? "student" : "students"} enrolled`
-              : classItem.teacherName
-                ? `Teacher: ${classItem.teacherName}`
-                : undefined
-
-          return (
-            <EntityRow
-              key={classItem.id}
-              href={organizationPath(`/classes/${classItem.id}`)}
-              linkLabel={`Open ${classItem.title}`}
-              media={
-                <CourseSwatch
-                  value={classItem.color}
-                  courseKey={classItem.id}
-                  label={`${classItem.title} course`}
-                />
-              }
-              title={classItem.title}
-              description={classItem.description || undefined}
-              metadata={metadata}
-              status={
-                classItem.category ? (
-                  <StatusBadge tone="neutral">{classItem.category}</StatusBadge>
-                ) : undefined
-              }
-            />
-          )
-        })}
-      </PanelBody>
-    </Panel>
-  )
-}
-
-function ResourceRow({ data }: { data: ResourceData }) {
-  const organizationPath = useOrganizationPath()
-  const fileInfo = getFileTypeInfo(data.fileType)
-  const FileTypeIcon = fileInfo.icon
-  const createdDate = formatDate(data.createdAt)
-  const metadata = [createdDate, formatFileSize(data.fileSize)].filter(Boolean).join(" · ")
-
-  return (
-    <EntityRow
-      href={organizationPath(`/resources/${data.id}`)}
-      linkLabel={`Open ${data.title}`}
-      media={
-        <IconBadge tone={fileInfo.tone} size="md">
-          <FileTypeIcon />
-        </IconBadge>
-      }
-      title={data.title}
-      description={data.description || data.fileName}
-      metadata={metadata || undefined}
-      status={<StatusBadge tone={fileInfo.tone}>{data.fileType.toUpperCase()}</StatusBadge>}
-      actions={
-        <Button asChild variant="ghost" size="icon-sm">
-          <a
-            href={data.fileUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={`Download ${data.title}`}
-          >
-            <Download aria-hidden="true" className="size-4" />
-          </a>
-        </Button>
-      }
-    />
-  )
-}
-
-function getFileTypeInfo(type: string) {
-  const normalized = type.toLowerCase()
-  if (normalized === "pdf") return { icon: FileText, tone: "danger" as const }
-  if (normalized === "doc" || normalized === "docx") {
-    return { icon: FileText, tone: "info" as const }
-  }
-  if (["xls", "xlsx", "csv"].includes(normalized)) {
-    return { icon: FileSpreadsheet, tone: "success" as const }
-  }
-  if (normalized === "ppt" || normalized === "pptx") {
-    return { icon: Presentation, tone: "warning" as const }
-  }
-  if (normalized === "txt") return { icon: FileType, tone: "neutral" as const }
-  return { icon: FileIcon, tone: "neutral" as const }
-}
-
-function formatDate(value: string) {
-  if (!value) return ""
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ""
-  return new Intl.DateTimeFormat("en", { month: "short", day: "numeric", year: "numeric" }).format(
-    date,
-  )
-}
-
-function formatFileSize(size: string | null) {
-  if (!size) return ""
-  const bytes = Number.parseInt(size, 10)
-  if (!Number.isFinite(bytes) || bytes < 0) return ""
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
+function Intro({user}: {user:UserData}){return <div className="flex items-center gap-3"><EntityAvatar name={user.name} image={user.image} colorKey={user.id} size="lg"/><div><p className="type-overline text-muted-foreground">Profile</p><h1 className="font-display text-2xl font-bold">{user.name}</h1></div></div>}
+function Metric({label,value}:{label:string;value:number}){return <Card className="shadow-none"><CardContent className="flex flex-col gap-1.5 p-3.5"><span className="size-2 rounded-full bg-primary"/><span className="type-overline text-muted-foreground">{label}</span><span className="font-display text-2xl font-bold numeric-tabular">{value}</span></CardContent></Card>}
+function Count({value}:{value:number}){return <span className="numeric-tabular rounded-full bg-muted px-1.5 text-xs text-muted-foreground">{value}</span>}
+function ClassCollection({items,created,path,own}:{items:ClassData[];created:ClassData[];path:(x:string)=>string;own:boolean}){const[q,setQ]=React.useState("");const filtered=items.filter(x=>[x.title,x.description,x.category,x.teacherName].filter(Boolean).join(" ").toLowerCase().includes(q.toLowerCase().trim()));if(!items.length)return <Card><CardContent className="p-0"><EmptyState icon={<GraduationCap/>} title="No visible classes" description={own?"Classes you teach or join will appear here.":"This person has no classes available to view."}/></CardContent></Card>;return <div className="flex flex-col gap-4"><FilterToolbar label="Filter classes" filters={<div className="relative min-w-0 flex-1 sm:max-w-sm"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/><Input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search classes" aria-label="Search classes" className="pl-9"/></div>} summary={`${filtered.length} of ${items.length}`}/><div className="grid gap-4 md:grid-cols-2">{filtered.map(x=><Card key={`${x.id}-${x.role??"created"}`} variant="interactive" className="group overflow-hidden"><Link href={path(`/classes/${x.id}`)} aria-label={`Open ${x.title}`} className="focus-ring block"><div className="flex items-start justify-between border-b border-hairline bg-surface-sunken/45 p-4"><CourseSwatch value={x.color} courseKey={x.id} label={`${x.title} course`} size="lg"/><ArrowUpRight className="size-4 text-muted-foreground"/></div><CardContent className="flex flex-col gap-3 p-4"><CardTitle className="line-clamp-1 text-base">{x.title}</CardTitle><p className="line-clamp-2 min-h-9 text-sm text-muted-foreground">{x.description||"No class description shared."}</p><div className="flex flex-wrap gap-1.5">{x.category?<Badge variant="outline">{x.category}</Badge>:null}<Badge variant={created.some(c=>c.id===x.id)?"info":"default"}>{created.some(c=>c.id===x.id)?"Teaching":"Enrolled"}</Badge>{x.enrolledCount!=null?<Badge variant="outline">{x.enrolledCount} enrolled</Badge>:null}</div></CardContent></Link></Card>)}</div></div>}
+function ResourceCollection({items,path,own}:{items:ResourceData[];path:(x:string)=>string;own:boolean}){const[q,setQ]=React.useState("");const filtered=items.filter(x=>[x.title,x.description,x.category,x.fileName,x.fileType].filter(Boolean).join(" ").toLowerCase().includes(q.toLowerCase().trim()));if(!items.length)return <Card><CardContent className="p-0"><EmptyState icon={<FolderOpen/>} title="No visible resources" description={own?"Resources you share will appear here.":"This person has no resources available to view."}/></CardContent></Card>;return <div className="flex flex-col gap-4"><FilterToolbar label="Filter resources" filters={<div className="relative min-w-0 flex-1 sm:max-w-sm"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/><Input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search resources" aria-label="Search resources" className="pl-9"/></div>} summary={`${filtered.length} of ${items.length}`}/><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{filtered.map(x=><ResourceCard key={x.id} item={x} path={path}/>)}</div></div>}
+function ResourceCard({item,path}:{item:ResourceData;path:(x:string)=>string}){const info=fileInfo(item.fileType);const Icon=info.icon;return <Card variant="interactive" className="group overflow-hidden"><Link href={path(`/resources/${item.id}`)} aria-label={`Open ${item.title}`} className="focus-ring block"><div className={cn("relative flex h-24 items-center justify-center border-b border-hairline",info.banner)}><IconBadge tone={info.tone} size="lg" variant="solid"><Icon/></IconBadge><ArrowUpRight className="absolute right-3 top-3 size-4"/></div><CardContent className="flex flex-col gap-3 p-4"><CardTitle className="line-clamp-1 text-base">{item.title}</CardTitle><p className="line-clamp-2 min-h-9 text-sm text-muted-foreground">{item.description||item.fileName}</p><div className="flex items-center gap-2"><Badge variant={info.variant}>{item.fileType.toUpperCase()}</Badge><span className="type-caption text-muted-foreground">{fmt(item.createdAt)}</span><Button asChild variant="ghost" size="icon-xs" className="ml-auto" onClick={e=>e.stopPropagation()}><a href={item.fileUrl} target="_blank" rel="noopener noreferrer" aria-label={`Download ${item.title}`}><Download className="size-3.5"/></a></Button></div></CardContent></Link></Card>}
+function fileInfo(type:string){const n=type.toLowerCase();if(n==="pdf")return{icon:FileText,tone:"danger" as const,variant:"destructive" as const,banner:"bg-destructive-surface"};if(["doc","docx"].includes(n))return{icon:FileText,tone:"info" as const,variant:"info" as const,banner:"bg-info-surface"};if(["xls","xlsx","csv"].includes(n))return{icon:FileSpreadsheet,tone:"success" as const,variant:"success" as const,banner:"bg-success-surface"};if(["ppt","pptx"].includes(n))return{icon:Presentation,tone:"warning" as const,variant:"warning" as const,banner:"bg-warning-surface"};return{icon:n==="txt"?FileType:FileIcon,tone:"neutral" as const,variant:"default" as const,banner:"bg-muted"}}
+function fmt(value:string){const d=new Date(value);return Number.isNaN(d.getTime())?"":new Intl.DateTimeFormat("en",{month:"short",day:"numeric",year:"numeric"}).format(d)}

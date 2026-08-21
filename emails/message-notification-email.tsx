@@ -41,7 +41,7 @@ export function MessageNotificationEmail({
 // Classroom Focus email styling mirrors the product's neutral canvas and semantic type hierarchy.
 const body = {
   backgroundColor: "#f7f8fa",
-  fontFamily: "Geist, Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+  fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   margin: 0,
   padding: "24px 0",
 }

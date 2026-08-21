@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition, useMemo } from "react"
+import { useMemo, useState } from "react"
 import { GraduationCap, Plus } from "lucide-react"
 
 import { createClass } from "@/app/actions/classes"
@@ -13,12 +13,16 @@ import { IconBadge } from "@/components/ui/icon-badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { executeWithOfflineHandling } from "@/lib/offline-action-handler"
 import { cn } from "@/lib/utils"
+import type { ClassListMutate, OptimisticClassCard } from "@/types/classes/optimistic"
 
 type CreateClassButtonProps = {
   iconOnly?: boolean
   orgSlug: string
+  /** Optimistic mutation handle owned by the classes list. */
+  mutate: ClassListMutate
+  /** Whether a class creation is currently in flight. */
+  pending: boolean
 }
 
 const GRADE_LEVELS = [
@@ -54,10 +58,9 @@ const COURSE_COLOR_VALUES = [
 
 const SCHEDULE_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
-export function CreateClassButton({ iconOnly = false, orgSlug }: CreateClassButtonProps) {
+export function CreateClassButton({ iconOnly = false, orgSlug, mutate, pending }: CreateClassButtonProps) {
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [pending, startTransition] = useTransition()
   const [selectedColor, setSelectedColor] = useState("#0e6b52")
   const [selectedDays, setSelectedDays] = useState<string[]>([])
   const [selectedTime, setSelectedTime] = useState("")
@@ -100,39 +103,71 @@ export function CreateClassButton({ iconOnly = false, orgSlug }: CreateClassButt
       return
     }
 
-    startTransition(async () => {
-      const res = await executeWithOfflineHandling(
-        () => createClass(formData),
-        "create-class",
-        {
-          title: String(formData.get("title") || ""),
-          gradeLevel: submittedGradeLevel as GradeLevelValue,
-          customGrade: String(formData.get("customGrade") || ""),
-          section: String(formData.get("section") || ""),
-          description: String(formData.get("description") || ""),
-          color: String(formData.get("color") || ""),
-          schedule: String(formData.get("schedule") || ""),
-          orgSlug,
+    const title = String(formData.get("title") || "").trim()
+    const tempId = `class-${crypto.randomUUID()}`
+    const optimisticClass: OptimisticClassCard = {
+      id: tempId,
+      tempId,
+      pending: true,
+      title,
+      description: String(formData.get("description") || "") || null,
+      category: null,
+      gradeLevel: submittedGradeLevel,
+      customGrade: submittedGradeLevel === "other" ? String(formData.get("customGrade") || "") || null : null,
+      section: String(formData.get("section") || "") || null,
+      color: String(formData.get("color") || "") || null,
+      schedule: String(formData.get("schedule") || "") || null,
+      createdAt: new Date().toISOString(),
+      enrolledCount: 0,
+      role: "teaching",
+      teacherName: null,
+      teacherImage: null,
+      classworkCount: 0,
+      students: [],
+    }
+
+    const actionPayload = {
+      title,
+      gradeLevel: submittedGradeLevel as GradeLevelValue,
+      customGrade: optimisticClass.customGrade ?? "",
+      section: optimisticClass.section ?? "",
+      description: optimisticClass.description ?? "",
+      color: optimisticClass.color ?? "",
+      schedule: optimisticClass.schedule ?? "",
+      orgSlug,
+      tempId,
+    }
+
+    void mutate(
+      (previous) => [optimisticClass, ...previous],
+      () => createClass(formData),
+      {
+        offline: {
+          type: "create-class",
+          payload: actionPayload,
         },
-      )
+        queued: {
+          tempId,
+          remove: (current) => current.filter((item) => item.tempId !== tempId),
+        },
+        onSuccess: (result, current) => {
+          const classId = result.success && result.classId ? result.classId : null
+          if (classId) {
+            return current.map((item) =>
+              item.tempId === tempId
+                ? { ...item, id: classId, tempId: classId, pending: false }
+                : item,
+            )
+          }
+          return current.filter((item) => item.tempId !== tempId)
+        },
+        onError: (_message, current) => current.filter((item) => item.tempId !== tempId),
+      },
+    )
 
-      if (res.queued) {
-        setError("Action queued. It will be synced when you're back online.")
-        setTimeout(() => {
-          setOpen(false)
-          resetForm()
-        }, 2000)
-        return
-      }
-
-      if (!res.success) {
-        setError(res.error || "Failed to create class")
-        return
-      }
-
-      setOpen(false)
-      resetForm()
-    })
+    // The optimistic class is already in the grid: close and reset immediately.
+    setOpen(false)
+    resetForm()
   }
 
   const resetForm = () => {
@@ -193,7 +228,7 @@ return (
             Cancel
           </Button>
           <Button type="submit" form="create-class-form" isLoading={pending} disabled={pending}>
-            {pending ? "Creating..." : "Create class"}
+            Create class
           </Button>
         </>
       }

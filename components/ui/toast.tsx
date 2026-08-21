@@ -94,7 +94,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               data-slot="toast"
               data-tone={item.tone}
               role="status"
-              className={cn("pointer-events-auto flex items-start gap-3 rounded-[var(--radius-container)] border p-3 shadow-e2 animate-scale-in", toneClasses[item.tone])}
+              className={cn("pointer-events-auto flex items-start gap-3 rounded-[var(--radius-container)] border p-3 shadow-e2 motion-overlay", toneClasses[item.tone])}
             >
               <Icon className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
               <div className="min-w-0 flex-1">

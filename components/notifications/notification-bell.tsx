@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { StatusBadge } from "@/components/ui/status-badge"
+import { useOptimisticMutation } from "@/hooks/use-optimistic-mutation"
 import { useOrganizationPath } from "@/hooks/use-organization-path"
 import { supabase } from "@/lib/supabase-client"
 import { useUnreadStore } from "@/stores/unread-store"
@@ -47,6 +48,10 @@ export function NotificationBell({ userId }: NotificationBellProps) {
   const unreadCount = useUnreadStore((state) => state.notificationUnread)
   const setNotificationUnread = useUnreadStore((state) => state.setNotificationUnread)
   const [notifications, setNotifications] = useState<BellNotification[]>([])
+  const { mutate, pending } = useOptimisticMutation<BellNotification[]>(
+    notifications,
+    setNotifications,
+  )
 
   useEffect(() => {
     if (!supabase || !userId) return
@@ -156,10 +161,23 @@ export function NotificationBell({ userId }: NotificationBellProps) {
     }
   }, [userId, setNotificationUnread])
 
-  const handleMarkAllAsRead = async () => {
-    await markAllNotificationsAsRead()
-    setNotifications((current) => current.map((n) => ({ ...n, read: true })))
+  const handleMarkAllAsRead = () => {
     setNotificationUnread(0)
+
+    void mutate(
+      (current) => current.map((n) => ({ ...n, read: true })),
+      () => markAllNotificationsAsRead(),
+      {
+        onSuccess: (_result, current) => {
+          setNotificationUnread(0)
+          return current
+        },
+        onError: (_message, current) => {
+          setNotificationUnread(current.filter((n) => !n.read).length)
+          return current
+        },
+      },
+    )
   }
 
   const getNotificationHref = (notification: BellNotification) => {
@@ -245,7 +263,14 @@ export function NotificationBell({ userId }: NotificationBellProps) {
 
         <div className="flex items-center justify-between gap-2 px-2 py-1.5">
           {unreadCount > 0 ? (
-            <Button type="button" variant="ghost" size="sm" onClick={handleMarkAllAsRead}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleMarkAllAsRead}
+              isLoading={pending}
+              disabled={pending}
+            >
               <CheckCheck aria-hidden="true" />
               Mark all read
             </Button>

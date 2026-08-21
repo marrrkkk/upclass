@@ -66,6 +66,20 @@ className="safe-bottom"         // iOS home indicator padding
 className="scroll-x-region"     // Contained horizontal scroll
 ```
 
+### Motion utilities
+```tsx
+className="motion-enter"        // content entrance (opacity + ≤8px rise)
+className="motion-fade"         // opacity-only entrance (tabs, panels)
+className="motion-overlay"      // dialogs/sheets/popovers (opacity + faint scale)
+className="motion-shimmer"      // loading shimmer (the only looping one)
+className="motion-interactive"  // hover/focus colour feedback
+className="motion-icon"         // small icon movement
+className="motion-feedback"     // state-change opacity/colour, never layout
+className="motion-lift"         // card hover lift — pointer devices only
+className="motion-delay-1"      // entrance stagger (2, 3)
+```
+Durations come from `--duration-fast/base/slow` (150/200/260ms); easings from `--ease-out-expo` / `--ease-out-quint`. Transform and opacity only — never width/height/top-left/shadows. `prefers-reduced-motion` collapses everything to near-instant automatically.
+
 ### Breakpoints
 - Mobile: `< md` (< 768px)
 - Tablet: `md` - `lg` (768-1023px)

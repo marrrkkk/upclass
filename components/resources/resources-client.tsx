@@ -33,6 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { useOptimisticMutation } from "@/hooks/use-optimistic-mutation"
 import { usePrefetch } from "@/hooks/use-prefetch"
 import { BackgroundCache } from "@/lib/background-cache"
 import { BackgroundSync } from "@/lib/background-sync"
@@ -54,6 +55,13 @@ export type ResourceCardData = {
   authorName: string | null
   authorImage: string | null
 }
+
+/** Client-only optimistic markers merged onto a resource row. */
+export type OptimisticResourceCard = ResourceCardData & { tempId?: string; pending?: boolean }
+
+export type ResourceListMutate = ReturnType<
+  typeof useOptimisticMutation<OptimisticResourceCard[]>
+>["mutate"]
 
 type ResourcesClientProps = {
   /**
@@ -201,7 +209,7 @@ function ResourceDocumentPreview({
           src={fileUrl}
           alt={title}
           onError={() => setImageError(true)}
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          className="h-full w-full object-cover transition-transform duration-[var(--duration-base)] group-hover:scale-105"
           loading="lazy"
         />
       </div>
@@ -321,6 +329,11 @@ export function ResourcesClient({
   const [sortBy, setSortBy] = useState<"newest" | "title" | "size">("newest")
   const [isOffline, setIsOffline] = useState(false)
   const [resultCount, setResultCount] = useState<number | undefined>(undefined)
+  const [optimisticResources, setOptimisticResources] = useState<OptimisticResourceCard[]>([])
+  const { mutate, pending } = useOptimisticMutation<OptimisticResourceCard[]>(
+    optimisticResources,
+    setOptimisticResources,
+  )
 
   // Resolve user classes if promise provided
   const userClasses = userClassesPromise ? use(userClassesPromise) : []
@@ -354,6 +367,8 @@ export function ResourcesClient({
             orgSlug={orgSlug}
             userClasses={userClasses}
             label="Upload"
+            mutate={mutate}
+            pending={pending}
             className="h-9 rounded-lg px-3.5 gap-1.5 text-xs font-semibold shadow-2xs"
           />
         ) : null
@@ -449,6 +464,7 @@ export function ResourcesClient({
         <ResourcesGridResolved
           resourcesPromise={resourcesPromise}
           resources={resources}
+          optimisticResources={optimisticResources}
           selectedFilter={selectedFilter}
           searchQuery={searchQuery}
           sortBy={sortBy}
@@ -465,6 +481,7 @@ export function ResourcesClient({
 function ResourcesGridResolved({
   resourcesPromise,
   resources,
+  optimisticResources,
   selectedFilter,
   searchQuery,
   sortBy,
@@ -475,6 +492,7 @@ function ResourcesGridResolved({
 }: {
   resourcesPromise?: Promise<ResourceCardData[]>
   resources: ResourceCardData[]
+  optimisticResources: OptimisticResourceCard[]
   selectedFilter: string
   searchQuery: string
   sortBy: "newest" | "title" | "size"
@@ -494,8 +512,13 @@ function ResourcesGridResolved({
 
   // Server props are the source of truth; fall back to the IndexedDB cache
   // only when no server data was provided (e.g. offline first load).
-  const displayResources =
+  const serverResources =
     resolvedResources.length > 0 ? resolvedResources : cachedResources
+
+  const displayResources = useMemo(
+    () => [...optimisticResources, ...serverResources],
+    [optimisticResources, serverResources],
+  )
 
   useCacheData(displayResources, "resources", true)
 
@@ -608,7 +631,7 @@ const ResourceCard = memo(function ResourceCard({
   data,
   orgSlug,
 }: {
-  data: ResourceCardData
+  data: OptimisticResourceCard
   orgSlug: string
 }) {
   const { prefetchOnHover, cancelPrefetch } = usePrefetch()
@@ -635,7 +658,7 @@ const ResourceCard = memo(function ResourceCard({
         {/* Card Header: Content Preview / Thumbnail */}
         <div
           className={cn(
-            "relative flex h-32 items-center justify-center overflow-hidden border-b border-hairline/70 bg-gradient-to-br transition-all duration-300",
+            "relative flex h-32 items-center justify-center overflow-hidden border-b border-hairline/70 bg-gradient-to-br transition-colors duration-[var(--duration-base)]",
             fileInfo.bannerClass,
           )}
         >
@@ -649,6 +672,13 @@ const ResourceCard = memo(function ResourceCard({
             fileUrl={data.fileUrl}
             title={data.title}
           />
+
+          {data.tempId && data.pending ? (
+            <span className="absolute bottom-3 left-3 z-10 inline-flex items-center gap-1.5 rounded-lg border border-hairline/80 bg-card px-2 py-1 text-[11px] font-semibold text-muted-foreground shadow-xs">
+              <span className="size-1.5 animate-pulse rounded-full bg-current" aria-hidden="true" />
+              Uploading…
+            </span>
+          ) : null}
 
           {/* Top-right Hover Action Indicator */}
           <div className="absolute right-3 top-3 z-10 flex size-7 items-center justify-center rounded-lg bg-card border border-hairline/80 text-muted-foreground opacity-80 shadow-xs transition-all duration-200 group-hover:opacity-100 group-hover:bg-primary group-hover:text-primary-foreground group-hover:translate-x-0.5 group-hover:-translate-y-0.5">

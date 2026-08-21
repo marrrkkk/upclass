@@ -9,7 +9,9 @@ import { CreateClassButton } from "@/components/classes/create-class-button"
 import { JoinClassButton } from "@/components/classes/join-class-button"
 import { ClassesGridSkeleton } from "@/components/skeletons"
 import { useClassesData } from "@/hooks/classes/use-classes-data"
+import { useOptimisticMutation } from "@/hooks/use-optimistic-mutation"
 import type { ClassCardData } from "@/types/classes"
+import type { OptimisticClassCard } from "@/types/classes/optimistic"
 
 export type ClassesData = {
   teachingClasses: ClassCardData[]
@@ -41,6 +43,11 @@ export function ClassesClient({
   const [searchQuery, setSearchQuery] = useState("")
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest")
   const [resultCount, setResultCount] = useState<number | undefined>(undefined)
+  const [optimisticClasses, setOptimisticClasses] = useState<OptimisticClassCard[]>([])
+  const { mutate, pending } = useOptimisticMutation<OptimisticClassCard[]>(
+    optimisticClasses,
+    setOptimisticClasses,
+  )
 
   return (
     <ClassesPageShell
@@ -48,7 +55,7 @@ export function ClassesClient({
         isAuthenticated ? (
           <div className="flex items-center gap-2.5">
             <JoinClassButton />
-            {canCreateClass ? <CreateClassButton orgSlug={orgSlug} /> : null}
+            {canCreateClass ? <CreateClassButton orgSlug={orgSlug} mutate={mutate} pending={pending} /> : null}
           </div>
         ) : null
       }
@@ -70,6 +77,7 @@ export function ClassesClient({
           classesPromise={classesPromise}
           teachingClasses={teachingClasses}
           enrolledClasses={enrolledClasses}
+          optimisticClasses={optimisticClasses}
           searchQuery={searchQuery}
           sortOrder={sortOrder}
           onCountChange={setResultCount}
@@ -83,6 +91,7 @@ function ClassesGridResolved({
   classesPromise,
   teachingClasses,
   enrolledClasses,
+  optimisticClasses,
   searchQuery,
   sortOrder,
   onCountChange,
@@ -90,6 +99,7 @@ function ClassesGridResolved({
   classesPromise?: Promise<ClassesData>
   teachingClasses: ClassCardData[]
   enrolledClasses: ClassCardData[]
+  optimisticClasses: OptimisticClassCard[]
   searchQuery: string
   sortOrder: "newest" | "oldest"
   onCountChange: (count: number) => void
@@ -99,7 +109,7 @@ function ClassesGridResolved({
     : { teachingClasses, enrolledClasses }
 
   const { filteredClasses, prefetchOnHover, cancelPrefetch } = useClassesData({
-    teachingClasses: resolved.teachingClasses,
+    teachingClasses: [...optimisticClasses, ...resolved.teachingClasses],
     enrolledClasses: resolved.enrolledClasses,
     searchQuery,
   })

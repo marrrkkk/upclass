@@ -310,7 +310,7 @@ export function OnboardClient({ initialData }: OnboardClientProps) {
             </Button>
           ) : (
             <Button type="button" onClick={handleSubmit} disabled={saving || !name.trim()} isLoading={saving}>
-              {saving ? "Saving profile..." : "Get started"}
+              Get started
               {!saving ? <ChevronRight aria-hidden="true" /> : null}
             </Button>
           )}

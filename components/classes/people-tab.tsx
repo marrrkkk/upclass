@@ -1,13 +1,12 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { MoreVertical, UserMinus, Users } from "lucide-react"
 
 import { removeMember } from "@/app/actions/class-detail"
 import { regenerateClassEnrollmentCode } from "@/app/actions/classes"
-import { MemberSkeleton } from "@/components/skeletons"
 import { Button } from "@/components/ui/button"
 import { Callout } from "@/components/ui/callout"
 import { CopyButton } from "@/components/ui/copy-button"
@@ -39,6 +38,7 @@ import {
 import { StatusBadge } from "@/components/ui/status-badge"
 import { Text } from "@/components/ui/typography"
 import { useOrganizationPath } from "@/hooks/use-organization-path"
+import { useOptimisticMutation } from "@/hooks/use-optimistic-mutation"
 
 type MemberData = {
   id: string
@@ -89,33 +89,59 @@ export function PeopleTab({
 }: PeopleTabProps) {
   const router = useRouter()
   const organizationPath = useOrganizationPath()
-  const teachers = members.filter((member) => member.role === "teacher")
-  const students = members.filter((member) => member.role === "student")
+  const [memberList, setMemberList] = useState(members)
+
+  useEffect(() => {
+    setMemberList(members)
+  }, [members])
+
+  const teachers = memberList.filter((member) => member.role === "teacher")
+  const students = memberList.filter((member) => member.role === "student")
 
   const [removeMemberOpen, setRemoveMemberOpen] = useState<string | null>(null)
-  const [removePending, startRemoveTransition] = useTransition()
-  const [removingId, setRemovingId] = useState<string | null>(null)
   const [checklistDismissed, setChecklistDismissed] = useState(false)
   const [activeCode, setActiveCode] = useState(classCode ?? "")
-  const [codePending, startCodeTransition] = useTransition()
+  const { mutate: mutateCode, pending: codePending } = useOptimisticMutation(activeCode, setActiveCode)
+  const { mutate: mutateMemberList, pending: removePending } = useOptimisticMutation(memberList, setMemberList)
 
   const enrollmentLink =
     typeof window !== "undefined" && activeCode
       ? `${window.location.origin}/org/join?code=${activeCode}`
       : ""
 
-  const memberToRemove = members.find((member) => member.id === removeMemberOpen)
+  const memberToRemove = memberList.find((member) => member.id === removeMemberOpen)
 
   const handleRemoveMember = (memberId: string) => {
-    setRemovingId(memberId)
     setRemoveMemberOpen(null)
-    startRemoveTransition(async () => {
-      const res = await removeMember(classId, memberId)
-      if (res.success) {
-        router.refresh()
-      }
-      setRemovingId(null)
-    })
+    void mutateMemberList(
+      (current) => current.filter((member) => member.id !== memberId),
+      () => removeMember(classId, memberId),
+      {
+        onSuccess: (result, current) => {
+          if (result.success) {
+            router.refresh()
+          }
+          return current
+        },
+      },
+    )
+  }
+
+  const handleRegenerateCode = () => {
+    // Show a fresh code immediately; the server assigns the real one on
+    // success and the previous code is restored on failure.
+    const tempCode = Math.random().toString(36).slice(2, 8).toUpperCase()
+    void mutateCode(
+      tempCode,
+      () => regenerateClassEnrollmentCode(classId),
+      {
+        onSuccess: (result, current) => {
+          const code = result.success && result.data ? result.data.code : current
+          router.refresh()
+          return code
+        },
+      },
+    )
   }
 
   return (
@@ -137,16 +163,9 @@ export function PeopleTab({
                   type="button"
                   variant="outline"
                   size="sm"
+                  isLoading={codePending}
                   disabled={codePending}
-                  onClick={() => {
-                    startCodeTransition(async () => {
-                      const result = await regenerateClassEnrollmentCode(classId)
-                      if (result.success && result.data) {
-                        setActiveCode(result.data.code)
-                        router.refresh()
-                      }
-                    })
-                  }}
+                  onClick={handleRegenerateCode}
                 >
                   Regenerate
                 </Button>
@@ -177,15 +196,9 @@ export function PeopleTab({
           <EmptyState title="No teachers assigned" description="No teaching staff are listed for this course." />
         ) : (
           <div role="list" aria-label="Teachers">
-            {teachers.map((member) =>
-              removingId === member.id ? (
-                <div key={member.id} role="listitem">
-                  <MemberSkeleton />
-                </div>
-              ) : (
-                <MemberRow key={member.id} member={member} href={organizationPath(`/user/${member.id}`)} />
-              ),
-            )}
+            {teachers.map((member) => (
+              <MemberRow key={member.id} member={member} href={organizationPath(`/user/${member.id}`)} />
+            ))}
           </div>
         )}
       </Panel>
@@ -208,21 +221,12 @@ export function PeopleTab({
           />
         ) : (
           <div role="list" aria-label="Students">
-            {students.map((member) => {
-              if (removingId === member.id) {
-                return (
-                  <div key={member.id} role="listitem">
-                    <MemberSkeleton />
-                  </div>
-                )
-              }
-
-              return (
-                <MemberRow
-                  key={member.id}
-                  member={member}
-                  href={organizationPath(`/user/${member.id}`)}
-                  actions={
+            {students.map((member) => (
+              <MemberRow
+                key={member.id}
+                member={member}
+                href={organizationPath(`/user/${member.id}`)}
+                actions={
                     userRole === "teacher" ? (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -250,7 +254,7 @@ export function PeopleTab({
                   }
                 />
               )
-            })}
+            )}
           </div>
         )}
       </Panel>
@@ -284,10 +288,11 @@ export function PeopleTab({
               type="button"
               variant="destructive"
               onClick={() => memberToRemove && handleRemoveMember(memberToRemove.id)}
+              isLoading={removePending}
               disabled={removePending}
             >
               <UserMinus aria-hidden="true" />
-              {removePending ? "Removing..." : "Remove"}
+              Remove
             </Button>
           </DialogFooter>
         </DialogContent>

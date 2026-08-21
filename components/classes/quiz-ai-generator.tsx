@@ -185,7 +185,7 @@ export function QuizAiGenerator({ classId, disabled = false, onGenerated }: Quiz
           isLoading={generateQuiz.isPending || isUploading}
           disabled={busy || (!instructions.trim() && files.length === 0)}
         >
-          {generateQuiz.isPending || isUploading ? "Generating quiz…" : "Generate questions"}
+          Generate questions
         </Button>
       </PanelBody>
     </Panel>

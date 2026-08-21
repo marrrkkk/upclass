@@ -89,7 +89,7 @@ export function OrgSwitcher({ collapsed = false }: { collapsed?: boolean }) {
           aria-label={`Current organization: ${currentOrg.name}. Switch organization`}
           title={collapsed ? currentOrg.name : undefined}
           className={cn(
-            "focus-ring group flex w-full items-center rounded-lg border border-hairline/70 bg-surface/50 p-1.5 text-left transition-all duration-150 ease-out-expo hover:border-hairline hover:bg-surface data-[state=open]:border-hairline data-[state=open]:bg-surface shadow-2xs",
+            "focus-ring group flex w-full items-center rounded-lg p-1.5 text-left transition-colors hover:bg-muted",
             collapsed ? "justify-center" : "gap-2.5",
           )}
         >
@@ -102,7 +102,7 @@ export function OrgSwitcher({ collapsed = false }: { collapsed?: boolean }) {
           />
           {collapsed ? null : (
             <>
-              <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-foreground tracking-tight">
+              <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">
                 {currentOrg.name}
               </span>
               <ChevronsUpDown

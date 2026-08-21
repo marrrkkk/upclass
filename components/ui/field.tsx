@@ -113,7 +113,7 @@ function InputAffix({
       data-slot="input-affix"
       data-invalid={invalid ? "true" : undefined}
       className={cn(
-        "border-input flex h-9 w-full items-center overflow-hidden rounded-md border bg-transparent transition-all duration-200 ease-out",
+        "border-input flex h-9 w-full items-center overflow-hidden rounded-md border bg-transparent transition-[color,background-color,border-color,box-shadow] duration-[var(--duration-base)] ease-out-expo",
         "focus-within:border-primary focus-within:ring-primary/20 focus-within:shadow-e1 focus-within:ring-[3px]",
         "data-[invalid=true]:border-destructive data-[invalid=true]:ring-destructive/20",
         className,

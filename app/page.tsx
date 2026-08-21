@@ -1,22 +1,282 @@
-import { headers } from "next/headers"
-import Link from "next/link"
-import type { Metadata } from "next"
-import { cache, Suspense } from "react"
-import { ArrowRight, Check, ChevronRight, FileText, LayoutDashboard, MessageCircle, PenTool, Sparkles, Users, Zap } from "lucide-react"
-import { Logo } from "@/components/logo"
-import { JsonLd } from "@/components/seo/json-ld"
-import { Button } from "@/components/ui/button"
-import { auth } from "@/lib/auth"
-import { defaultDescription, organizationSchema, websiteSchema, webApplicationSchema } from "@/lib/seo"
+import { headers } from "next/headers";
+import Link from "next/link";
+import type { Metadata } from "next";
+import { cache, Suspense } from "react";
+import {
+  ArrowRight,
+  Check,
+  FileText,
+  LayoutDashboard,
+  MessageCircle,
+  PenTool,
+} from "lucide-react";
 
-const landingDescription = "UpClass keeps lessons, conversations, and classwork in one place that is easy to use every day."
-export const metadata: Metadata = { title: "The calm workspace for better classes | UpClass", description: landingDescription, alternates: { canonical: "/" }, openGraph: { title: "UpClass | The calm workspace for better classes", description: landingDescription, url: "/" }, twitter: { title: "UpClass | The calm workspace for better classes", description: landingDescription } }
-const getIsAuthenticated = cache(async () => { const session = await auth.api.getSession({ headers: await headers() }); return Boolean(session?.user) })
-function Brand() { return <Logo href="/" className="landing-brand" textClassName="landing-brand-name" /> }
-function SignedOutActions() { return <div className="flex items-center gap-2"><Button variant="ghost" size="sm" asChild><Link href="/sign-in">Log in</Link></Button><Button size="sm" asChild><Link href="/sign-up">Get started</Link></Button></div> }
-async function HeaderActions() { return (await getIsAuthenticated()) ? <Button size="sm" asChild><Link href="/org">Open workspace <LayoutDashboard className="size-3.5" /></Link></Button> : <SignedOutActions /> }
-async function HeroActions() { return (await getIsAuthenticated()) ? <><Button size="lg" asChild><Link href="/org">Open your workspace <ArrowRight className="size-4" /></Link></Button><Button size="lg" variant="outline" asChild><Link href="/org">View classes</Link></Button></> : <><Button size="lg" asChild><Link href="/sign-up">Create your class space <ArrowRight className="size-4" /></Link></Button><Button size="lg" variant="outline" asChild><Link href="/sign-in">Sign in</Link></Button></> }
-function ProductArtifact() { return <div className="artifact-wrap" aria-label="UpClass class workspace preview"><div className="artifact-glow" /><div className="artifact-form"><span className="artifact-dot" /><span className="artifact-field"><FileText className="size-4" /> Share an update with Biology 101</span><span className="artifact-send">Post update</span></div><div className="artifact-window"><div className="artifact-bar"><span className="flex gap-1.5"><i /><i /><i /></span><span>upclass.app / biology-101</span><span className="artifact-live">Live</span></div><div className="artifact-body"><aside><div className="artifact-school"><span className="artifact-mark">U</span><div><b>Springfield High</b><small>Teaching workspace</small></div></div>{["Home", "Classes", "Messages", "Resources"].map((item, i) => <div key={item} className={`artifact-nav ${i === 1 ? "active" : ""}`}><span className="size-1.5 rounded-full bg-current opacity-50" />{item}{item === "Messages" && <em>2</em>}</div>)}</aside><main><div className="artifact-course"><span className="course-swatch" /><div><small>COURSE WORKSPACE</small><h3>Biology 101</h3><p>Science · 28 learners · Tue & Thu</p></div><span className="artifact-teaching">Teaching</span></div><div className="artifact-tabs"><span className="selected">Stream</span><span>Classwork</span><span>Quizzes</span><span>People</span></div><div className="artifact-post"><div className="post-icon"><MessageCircle className="size-4" /></div><div><b>Lab groups are ready</b><p>Review the protocol and bring your pre-lab diagram to Thursday&apos;s session.</p><small>Dr. Sarah Patel · Today at 9:12 AM</small></div></div><div className="artifact-assignment"><div className="post-icon warm"><PenTool className="size-4" /></div><div><b>Cell diagram response</b><p>Due tomorrow · 10 points</p></div><span>24/28 submitted</span></div></main></div></div></div> }
+import { ClosingCta, SiteFooter } from "@/components/landing/closing";
+import { ProductJourney } from "@/components/landing/product-journey";
+import { StudioFeatures } from "@/components/landing/studio-features";
+import { Logo } from "@/components/logo";
+import { JsonLd } from "@/components/seo/json-ld";
+import { Button } from "@/components/ui/button";
+import { auth } from "@/lib/auth";
+import {
+  defaultDescription,
+  organizationSchema,
+  webApplicationSchema,
+  websiteSchema,
+} from "@/lib/seo";
 
-export default function LandingPage() { return <div className="landing-page min-h-dvh overflow-hidden"><JsonLd data={[websiteSchema, organizationSchema, { ...webApplicationSchema, description: defaultDescription }]} /><div className="landing-announcement" role="status"><span className="landing-announcement-label">Beta</span><span>UpClass is still in beta, so some features may be unfinished or unstable.</span></div><header className="landing-header"><div className="landing-container flex h-20 items-center justify-between"><Brand /><nav className="landing-links" aria-label="Primary"><Link href="#product">What&apos;s inside</Link><Link href="#why">For your class</Link><Link href="#flow">Getting started</Link></nav><div className="flex items-center gap-3"><Link href="/contact" className="landing-support">Talk to us</Link><Suspense fallback={<SignedOutActions />}><HeaderActions /></Suspense></div></div></header><main><section className="landing-hero"><div className="landing-container hero-inner"><div className="hero-copy"><div className="hero-kicker"><span className="kicker-line" /> A BETTER PLACE FOR CLASSWORK</div><h1>Make classwork<br /><span>feel lighter.</span></h1><p>Lessons, messages, resources, and deadlines in one room. UpClass gives your class a steady place to work, without adding another pile of tabs.</p><div className="hero-actions"><Suspense fallback={<SignedOutActions />}><HeroActions /></Suspense></div><div className="hero-proof"><span><Check /> Free to start</span><span><Check /> Built for teachers</span><span><Check /> Works offline</span></div></div><ProductArtifact /></div></section><section className="signal-strip" id="product"><div className="landing-container signal-inner"><span>One room for the work that usually gets scattered.</span><div className="signal-items"><span><Zap /> Quick to open</span><span><Users /> Easy to share</span><span><Sparkles /> Helpful when asked</span></div></div></section><section className="landing-section" id="why"><div className="landing-container"><div className="section-intro"><div className="hero-kicker">THE PARTS THAT MATTER</div><h2>Keep everyone<br /><em>in the same room.</em></h2><p>Good class software should disappear into the day. These are the few things UpClass keeps close at hand.</p></div><div className="feature-grid"><article className="feature feature-blue"><span className="feature-number">01 / CLASSWORK</span><FileText /><h3>Put the work where people expect it</h3><p>Post an assignment, attach the right resource, and see what has come back without chasing links.</p><Link href="/sign-up">See classwork <ChevronRight /></Link></article><article className="feature feature-ink"><span className="feature-number">02 / COLLABORATION</span><PenTool /><h3>Leave room for the rough draft</h3><p>Whiteboards and class channels make it easy to ask, sketch, explain, and try again together.</p><Link href="/sign-up">See collaboration <ChevronRight /></Link></article><article className="feature feature-soft"><span className="feature-number">03 / FOLLOW-THROUGH</span><MessageCircle /><h3>Know what to pick up next</h3><p>Activity, deadlines, and useful AI suggestions help you start the next task with context.</p><Link href="/sign-up">See your day <ChevronRight /></Link></article></div></div></section><section className="landing-section flow-section" id="flow"><div className="landing-container flow-grid"><div><div className="hero-kicker">GETTING STARTED</div><h2>Open the door.<br />The rest is <em>familiar.</em></h2><p>Create a class, invite your people, and keep the routine you already know. UpClass simply gives it a better home.</p><Button variant="outline" asChild><Link href="/sign-up">Create a class <ArrowRight className="size-4" /></Link></Button></div><div className="flow-list"><div><b>01</b><span><strong>Make a class</strong><small>Start with a name, a schedule, and the people who belong there.</small></span></div><div><b>02</b><span><strong>Share the first thing</strong><small>Post a welcome, a resource, or the work you are already teaching.</small></span></div><div><b>03</b><span><strong>Come back tomorrow</strong><small>Your class is ready with the conversation and next step waiting.</small></span></div></div></div></section><section className="landing-cta"><div className="landing-container cta-inner"><div><div className="hero-kicker">WHEN YOU&apos;RE READY</div><h2>Give your class<br />one <em>good place</em> to land.</h2></div><Suspense fallback={<SignedOutActions />}><HeroActions /></Suspense></div></section></main><footer className="landing-footer"><div className="landing-container flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between"><div><Brand /><p>Classwork, in one place.</p></div><div className="footer-links"><Link href="/contact">Talk to us</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><span>© 2026 UpClass</span></div></div></footer></div> }
+const landingDescription =
+  "UpClass is a classroom LMS for teachers and schools to manage assignments, quizzes, messages, resources, collaboration, and student submissions.";
 
+export const metadata: Metadata = {
+  title: "Classroom LMS for Teachers and Schools | UpClass",
+  description: landingDescription,
+  alternates: { canonical: "/" },
+  openGraph: {
+    title: "UpClass | Classroom LMS for Teachers and Schools",
+    description: landingDescription,
+    url: "/",
+  },
+  twitter: {
+    title: "UpClass | Classroom LMS for Teachers and Schools",
+    description: landingDescription,
+  },
+};
+
+const getIsAuthenticated = cache(async () => {
+  const session = await auth.api.getSession({ headers: await headers() });
+  return Boolean(session?.user);
+});
+
+function Brand() {
+  return (
+    <Logo
+      href="/"
+      className="landing-brand"
+      textClassName="landing-brand-name"
+    />
+  );
+}
+
+function SignedOutActions() {
+  return (
+    <div className="flex items-center gap-2">
+      <Button variant="ghost" size="sm" asChild>
+        <Link href="/sign-in">Log in</Link>
+      </Button>
+      <Button size="sm" asChild>
+        <Link href="/sign-up">Create your class</Link>
+      </Button>
+    </div>
+  );
+}
+
+async function HeaderActions() {
+  return (await getIsAuthenticated()) ? (
+    <Button size="sm" asChild>
+      <Link href="/org">
+        Open workspace <LayoutDashboard className="size-3.5" />
+      </Link>
+    </Button>
+  ) : (
+    <SignedOutActions />
+  );
+}
+
+async function HeroActions() {
+  return (await getIsAuthenticated()) ? (
+    <>
+      <Button size="lg" asChild>
+        <Link href="/org">
+          Open your workspace <ArrowRight className="size-4" />
+        </Link>
+      </Button>
+      <Button size="lg" variant="outline" asChild>
+        <Link href="#features">See classroom tools</Link>
+      </Button>
+    </>
+  ) : (
+    <>
+      <Button size="lg" asChild>
+        <Link href="/sign-up">
+          Create your class <ArrowRight className="size-4" />
+        </Link>
+      </Button>
+      <Button size="lg" variant="outline" asChild>
+        <Link href="#features">See how it works</Link>
+      </Button>
+    </>
+  );
+}
+
+function ProductArtifact() {
+  return (
+    <div className="artifact-wrap" aria-label="UpClass classroom LMS preview">
+      <div className="artifact-glow" />
+      <div className="artifact-form">
+        <span className="artifact-dot" />
+        <span className="artifact-field">
+          <FileText className="size-4" /> Share an update with Biology 101
+        </span>
+        <span className="artifact-send">Post to class</span>
+      </div>
+      <div className="artifact-window">
+        <div className="artifact-bar">
+          <span className="flex gap-1.5">
+            <i />
+            <i />
+            <i />
+          </span>
+          <span>upclass.app / biology-101</span>
+          <span className="artifact-live">Synced</span>
+        </div>
+        <div className="artifact-body">
+          <aside>
+            <div className="artifact-school">
+              <span className="artifact-mark">U</span>
+              <div>
+                <b>Springfield High</b>
+                <small>Classroom LMS</small>
+              </div>
+            </div>
+            {["Overview", "Classes", "Messages", "Resources"].map(
+              (item, index) => (
+                <div
+                  key={item}
+                  className={`artifact-nav ${index === 1 ? "active" : ""}`}
+                >
+                  <span className="size-1.5 rounded-full bg-current opacity-50" />
+                  {item}
+                  {item === "Messages" && <em>2</em>}
+                </div>
+              ),
+            )}
+          </aside>
+          <main>
+            <div className="artifact-course">
+              <span className="course-swatch" />
+              <div>
+                <small>CLASS WORKSPACE</small>
+                <h3>Biology 101</h3>
+                <p>Science / 28 students / Tue &amp; Thu</p>
+              </div>
+              <span className="artifact-teaching">Teacher view</span>
+            </div>
+            <div className="artifact-tabs">
+              <span className="selected">Updates</span>
+              <span>Assignments</span>
+              <span>Quizzes</span>
+              <span>People</span>
+            </div>
+            <div className="artifact-post">
+              <div className="post-icon">
+                <MessageCircle className="size-4" />
+              </div>
+              <div>
+                <b>Lab groups are ready</b>
+                <p>
+                  Review the protocol and bring your pre-lab diagram on
+                  Thursday.
+                </p>
+                <small>Dr. Sarah Patel / Today at 9:12 AM</small>
+              </div>
+            </div>
+            <div className="artifact-assignment">
+              <div className="post-icon warm">
+                <PenTool className="size-4" />
+              </div>
+              <div>
+                <b>Cell diagram assignment</b>
+                <p>Due tomorrow / 10 points</p>
+              </div>
+              <span>24 of 28 submitted</span>
+            </div>
+          </main>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function LandingPage() {
+  return (
+    <div id="top" className="landing-page min-h-dvh overflow-hidden">
+      <JsonLd
+        data={[
+          websiteSchema,
+          organizationSchema,
+          { ...webApplicationSchema, description: defaultDescription },
+        ]}
+      />
+      <div className="landing-announcement" role="status">
+        <span className="landing-announcement-label">Beta</span>
+        <span>
+          UpClass is in active development, and teachers can start using it
+          today.
+        </span>
+      </div>
+      <header className="landing-header">
+        <div className="landing-container flex h-20 items-center justify-between">
+          <Brand />
+          <nav className="landing-links" aria-label="Primary">
+            <Link href="#features">Features</Link>
+            <Link href="#workflow">How it works</Link>
+            <Link href="#ai-assistant">AI assistant</Link>
+            <Link href="#schools">For schools</Link>
+            <Link href="#faq">FAQ</Link>
+          </nav>
+          <div className="flex items-center gap-3">
+            <Link href="/contact" className="landing-support">
+              Contact us
+            </Link>
+            <Suspense fallback={<SignedOutActions />}>
+              <HeaderActions />
+            </Suspense>
+          </div>
+        </div>
+      </header>
+      <main>
+        <section className="landing-hero">
+          <div className="landing-container hero-inner">
+            <div className="hero-copy">
+              <div className="hero-kicker">
+                CLASSROOM LMS FOR TEACHERS
+              </div>
+              <h1>
+                One place
+                <br />
+                <span>to run your class.</span>
+              </h1>
+              <p>
+                UpClass brings assignments, messages, quizzes, resources, and
+                collaboration into one teaching workspace, so student
+                submissions and the next task are easy to find.
+              </p>
+              <div className="hero-actions">
+                <Suspense fallback={<SignedOutActions />}>
+                  <HeroActions />
+                </Suspense>
+              </div>
+              <div className="hero-proof">
+                <span>
+                  <Check /> Free to start
+                </span>
+                <span>
+                  <Check /> Teacher approval for AI
+                </span>
+                <span>
+                  <Check /> Offline support
+                </span>
+              </div>
+            </div>
+            <ProductArtifact />
+          </div>
+        </section>
+        <StudioFeatures />
+        <ProductJourney />
+        <ClosingCta />
+      </main>
+      <SiteFooter />
+    </div>
+  );
+}

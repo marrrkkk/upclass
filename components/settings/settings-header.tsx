@@ -8,13 +8,15 @@ import { PageContainer, PageHeading } from "@/components/ui/section"
  */
 export function SettingsHeader({ children }: { children?: React.ReactNode }) {
   return (
-    <PageContainer width="content">
-      <PageHeading
-        eyebrow="Account"
-        title="Settings"
-        description="Manage your profile, privacy, notifications, and device preferences."
-      />
-      {children}
+    <PageContainer width="content" className="py-6 sm:py-8">
+      <div className="flex flex-col gap-6 sm:gap-8">
+        <PageHeading
+          eyebrow="Account"
+          title="Settings"
+          description="Manage your profile, privacy, notifications, and device preferences."
+        />
+        {children}
+      </div>
     </PageContainer>
   )
 }

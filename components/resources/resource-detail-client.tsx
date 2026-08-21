@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useState, useTransition } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import {
   Calendar,
@@ -56,6 +56,8 @@ import { StatusBadge } from "@/components/ui/status-badge"
 import { Textarea } from "@/components/ui/textarea"
 import { PageContainer } from "@/components/ui/section"
 import { useAiPanel } from "@/components/ai/ai-panel-provider"
+import { useOptimisticMutation } from "@/hooks/use-optimistic-mutation"
+import { useToast } from "@/components/ui/toast"
 
 import type { Tone } from "@/lib/design-system"
 import { cn } from "@/lib/utils"
@@ -172,91 +174,103 @@ export function ResourceDetailClient({
   orgSlug,
 }: ResourceDetailClientProps) {
   const router = useRouter()
+  const toast = useToast()
   const resourcesPath = `/${orgSlug}/resources`
   const ownerPath = `/${orgSlug}/user/${resource.owner.id}`
   const setPageTitle = usePageHeaderStore((state) => state.setPageTitle)
   const { setContext, clearSeed } = useAiPanel()
+  const [displayResource, setDisplayResource] = useState(resource)
   const [editOpen, setEditOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [title, setTitle] = useState(resource.title)
   const [description, setDescription] = useState(resource.description || "")
   const [resourceType, setResourceType] = useState(resource.resourceType || "other")
-  const [pending, startTransition] = useTransition()
-  const [deletePending, startDeleteTransition] = useTransition()
+  const { mutate, pending } = useOptimisticMutation(displayResource, setDisplayResource)
   const [error, setError] = useState<string | null>(null)
-  const fileInfo = getFileTypeInfo(resource.fileType)
+  const fileInfo = getFileTypeInfo(displayResource.fileType)
   const FileTypeIcon = fileInfo.icon
   const resourceTypeLabel =
-    RESOURCE_TYPES.find((rt) => rt.value === resource.resourceType)?.label ||
-    resource.category ||
+    RESOURCE_TYPES.find((rt) => rt.value === displayResource.resourceType)?.label ||
+    displayResource.category ||
     "Resource"
 
   useEffect(() => {
-    setPageTitle(resource.title)
+    setDisplayResource(resource)
+  }, [resource])
+
+  useEffect(() => {
+    setPageTitle(displayResource.title)
     return () => setPageTitle(null)
-  }, [resource.title, setPageTitle])
+  }, [displayResource.title, setPageTitle])
 
   useEffect(() => {
-    document.title = `${resource.title} | UpClass`
-  }, [resource.title])
+    document.title = `${displayResource.title} | UpClass`
+  }, [displayResource.title])
 
   useEffect(() => {
-    setContext({ surface: "resource", entityId: resource.id, label: resource.title })
+    setContext({ surface: "resource", entityId: displayResource.id, label: displayResource.title })
     return () => clearSeed()
-  }, [clearSeed, resource.id, resource.title, setContext])
+  }, [clearSeed, displayResource.id, displayResource.title, setContext])
 
   const handleOpenEdit = () => {
-    setTitle(resource.title)
-    setDescription(resource.description || "")
-    setResourceType(resource.resourceType || "other")
+    setTitle(displayResource.title)
+    setDescription(displayResource.description || "")
+    setResourceType(displayResource.resourceType || "other")
     setError(null)
     setEditOpen(true)
   }
 
   const handleCloseEdit = () => {
     setEditOpen(false)
-    setTitle(resource.title)
-    setDescription(resource.description || "")
-    setResourceType(resource.resourceType || "other")
+    setTitle(displayResource.title)
+    setDescription(displayResource.description || "")
+    setResourceType(displayResource.resourceType || "other")
     setError(null)
   }
 
-  const handleSave = async () => {
+  const handleSave = () => {
     setError(null)
-    startTransition(async () => {
-      const formData = new FormData()
-      formData.append("id", resource.id)
-      formData.append("title", title)
-      formData.append("description", description)
-      formData.append("resourceType", resourceType)
-      if (resource.classId) formData.append("classId", resource.classId)
 
-      const result = await updateResource(formData)
-      if (result.success) {
-        setEditOpen(false)
-        router.refresh()
-      } else {
-        setError(result.error)
-      }
-    })
+    const formData = new FormData()
+    formData.append("id", displayResource.id)
+    formData.append("title", title)
+    formData.append("description", description)
+    formData.append("resourceType", resourceType)
+    if (displayResource.classId) formData.append("classId", displayResource.classId)
+
+    void mutate(
+      (next) => ({
+        ...next,
+        title,
+        description: description || null,
+        resourceType,
+      }),
+      () => updateResource(formData),
+      {
+        onSuccess: (_result, current) => {
+          setEditOpen(false)
+          router.refresh()
+          return current
+        },
+      },
+    )
   }
 
   const handleDownload = () => {
-    window.open(resource.fileUrl, "_blank")
+    window.open(displayResource.fileUrl, "_blank")
   }
 
-  const handleDelete = () => {
-    startDeleteTransition(async () => {
-      const result = await deleteResource(resource.id)
-      if (result.success) {
-        setDeleteDialogOpen(false)
-        router.push(resourcesPath)
-        router.refresh()
-      } else {
-        setError(result.error)
-        setDeleteDialogOpen(false)
-      }
-    })
+  const handleDelete = async () => {
+    setDeleteDialogOpen(false)
+    router.push(resourcesPath)
+
+    const result = await deleteResource(displayResource.id)
+    if (!result.success) {
+      toast.error("Couldn't delete resource", result.error)
+      return
+    }
+
+    router.refresh()
   }
 
   return (
@@ -323,10 +337,10 @@ export function ResourceDetailClient({
         <div className="min-w-0 flex-1 space-y-3">
           <div>
             <p className="type-overline text-muted-foreground mb-1.5">{resourceTypeLabel}</p>
-            <h1 className="type-h1 break-words leading-tight">{resource.title}</h1>
-            {resource.description ? (
+            <h1 className="type-h1 break-words leading-tight">{displayResource.title}</h1>
+            {displayResource.description ? (
               <p className="mt-2 type-body break-words text-muted-foreground max-w-2xl whitespace-pre-wrap">
-                {resource.description}
+                {displayResource.description}
               </p>
             ) : null}
           </div>
@@ -339,38 +353,38 @@ export function ResourceDetailClient({
               className="touch-target inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-muted-foreground bg-surface-subtle/80 hover:bg-surface-raised hover:text-foreground transition-colors duration-150 group"
             >
               <EntityAvatar
-                name={resource.owner.name}
-                image={resource.owner.image}
-                colorKey={resource.owner.id}
+                name={displayResource.owner.name}
+                image={displayResource.owner.image}
+                colorKey={displayResource.owner.id}
                 size="xs"
               />
               <span className="group-hover:text-foreground transition-colors duration-150">
-                {resource.owner.name}
+                {displayResource.owner.name}
               </span>
             </Link>
 
             {/* Format */}
             <StatusBadge tone={fileInfo.tone} className="font-bold text-[11px]">
-              {resource.fileType.toUpperCase()}
+              {displayResource.fileType.toUpperCase()}
             </StatusBadge>
 
             {/* File size */}
             <MetaPill icon={HardDrive}>
-              {formatFileSize(resource.fileSize)}
+              {formatFileSize(displayResource.fileSize)}
             </MetaPill>
 
             {/* Upload date */}
             <MetaPill icon={Calendar}>
-              {formatDateShort(resource.createdAt)}
+              {formatDateShort(displayResource.createdAt)}
             </MetaPill>
 
             {/* Linked class */}
-            {resource.class ? (
+            {displayResource.class ? (
               <Link
-                href={`/${orgSlug}/classes/${resource.class.id}`}
+                href={`/${orgSlug}/classes/${displayResource.class.id}`}
                 className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium text-primary-text bg-primary-surface hover:bg-primary/20 transition-colors duration-150"
               >
-                {resource.class.title}
+                {displayResource.class.title}
               </Link>
             ) : null}
           </div>
@@ -383,22 +397,22 @@ export function ResourceDetailClient({
         <div className="flex items-center justify-between border-b border-hairline/70 bg-card/90 px-5 py-3 backdrop-blur-xs">
           <div className="flex min-w-0 items-center gap-2.5">
             <FileTypeIcon className="size-4 shrink-0 text-muted-foreground" />
-            <span className="min-w-0 truncate text-sm font-semibold text-foreground">{resource.fileName}</span>
+            <span className="min-w-0 truncate text-sm font-semibold text-foreground">{displayResource.fileName}</span>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <StatusBadge tone={fileInfo.tone} className="font-bold text-[11px]">
-              {resource.fileType.toUpperCase()}
+              {displayResource.fileType.toUpperCase()}
             </StatusBadge>
           </div>
         </div>
 
         {/* Preview body */}
-        {canPreview(resource.fileType) ? (
+        {canPreview(displayResource.fileType) ? (
           <iframe
-            src={resource.fileUrl}
+            src={displayResource.fileUrl}
             className="w-full border-0 bg-surface-sunken"
             style={{ minHeight: "calc(100dvh - 20rem)", height: "70vh" }}
-            title={resource.fileName}
+            title={displayResource.fileName}
           />
         ) : (
           <div className="flex min-h-[20rem] flex-col items-center justify-center p-6 sm:min-h-[28rem] sm:p-8">
@@ -437,7 +451,7 @@ export function ResourceDetailClient({
               disabled={!title.trim()}
               className="rounded-xl font-semibold shadow-2xs"
             >
-              {pending ? "Saving..." : "Save changes"}
+              Save changes
             </Button>
           </>
         }
@@ -506,23 +520,20 @@ export function ResourceDetailClient({
           </AlertDialogHeader>
 
           <Callout tone="danger" icon={<Trash2 className="size-4" />} className="text-xs">
-            Are you sure you want to delete <strong>{resource.title}</strong> from UpClass?
+            Are you sure you want to delete <strong>{displayResource.title}</strong> from UpClass?
           </Callout>
 
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletePending}>
-              Cancel
-            </AlertDialogCancel>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={(event) => {
                 event.preventDefault()
                 handleDelete()
               }}
-              disabled={deletePending}
             >
               <Trash2 className="size-4" aria-hidden="true" />
-              {deletePending ? "Deleting..." : "Delete resource"}
+              Delete resource
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

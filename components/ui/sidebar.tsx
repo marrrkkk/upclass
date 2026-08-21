@@ -356,7 +356,7 @@ function SidebarGroupLabel({
       data-slot="sidebar-group-label"
       data-sidebar="group-label"
       className={cn(
-        "flex h-7 shrink-0 items-center px-2.5 text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground/60 transition-[margin,opacity] duration-200 group-data-[collapsible=icon]:-mt-7 group-data-[collapsible=icon]:opacity-0",
+        "flex h-7 shrink-0 items-center px-2 text-[11px] font-medium tracking-normal text-muted-foreground/80 transition-[margin,opacity] duration-200 group-data-[collapsible=icon]:-mt-7 group-data-[collapsible=icon]:opacity-0",
         className,
       )}
       {...props}
@@ -420,7 +420,7 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
 }
 
 const sidebarMenuButtonVariants = cva(
-  "focus-ring peer/menu-button flex w-full items-center gap-2.5 overflow-hidden rounded-[var(--radius-buttons)] px-2.5 text-left text-[13.5px] font-medium transition-[width,height,padding,color,background-color,border-color,box-shadow] duration-150 group-data-[collapsible=icon]:size-9! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0! text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground data-[active=true]:bg-primary/10 data-[active=true]:text-primary-text data-[active=true]:font-semibold data-[active=true]:border data-[active=true]:border-primary/20 dark:data-[active=true]:bg-primary/15 dark:data-[active=true]:border-primary/30 [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:stroke-[2]",
+  "focus-ring peer/menu-button flex w-full items-center gap-2.5 overflow-hidden rounded-lg px-2.5 text-left text-[13px] font-medium transition-[width,height,padding,color,background-color] duration-150 group-data-[collapsible=icon]:size-9! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0! text-foreground/80 hover:bg-muted hover:text-foreground data-[active=true]:bg-muted data-[active=true]:text-foreground data-[active=true]:font-semibold [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:stroke-[1.75]",
   {
     variants: {
       size: {

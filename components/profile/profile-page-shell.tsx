@@ -7,7 +7,7 @@ import { PageContainer } from "@/components/ui/section"
 export function ProfilePageShell({ children }: { children: React.ReactNode }) {
   return (
     <PageContainer width="content">
-      <section aria-label="Profile content">{children}</section>
+      <section aria-label="Profile content" className="space-y-5 sm:space-y-6">{children}</section>
     </PageContainer>
   )
 }

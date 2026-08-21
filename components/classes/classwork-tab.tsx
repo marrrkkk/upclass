@@ -34,6 +34,7 @@ import { Panel } from "@/components/ui/panel"
 import { Text } from "@/components/ui/typography"
 import { Textarea } from "@/components/ui/textarea"
 import { useClassworkRealtime } from "@/hooks/classes/use-classwork-realtime"
+import { useOptimisticMutation } from "@/hooks/use-optimistic-mutation"
 import { executeWithOfflineHandling } from "@/lib/offline-action-handler"
 import type { ClassworkData, SubmissionData } from "@/types/classes"
 
@@ -46,21 +47,22 @@ type ClassworkTabProps = {
   classColor: string
 }
 
+/** Client-only marker for classwork that exists only in this local list. */
+type ClassworkItem = ClassworkData & { tempId?: string; pending?: boolean }
+
 export function ClassworkTab({ classId, userId, userRole, classwork, submissions, classColor }: ClassworkTabProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [classworkItems, setClassworkItems] = useState(classwork)
+  const [classworkItems, setClassworkItems] = useState<ClassworkItem[]>(classwork)
   const [submissionItems, setSubmissionItems] = useState(submissions)
   const [createOpen, setCreateOpen] = useState(
     () => userRole === "teacher" && searchParams?.get("create") === "1",
   )
   const [error, setError] = useState<string | null>(null)
-  const [pending, startTransition] = useTransition()
+  const [submissionPending, startSubmissionTransition] = useTransition()
   const [editClassworkOpen, setEditClassworkOpen] = useState<string | null>(null)
   const [deleteClassworkOpen, setDeleteClassworkOpen] = useState<string | null>(null)
-  const [editPending, startEditTransition] = useTransition()
-  const [deletePending, startDeleteTransition] = useTransition()
-  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const { mutate, pending } = useOptimisticMutation<ClassworkItem[]>(classworkItems, setClassworkItems)
 
   useEffect(() => {
     setClassworkItems(classwork)
@@ -165,46 +167,67 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
     },
   })
 
-  const handleCreateClasswork = async (formData: FormData) => {
+  const handleCreateClasswork = (formData: FormData) => {
     setError(null)
 
-    startTransition(async () => {
-      const result = await executeWithOfflineHandling(
-        () => createClasswork(classId, formData),
-        "create-classwork",
-        {
-          classId,
-          title: String(formData.get("title") || ""),
-          description: String(formData.get("description") || ""),
-          type:
-            String(formData.get("type") || "") === "material" ||
-            String(formData.get("type") || "") === "quiz"
-              ? (String(formData.get("type")) as "material" | "quiz")
-              : "assignment",
-          dueDate: String(formData.get("dueDate") || ""),
-          points: String(formData.get("points") || ""),
+    const title = String(formData.get("title") || "").trim()
+    const type =
+      String(formData.get("type") || "") === "material" ||
+      String(formData.get("type") || "") === "quiz"
+        ? (String(formData.get("type")) as "material" | "quiz")
+        : "assignment"
+    const tempId = `classwork-${crypto.randomUUID()}`
+    const optimisticItem: ClassworkItem = {
+      id: tempId,
+      tempId,
+      pending: true,
+      title,
+      description: String(formData.get("description") || "") || null,
+      type,
+      dueDate: String(formData.get("dueDate") || "") || null,
+      points: String(formData.get("points") || "") || null,
+      createdAt: new Date().toISOString(),
+    }
+
+    void mutate(
+      (previous) => [optimisticItem, ...previous],
+      () => createClasswork(classId, formData),
+      {
+        offline: {
+          type: "create-classwork",
+          payload: {
+            classId,
+            title,
+            description: optimisticItem.description ?? "",
+            type,
+            dueDate: optimisticItem.dueDate ?? "",
+            points: optimisticItem.points ?? "",
+            tempId,
+          },
         },
-      )
+        queued: {
+          tempId,
+          remove: (current) => current.filter((item) => item.tempId !== tempId),
+        },
+        onSuccess: (_result, current) => {
+          // Classwork returns no ID, so drop the placeholder and let the
+          // server refresh/realtime bring in the real row.
+          setCreateOpen(false)
+          router.refresh()
+          return current.filter((item) => item.tempId !== tempId)
+        },
+        onError: (_message, current) => current.filter((item) => item.tempId !== tempId),
+      },
+    )
 
-      if (result.queued) {
-        setError("Action queued. It will be synced when you're back online.")
-        setTimeout(() => setCreateOpen(false), 2000)
-        return
-      }
-
-      if (!result.success) {
-        setError(result.error || "Failed to create classwork")
-        return
-      }
-
-      setCreateOpen(false)
-    })
+    // The optimistic item is already in the list: close immediately.
+    setCreateOpen(false)
   }
 
   const handleSubmit = async (classworkId: string, formData: FormData) => {
     setError(null)
 
-    startTransition(async () => {
+    startSubmissionTransition(async () => {
       const result = await executeWithOfflineHandling(
         () => submitClasswork(classworkId, formData),
         "submit-classwork",
@@ -232,7 +255,7 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
 
   const handleGrade = async (submissionId: string, formData: FormData) => {
     setError(null)
-    startTransition(async () => {
+    startSubmissionTransition(async () => {
       const result = await gradeSubmission(submissionId, formData)
       if (!result.success) {
         setError(result.error)
@@ -243,33 +266,46 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
     })
   }
 
-  const handleEditClasswork = async (classworkId: string, formData: FormData) => {
-    startEditTransition(async () => {
-      const result = await updateClasswork(classworkId, formData)
-      if (!result.success) {
-        setError(result.error)
-        return
-      }
+  const handleEditClasswork = (classworkId: string, formData: FormData) => {
+    setError(null)
 
-      setEditClassworkOpen(null)
-      router.refresh()
-    })
+    void mutate(
+      (previous) =>
+        previous.map((item) =>
+          item.id === classworkId
+            ? {
+                ...item,
+                title: String(formData.get("title") || "").trim(),
+                description: String(formData.get("description") || "") || null,
+                dueDate: String(formData.get("dueDate") || "") || null,
+                points: String(formData.get("points") || "") || null,
+              }
+            : item,
+        ),
+      () => updateClasswork(classworkId, formData),
+      {
+        onSuccess: (_result, current) => {
+          setEditClassworkOpen(null)
+          router.refresh()
+          return current
+        },
+      },
+    )
   }
 
-  const handleDeleteClasswork = async (classworkId: string) => {
-    setDeletingId(classworkId)
+  const handleDeleteClasswork = (classworkId: string) => {
     setDeleteClassworkOpen(null)
-    startDeleteTransition(async () => {
-      const result = await deleteClasswork(classworkId)
-      if (!result.success) {
-        setError(result.error)
-        setDeletingId(null)
-        return
-      }
 
-      router.refresh()
-      setDeletingId(null)
-    })
+    void mutate(
+      (previous) => previous.filter((item) => item.id !== classworkId),
+      () => deleteClasswork(classworkId),
+      {
+        onSuccess: (_result, current) => {
+          router.refresh()
+          return current
+        },
+      },
+    )
   }
 
   const getSubmissionForClasswork = (classworkId: string) =>
@@ -313,10 +349,10 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
               allSubmissions={getSubmissionsForClasswork(item.id)}
               classColor={classColor}
               classId={classId}
-              deleting={deletingId === item.id}
+              deleting={false}
               error={error}
               item={item}
-              pending={pending}
+              pending={submissionPending}
               submission={getSubmissionForClasswork(item.id)}
               userRole={userRole}
               onDelete={() => setDeleteClassworkOpen(item.id)}
@@ -347,8 +383,8 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
             footer={
               <>
                 <Button type="button" variant="ghost" onClick={() => setEditClassworkOpen(null)}>Cancel</Button>
-                <Button type="submit" form="edit-classwork-form" disabled={editPending}>
-                  {editPending ? "Saving..." : "Save"}
+                <Button type="submit" form="edit-classwork-form" isLoading={pending} disabled={pending}>
+                  Save
                 </Button>
               </>
             }
@@ -410,14 +446,14 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
                 </Text>
               </Callout>
               <AlertDialogFooter>
-                <AlertDialogCancel disabled={deletePending}>Cancel</AlertDialogCancel>
+                <AlertDialogCancel disabled={pending}>Cancel</AlertDialogCancel>
                 <AlertDialogAction
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   onClick={() => handleDeleteClasswork(item.id)}
-                  disabled={deletePending}
+                  disabled={pending}
                 >
                   <Trash2 aria-hidden="true" />
-                  {deletePending ? "Deleting..." : "Delete"}
+                  Delete
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

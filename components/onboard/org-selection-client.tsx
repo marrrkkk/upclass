@@ -5,14 +5,17 @@ import { useRouter } from "next/navigation"
 
 import { OrgJoinForm } from "@/components/onboard/org-join-form"
 import { OrgOnboardingAside } from "@/components/onboard/org-onboarding-aside"
-import { OrgOnboardingShell } from "@/components/onboard/org-onboarding-shell"
+import {
+  OrgOnboardingShell,
+  type OrgShellViewer,
+} from "@/components/onboard/org-onboarding-shell"
 import { OrgWorkspaceList } from "@/components/onboard/org-workspace-list"
 import type { OrganizationSummary } from "@/types/organization"
 
 export type OrgOnboardingMode = "select" | "create" | "join"
 
 type OrgSelectionClientProps = {
-  initialData?: { name?: string | null; email?: string | null }
+  initialData?: OrgShellViewer
   userOrganizations?: OrganizationSummary[]
   initialMode?: OrgOnboardingMode
   /** Invite token from `?token=`, forwarded from an invite link. */
@@ -86,7 +89,7 @@ export function OrgSelectionClient({
   )
 
   return (
-    <OrgOnboardingShell width="content">
+    <OrgOnboardingShell width="content" viewer={initialData}>
       {mode === "select" ? (
         <OrgWorkspaceList
           organizations={userOrganizations}

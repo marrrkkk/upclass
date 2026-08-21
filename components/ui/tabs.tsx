@@ -18,7 +18,7 @@ const tabsListVariants = cva("inline-flex items-center", {
 })
 
 const tabsTriggerVariants = cva(
-  "focus-ring inline-flex cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap type-small font-medium transition-[color,background-color,border-color,box-shadow] duration-200 ease-out disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-3.5 [&_svg]:shrink-0",
+  "focus-ring inline-flex cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap type-small font-medium transition-[color,background-color,border-color,box-shadow] duration-[var(--duration-base)] ease-out-expo disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-3.5 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
@@ -49,7 +49,7 @@ function TabsTrigger({ className, variant, ...props }: React.ComponentProps<type
 }
 
 function TabsContent({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.Content>) {
-  return <TabsPrimitive.Content data-slot="tabs-content" className={cn("flex-1 outline-none data-[state=active]:animate-fade", className)} {...props} />
+  return <TabsPrimitive.Content data-slot="tabs-content" className={cn("flex-1 outline-none data-[state=active]:motion-fade", className)} {...props} />
 }
 
 export { Tabs, TabsList, TabsTrigger, TabsContent, tabsListVariants, tabsTriggerVariants }

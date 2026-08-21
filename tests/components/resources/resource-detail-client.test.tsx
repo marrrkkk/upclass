@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
 import { ResourceDetailClient } from "@/components/resources/resource-detail-client"
+import { ToastProvider } from "@/components/ui/toast"
 
 const mocks = vi.hoisted(() => ({
   deleteResource: vi.fn(),
@@ -58,7 +59,11 @@ describe("ResourceDetailClient", () => {
     const user = userEvent.setup()
     const openSpy = vi.spyOn(window, "open").mockImplementation(() => null)
 
-    render(<ResourceDetailClient resource={resource} isOwner orgSlug="academy" />)
+    render(
+      <ToastProvider>
+        <ResourceDetailClient resource={resource} isOwner orgSlug="academy" />
+      </ToastProvider>,
+    )
 
     expect(screen.getByText("Limits, derivatives, and proofs")).toHaveClass(
       "whitespace-pre-wrap",
@@ -84,16 +89,18 @@ describe("ResourceDetailClient", () => {
 
   it("keeps one canonical download action and hides mutation controls from non-owners", () => {
     render(
-      <ResourceDetailClient
-        resource={{
-          ...resource,
-          fileName: "seminar-slides.pptx",
-          fileType: "pptx",
-          fileUrl: "https://files.example/seminar.pptx",
-        }}
-        isOwner={false}
-        orgSlug="academy"
-      />,
+      <ToastProvider>
+        <ResourceDetailClient
+          resource={{
+            ...resource,
+            fileName: "seminar-slides.pptx",
+            fileType: "pptx",
+            fileUrl: "https://files.example/seminar.pptx",
+          }}
+          isOwner={false}
+          orgSlug="academy"
+        />
+      </ToastProvider>,
     )
 
     expect(screen.getByText("Preview unavailable")).toBeInTheDocument()
@@ -103,11 +110,15 @@ describe("ResourceDetailClient", () => {
     expect(screen.queryByRole("button", { name: "Delete Calculus reference" })).not.toBeInTheDocument()
   })
 
-  it("keeps edit action errors visible in the dialog", async () => {
+it("keeps edit action errors visible in the dialog", async () => {
     const user = userEvent.setup()
     mocks.updateResource.mockResolvedValue({ success: false, error: "Unable to save resource" })
 
-    render(<ResourceDetailClient resource={resource} isOwner orgSlug="academy" />)
+    render(
+      <ToastProvider>
+        <ResourceDetailClient resource={resource} isOwner orgSlug="academy" />
+      </ToastProvider>,
+    )
 
     await user.click(screen.getByRole("button", { name: "More actions" }))
     await user.click(await screen.findByRole("menuitem", { name: "Edit resource" }))
@@ -115,11 +126,32 @@ describe("ResourceDetailClient", () => {
     await user.type(screen.getByLabelText("Title"), "Updated calculus reference")
     await user.click(screen.getByRole("button", { name: "Save changes" }))
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Unable to save resource")
+    await waitFor(
+      () => {
+        expect(screen.getByText("Couldn't save changes")).toBeInTheDocument()
+        expect(screen.getByText("Unable to save resource")).toBeInTheDocument()
+      },
+      { timeout: 10_000 },
+    )
     await waitFor(() => expect(mocks.updateResource).toHaveBeenCalledOnce())
 
     const formData = mocks.updateResource.mock.calls[0][0] as FormData
     expect(formData.get("id")).toBe("resource-1")
     expect(formData.get("title")).toBe("Updated calculus reference")
-  })
+
+    // The optimistic change rolls back on failure (dialog stays open for retry).
+    await waitFor(
+      () => {
+        expect(screen.getByRole("button", { name: "Save changes" })).not.toHaveAttribute(
+          "data-loading",
+        )
+      },
+      { timeout: 10_000 },
+    )
+    await user.click(screen.getByRole("button", { name: "Cancel" }))
+expect(
+      screen.getByRole("heading", { name: "Calculus reference", level: 1 }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText("Updated calculus reference")).not.toBeInTheDocument()
+  }, 15_000)
 })

@@ -42,6 +42,7 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -365,9 +366,12 @@ export function SettingsClient({ userData }: SettingsClientProps) {
 
   const memberSince = formatMemberSince(userData.createdAt)
   const notificationStatus = permissionStatus(notificationPermission)
+  const roleLabel = userData.role
+    ? userData.role.charAt(0).toUpperCase() + userData.role.slice(1)
+    : "Not set"
 
   return (
-    <>
+    <div className="flex flex-col gap-4">
       {error ? (
         <Callout tone="danger" role="alert">
           {error}
@@ -375,34 +379,35 @@ export function SettingsClient({ userData }: SettingsClientProps) {
       ) : null}
       {success ? <Callout tone="success">{success}</Callout> : null}
 
-      <Tabs
-        value={activeTab}
-        onValueChange={(value) => setActiveTab(value as SettingsTab)}
-        variant="solid"
-        className="space-y-5"
-      >
-        <TabsList aria-label="Settings sections" className="scroll-x-region">
-          <TabsTrigger value="profile">
-            <User aria-hidden="true" />
-            Profile
-          </TabsTrigger>
-          <TabsTrigger value="notifications">
-            <Bell aria-hidden="true" />
-            Notifications
-          </TabsTrigger>
-          <TabsTrigger value="privacy">
-            <Lock aria-hidden="true" />
-            Privacy
-          </TabsTrigger>
-          <TabsTrigger value="app">
-            <Smartphone aria-hidden="true" />
-            App
-          </TabsTrigger>
-          <TabsTrigger value="account">
-            <Shield aria-hidden="true" />
-            Account
-          </TabsTrigger>
-        </TabsList>
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_17.5rem] lg:gap-6">
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) => setActiveTab(value as SettingsTab)}
+          variant="line"
+          className="min-w-0 gap-4"
+        >
+          <TabsList aria-label="Settings sections" className="scroll-x-region -mx-1 px-1 sm:mx-0 sm:px-0">
+            <TabsTrigger value="profile" className="px-3">
+              <User />
+              Profile
+            </TabsTrigger>
+            <TabsTrigger value="notifications" className="px-3">
+              <Bell />
+              Notifications
+            </TabsTrigger>
+            <TabsTrigger value="privacy" className="px-3">
+              <Lock />
+              Privacy
+            </TabsTrigger>
+            <TabsTrigger value="app" className="px-3">
+              <Smartphone />
+              App
+            </TabsTrigger>
+            <TabsTrigger value="account" className="px-3">
+              <Shield />
+              Account
+            </TabsTrigger>
+          </TabsList>
 
         <TabsContent value="profile">
           <Panel padding="none">
@@ -412,8 +417,8 @@ export function SettingsClient({ userData }: SettingsClientProps) {
                 <PanelDescription>Update the identity shown across UpClass.</PanelDescription>
               </PanelHeading>
             </PanelHeader>
-            <PanelBody className="space-y-6">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <PanelBody className="flex flex-col gap-6">
+              <div className="flex flex-col gap-4 rounded-[var(--radius-cards)] bg-surface-subtle p-4 sm:flex-row sm:items-center">
                 <EntityAvatar
                   name={name || currentUserData.name}
                   image={imageUrl || null}
@@ -433,7 +438,7 @@ export function SettingsClient({ userData }: SettingsClientProps) {
                     size="sm"
                     onClick={() => fileInputRef.current?.click()}
                   >
-                    <Camera aria-hidden="true" />
+                    <Camera data-icon="inline-start" />
                     Upload
                   </Button>
                   {imageUrl ? (
@@ -497,7 +502,7 @@ export function SettingsClient({ userData }: SettingsClientProps) {
                 isLoading={pending || isUploading}
                 disabled={!name.trim()}
               >
-                {pending || isUploading ? "Saving" : "Save profile"}
+                Save profile
               </Button>
             </PanelFooter>
           </Panel>
@@ -543,7 +548,7 @@ export function SettingsClient({ userData }: SettingsClientProps) {
             </div>
             <PanelFooter className="sm:justify-end">
               <Button type="button" onClick={handleSaveNotifications} isLoading={pending}>
-                {pending ? "Saving" : "Save notifications"}
+                Save notifications
               </Button>
             </PanelFooter>
           </Panel>
@@ -565,24 +570,26 @@ export function SettingsClient({ userData }: SettingsClientProps) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="public">
-                      <span className="flex items-center gap-2">
-                        <Globe aria-hidden="true" className="size-4 text-muted-foreground" />
-                        Public
-                      </span>
-                    </SelectItem>
-                    <SelectItem value="contacts">
-                      <span className="flex items-center gap-2">
-                        <User aria-hidden="true" className="size-4 text-muted-foreground" />
-                        Contacts only
-                      </span>
-                    </SelectItem>
-                    <SelectItem value="private">
-                      <span className="flex items-center gap-2">
-                        <Lock aria-hidden="true" className="size-4 text-muted-foreground" />
-                        Private
-                      </span>
-                    </SelectItem>
+                    <SelectGroup>
+                      <SelectItem value="public">
+                        <span className="flex items-center gap-2">
+                          <Globe aria-hidden="true" />
+                          Public
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="contacts">
+                        <span className="flex items-center gap-2">
+                          <User aria-hidden="true" />
+                          Contacts only
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="private">
+                        <span className="flex items-center gap-2">
+                          <Lock aria-hidden="true" />
+                          Private
+                        </span>
+                      </SelectItem>
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
                 <FieldHelp>
@@ -615,13 +622,13 @@ export function SettingsClient({ userData }: SettingsClientProps) {
             </div>
             <PanelFooter className="sm:justify-end">
               <Button type="button" onClick={handleSavePrivacy} isLoading={pending}>
-                {pending ? "Saving" : "Save privacy"}
+                Save privacy
               </Button>
             </PanelFooter>
           </Panel>
         </TabsContent>
 
-        <TabsContent value="app" className="space-y-5">
+        <TabsContent value="app" className="flex flex-col gap-4">
           <StatGroup columns={4}>
             <StatTile
               label="Connection"
@@ -647,7 +654,7 @@ export function SettingsClient({ userData }: SettingsClientProps) {
                 {pwaState.online ? "Connected" : "Offline"}
               </StatusBadge>
             </PanelHeader>
-            <PanelBody className="space-y-2">
+            <PanelBody className="flex flex-col gap-2">
               <Text variant="small" tone="muted">
                 Last sync: {pwaState.lastSyncAt ? new Date(pwaState.lastSyncAt).toLocaleString() : "None"}
               </Text>
@@ -660,20 +667,22 @@ export function SettingsClient({ userData }: SettingsClientProps) {
                 type="button"
                 variant="outline"
                 onClick={handleWarmOfflineCache}
+                isLoading={appActionPending === "cache"}
                 disabled={appActionPending !== null}
               >
-                <RefreshCw aria-hidden="true" />
-                {appActionPending === "cache" ? "Warming" : "Warm core routes"}
+                <RefreshCw data-icon="inline-start" />
+                Warm core routes
               </Button>
               <Button
                 type="button"
                 variant="outline"
                 onClick={handleClearLocalCache}
+                isLoading={appActionPending === "clear"}
                 disabled={appActionPending !== null}
                 className="border-destructive-border text-destructive-text hover:bg-destructive-surface hover:text-destructive-text"
               >
-                <Database aria-hidden="true" />
-                {appActionPending === "clear" ? "Clearing" : "Clear device cache"}
+                <Database data-icon="inline-start" />
+                Clear device cache
               </Button>
             </PanelFooter>
           </Panel>
@@ -703,20 +712,21 @@ export function SettingsClient({ userData }: SettingsClientProps) {
                   type="button"
                   size="sm"
                   onClick={handleEnableBrowserNotifications}
+                  isLoading={appActionPending === "permission"}
                   disabled={
                     appActionPending !== null ||
                     notificationPermission === "granted" ||
                     notificationPermission === "unsupported"
                   }
                 >
-                  {appActionPending === "permission" ? "Checking" : "Enable"}
+                  Enable
                 </Button>
               }
             />
           </Panel>
         </TabsContent>
 
-        <TabsContent value="account" className="space-y-5">
+        <TabsContent value="account" className="flex flex-col gap-4">
           <Panel padding="none">
             <PanelHeader>
               <PanelHeading>
@@ -748,7 +758,7 @@ export function SettingsClient({ userData }: SettingsClientProps) {
                 <PanelDescription>Permanently removes this account and its content.</PanelDescription>
               </PanelHeading>
             </PanelHeader>
-            <PanelBody className="space-y-5">
+            <PanelBody className="flex flex-col gap-5">
               <Callout tone="warning">
                 This action cannot be undone. Type DELETE before continuing.
               </Callout>
@@ -770,12 +780,59 @@ export function SettingsClient({ userData }: SettingsClientProps) {
                 isLoading={pending}
                 disabled={deleteConfirm !== "DELETE"}
               >
-                {pending ? "Deleting" : "Delete account"}
+                Delete account
               </Button>
             </PanelFooter>
           </Panel>
         </TabsContent>
-      </Tabs>
+        </Tabs>
+
+        <aside
+          aria-labelledby="settings-account-title"
+          className="lg:sticky lg:top-[calc(var(--app-header-height)+1.25rem)]"
+        >
+          <Panel padding="none" className="overflow-hidden">
+            <PanelHeader className="border-b border-hairline px-4 py-3.5">
+              <PanelHeading>
+                <Text variant="overline" tone="muted">
+                  Signed in
+                </Text>
+                <PanelTitle id="settings-account-title" className="mt-1">
+                  Your account
+                </PanelTitle>
+                <PanelDescription>This identity is used across the workspace.</PanelDescription>
+              </PanelHeading>
+            </PanelHeader>
+            <PanelBody className="flex flex-col gap-4 p-4">
+              <div className="flex items-center gap-3">
+                <EntityAvatar
+                  name={name || currentUserData.name}
+                  image={imageUrl || null}
+                  colorKey={currentUserData.id}
+                  size="lg"
+                  shape="square"
+                />
+                <div className="min-w-0">
+                  <Text variant="h4" className="truncate">
+                    {name || currentUserData.name}
+                  </Text>
+                  <Text variant="caption" tone="muted" className="truncate">
+                    {userData.email}
+                  </Text>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusBadge tone="info" size="sm">
+                  {roleLabel}
+                </StatusBadge>
+                <Text variant="caption" tone="subtle">
+                  Member since {memberSince}
+                </Text>
+              </div>
+            </PanelBody>
+          </Panel>
+        </aside>
+      </div>
 
       {cropModalOpen ? (
         <ImageCropper
@@ -785,7 +842,7 @@ export function SettingsClient({ userData }: SettingsClientProps) {
           onComplete={handleCropComplete}
         />
       ) : null}
-    </>
+    </div>
   )
 }
 

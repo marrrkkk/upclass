@@ -23,8 +23,7 @@ type SidebarNavLinkProps = Omit<ComponentProps<typeof Link>, "children"> & {
 /**
  * Primary sidebar destination row.
  *
- * Active state highlights with a refined tinted background, border, bold typography,
- * and an accented icon.
+ * Active state uses a quiet fill. Labels stay regular weight.
  *
  * Prefetching is left to `next/link` (enabled by default), so the route is
  * ready in the router cache by the time it is clicked.
@@ -50,8 +49,7 @@ export function SidebarNavLink({
         isActive={active}
         tooltip={label}
         className={cn(
-          "group/nav-link",
-          active && "font-semibold shadow-2xs",
+          "group/nav-link font-medium",
           isCollapsed && "justify-center",
           className,
         )}
@@ -69,10 +67,10 @@ export function SidebarNavLink({
           <span
             aria-hidden="true"
             className={cn(
-              "flex size-7 shrink-0 items-center justify-center rounded-md transition-colors [&>svg]:size-4 [&>svg]:stroke-[2]",
+              "flex size-4 shrink-0 items-center justify-center [&>svg]:size-4 [&>svg]:stroke-[1.75]",
               active
-                ? "bg-primary/10 text-primary [&>svg]:text-primary"
-                : "text-muted-foreground/75 group-hover/nav-link:bg-sidebar-accent/70 group-hover/nav-link:text-foreground",
+                ? "text-foreground"
+                : "text-muted-foreground group-hover/nav-link:text-foreground",
             )}
           >
             {icon}
@@ -81,10 +79,10 @@ export function SidebarNavLink({
             <span className="min-w-0 flex-1">
               <span
                 className={cn(
-                  "block truncate text-[13.5px] tracking-[-0.01em]",
+                  "block truncate text-[13px] tracking-normal",
                   active
                     ? "font-semibold text-foreground"
-                    : "font-semibold text-foreground/80 group-hover/nav-link:text-foreground",
+                    : "font-medium text-foreground/80 group-hover/nav-link:text-foreground",
                 )}
               >
                 {label}

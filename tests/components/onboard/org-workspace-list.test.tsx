@@ -79,8 +79,9 @@ describe("workspace launcher", () => {
     render(<OrgOnboardingSkeleton />)
 
     const main = screen.getByRole("main")
-    const contentColumn = main.querySelector(".max-w-\\[72rem\\]")
+    const contentColumn = main.querySelector('[data-slot="page-container"]')
     expect(contentColumn).not.toBeNull()
+    expect(contentColumn?.className).toContain("max-w-[72rem]")
     expect(main.querySelector(".max-w-\\[34rem\\]")).toBeNull()
   })
 })

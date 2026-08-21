@@ -5,6 +5,7 @@ import {
   NotificationsClient,
   type NotificationData,
 } from "@/components/notifications/notifications-client"
+import { ToastProvider } from "@/components/ui/toast"
 
 const notificationActions = vi.hoisted(() => ({
   markAll: vi.fn(),
@@ -62,24 +63,30 @@ const notifications: NotificationData[] = [
   },
 ]
 
+function renderNotifications(notificationsToRender: NotificationData[]) {
+  return render(
+    <ToastProvider>
+      <NotificationsClient
+        notifications={notificationsToRender}
+        userId="user-1"
+        showHeader={false}
+      />
+    </ToastProvider>,
+  )
+}
+
 describe("NotificationsClient", () => {
   beforeEach(() => {
     Object.defineProperty(window.navigator, "onLine", {
       configurable: true,
       value: true,
     })
-    notificationActions.markOne.mockResolvedValue(undefined)
-    notificationActions.markAll.mockResolvedValue(undefined)
+    notificationActions.markOne.mockResolvedValue({ success: true })
+    notificationActions.markAll.mockResolvedValue({ success: true })
   })
 
   it("keeps notification order and tenant-aware class targets", async () => {
-    render(
-      <NotificationsClient
-        notifications={notifications}
-        userId="user-1"
-        showHeader={false}
-      />,
-    )
+    renderNotifications(notifications)
 
     const list = await screen.findByRole("list", { name: "Notifications" })
     const rows = within(list).getAllByRole("listitem")
@@ -98,16 +105,9 @@ describe("NotificationsClient", () => {
     expect(within(rows[1]).getByText("Read")).toBeInTheDocument()
   })
 
-  it("marks one unread notification only after its action succeeds", async () => {
+  it("marks one unread notification optimistically and keeps the server action in flight", async () => {
     const user = userEvent.setup()
-
-    render(
-      <NotificationsClient
-        notifications={notifications}
-        userId="user-1"
-        showHeader={false}
-      />,
-    )
+    renderNotifications(notifications)
 
     await user.click(
       await screen.findByRole("button", { name: "Mark New assignment posted as read" }),
@@ -119,6 +119,25 @@ describe("NotificationsClient", () => {
     })
   })
 
+  it("rolls back a failed mark-as-read and surfaces the error", async () => {
+    const user = userEvent.setup()
+    notificationActions.markOne.mockResolvedValue({
+      success: false,
+      error: "Notification not found",
+    })
+    renderNotifications(notifications)
+
+    await user.click(
+      await screen.findByRole("button", { name: "Mark New assignment posted as read" }),
+    )
+
+    expect(await screen.findByText("Couldn't save changes")).toBeInTheDocument()
+    expect(screen.getByText("Notification not found")).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getAllByText("Unread")).toHaveLength(1)
+    })
+  })
+
   it("marks every unread notification as read", async () => {
     const user = userEvent.setup()
     const allUnread = notifications.map((notification) => ({
@@ -126,13 +145,7 @@ describe("NotificationsClient", () => {
       read: false,
     }))
 
-    render(
-      <NotificationsClient
-        notifications={allUnread}
-        userId="user-1"
-        showHeader={false}
-      />,
-    )
+    renderNotifications(allUnread)
 
     await user.click(await screen.findByRole("button", { name: "Mark all read" }))
 
@@ -144,13 +157,7 @@ describe("NotificationsClient", () => {
   })
 
   it("shows the shared empty state when there are no notifications", async () => {
-    render(
-      <NotificationsClient
-        notifications={[]}
-        userId="user-1"
-        showHeader={false}
-      />,
-    )
+    renderNotifications([])
 
     expect(await screen.findByText("All caught up")).toBeInTheDocument()
     expect(screen.getByText(/new class updates will appear here/i)).toBeInTheDocument()

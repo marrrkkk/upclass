@@ -664,9 +664,9 @@ export function QuizTab({ classId, userRole, quizzes, classColor }: QuizTabProps
               </Callout>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setDeleteQuizOpen(null)} disabled={deletePending}>Cancel</Button>
-                <Button type="button" variant="destructive" onClick={() => handleDeleteQuiz(quiz.id)} disabled={deletePending}>
+                <Button type="button" variant="destructive" onClick={() => handleDeleteQuiz(quiz.id)} isLoading={deletePending} disabled={deletePending}>
                   <Trash2 aria-hidden="true" />
-                  {deletePending ? "Deleting..." : "Delete"}
+                  Delete
                 </Button>
               </DialogFooter>
             </DialogContent>

@@ -72,9 +72,10 @@ export function AnnouncementComposer({
               form="announcement-form"
               type="submit"
               className="h-9 rounded-lg font-semibold"
+              isLoading={pending}
               disabled={pending}
             >
-              {pending ? "Posting..." : "Post announcement"}
+              Post announcement
             </Button>
           </>
         }

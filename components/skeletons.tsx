@@ -578,12 +578,12 @@ export function MessagesContentSkeleton() {
 
 export function SettingsSkeleton() {
     return (
-        <div className="max-w-6xl mx-auto flex flex-col gap-8 pb-10">
-            <div className="flex flex-col gap-1">
-                <Skeleton className="h-9 w-32 mb-2" />
-                <Skeleton className="h-6 w-96" />
+        <div className="mx-auto flex w-full max-w-[72rem] flex-col gap-6 px-4 py-6 sm:gap-8 sm:px-6 sm:py-8">
+            <div className="flex flex-col gap-2">
+                <Skeleton className="h-3 w-16 rounded" />
+                <Skeleton className="h-8 w-32 rounded-lg" />
+                <Skeleton className="h-4 w-80 max-w-full rounded" />
             </div>
-
             <SettingsBodySkeleton />
         </div>
     )
@@ -591,63 +591,61 @@ export function SettingsSkeleton() {
 
 export function SettingsBodySkeleton() {
     return (
-        <div className="flex flex-col gap-8">
-            {/* Horizontal Tabs Skeleton */}
-            <div className="border-b">
-                <div className="flex gap-4 px-2">
-                    {Array.from({ length: 6 }).map((_, i) => (
-                        <div key={i} className="px-4 py-3 border-b-2 border-transparent">
-                            <Skeleton className="h-5 w-24" />
-                        </div>
+        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_17.5rem] lg:gap-6">
+            <div className="flex min-w-0 flex-col gap-4">
+                <div className="flex gap-4 overflow-x-auto border-b border-hairline pb-3">
+                    {Array.from({ length: 5 }).map((_, index) => (
+                        <Skeleton key={index} className="h-4 w-20 shrink-0" />
                     ))}
                 </div>
-            </div>
-
-            {/* Content Area Skeleton (Profile Style) */}
-            <div className="space-y-6">
-                <Card className="border-border/50">
-                    <CardHeader className="space-y-2">
-                        <Skeleton className="h-7 w-48" />
-                        <Skeleton className="h-4 w-64" />
-                    </CardHeader>
-                    <CardContent className="space-y-8">
-                        {/* Avatar Section */}
-                        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 pt-2">
-                            <Skeleton className="h-28 w-28 rounded-full border-4 border-background" />
-                            <div className="space-y-4 flex-1 w-full flex flex-col items-center sm:items-start">
-                                <div className="space-y-2 text-center sm:text-left w-full">
-                                    <Skeleton className="h-6 w-32 mx-auto sm:mx-0" />
-                                    <Skeleton className="h-4 w-64 mx-auto sm:mx-0" />
-                                </div>
-                                <div className="flex gap-3">
-                                    <Skeleton className="h-9 w-28 rounded-md" />
-                                    <Skeleton className="h-9 w-20 rounded-md" />
-                                </div>
+                <div className="overflow-hidden rounded-[var(--radius-container)] border border-hairline bg-card">
+                    <div className="flex flex-col gap-2 border-b border-hairline px-4 py-3.5 sm:px-5">
+                        <Skeleton className="h-5 w-40 rounded" />
+                        <Skeleton className="h-3 w-56 max-w-full rounded" />
+                    </div>
+                    <div className="flex flex-col gap-6 p-4 sm:p-5">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                            <Skeleton className="size-16 shrink-0 rounded-full" />
+                            <div className="flex min-w-0 flex-1 flex-col gap-2">
+                                <Skeleton className="h-4 w-28 rounded" />
+                                <Skeleton className="h-3 w-48 max-w-full rounded" />
                             </div>
+                            <Skeleton className="h-8 w-20 rounded-md" />
                         </div>
-
-                        {/* Form Fields */}
-                        <div className="grid gap-6">
-                            <div className="space-y-2">
+                        <div className="flex flex-col gap-4">
+                            <div className="flex flex-col gap-2">
                                 <Skeleton className="h-4 w-24" />
                                 <Skeleton className="h-10 w-full rounded-md" />
                             </div>
-                            <div className="space-y-2">
+                            <div className="flex flex-col gap-2">
                                 <Skeleton className="h-4 w-16" />
                                 <Skeleton className="h-24 w-full rounded-md" />
                             </div>
-                            <div className="space-y-2">
-                                <Skeleton className="h-4 w-16" />
+                            <div className="flex flex-col gap-2">
+                                <Skeleton className="h-4 w-20" />
                                 <Skeleton className="h-10 w-full rounded-md" />
-                                <Skeleton className="h-3 w-48" />
                             </div>
                         </div>
+                    </div>
+                    <div className="flex justify-end border-t border-hairline px-4 py-3">
+                        <Skeleton className="h-9 w-28 rounded-md" />
+                    </div>
+                </div>
+            </div>
 
-                        <div className="flex justify-end pt-4">
-                            <Skeleton className="h-10 w-32 rounded-md" />
-                        </div>
-                    </CardContent>
-                </Card>
+            <div className="overflow-hidden rounded-[var(--radius-container)] border border-hairline bg-card">
+                <div className="flex flex-col gap-2 border-b border-hairline px-4 py-3.5">
+                    <Skeleton className="h-3 w-16 rounded" />
+                    <Skeleton className="h-5 w-28 rounded" />
+                    <Skeleton className="h-3 w-40 max-w-full rounded" />
+                </div>
+                <div className="flex items-center gap-3 p-4">
+                    <Skeleton className="size-12 rounded-xl" />
+                    <div className="flex min-w-0 flex-1 flex-col gap-2">
+                        <Skeleton className="h-4 w-32 rounded" />
+                        <Skeleton className="h-3 w-40 max-w-full rounded" />
+                    </div>
+                </div>
             </div>
         </div>
     )
@@ -972,12 +970,12 @@ export function ProfilePageSkeleton() {
 
 export function ProfileBodySkeleton() {
     return (
-        <div className="space-y-6">
-            <div className="overflow-hidden rounded-[var(--radius-container)] border border-hairline bg-card shadow-e1">
-                <Skeleton className="h-32 w-full sm:h-36" />
-                <div className="flex flex-col gap-5 p-5 sm:-mt-10 sm:flex-row sm:items-end sm:justify-between sm:p-6">
+        <div className="space-y-5 sm:space-y-6">
+            <div className="overflow-hidden rounded-[var(--radius-container)] border border-hairline bg-card shadow-e2">
+                <Skeleton className="h-20 w-full sm:h-24" />
+                <div className="flex flex-col gap-5 px-5 pb-5 sm:-mt-12 sm:flex-row sm:items-end sm:justify-between sm:px-6 sm:pb-6">
                     <div className="flex items-end gap-4">
-                        <Skeleton className="size-24 rounded-full border-4 border-card sm:size-28" />
+                        <Skeleton className="size-24 rounded-full border-4 border-card shadow-e1 sm:size-28" />
                         <div className="space-y-2 pb-1">
                             <Skeleton className="h-3 w-16" />
                             <Skeleton className="h-7 w-44" />
@@ -1175,43 +1173,56 @@ export function AdminPageSkeleton() {
 
 export function AdminBodySkeleton() {
     return (
-        <div className="space-y-6 sm:space-y-8">
-            <div className="grid grid-cols-1 gap-px overflow-hidden rounded-xl bg-hairline sm:grid-cols-2 lg:grid-cols-4">
-                {Array.from({ length: 4 }).map((_, index) => (
-                    <div key={index} className="space-y-2 bg-card px-5 py-4">
-                        <Skeleton className="h-3 w-20" />
-                        <Skeleton className="h-8 w-12" />
-                        <Skeleton className="h-3 w-28" />
+        <div className="flex flex-col gap-6 sm:gap-8">
+            <div className="flex flex-col gap-2">
+                <Skeleton className="h-3 w-24 rounded" />
+                <Skeleton className="h-8 w-56 max-w-full rounded-lg" />
+                <Skeleton className="h-4 w-80 max-w-full rounded" />
+            </div>
+
+            <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_17.5rem] lg:gap-6">
+                <div className="flex min-w-0 flex-col gap-4">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                        {Array.from({ length: 4 }).map((_, index) => (
+                            <div key={index} className="flex flex-col gap-2 rounded-[var(--radius-cards)] border border-hairline bg-card px-3 py-2.5">
+                                <Skeleton className="h-3 w-20" />
+                                <Skeleton className="h-7 w-10" />
+                            </div>
+                        ))}
                     </div>
-                ))}
-            </div>
 
-            <div className="panel space-y-4 p-5 sm:p-6">
-                <Skeleton className="h-4 w-32" />
-                <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_11rem_auto]">
-                    <Skeleton className="h-9 w-full rounded-md" />
-                    <Skeleton className="h-9 w-full rounded-md" />
-                    <Skeleton className="h-9 w-28 rounded-md" />
-                </div>
-            </div>
-
-            <div className="space-y-4">
-                <div className="flex gap-4 border-b border-hairline pb-3">
-                    {Array.from({ length: 3 }).map((_, index) => (
-                        <Skeleton key={index} className="h-4 w-24" />
-                    ))}
-                </div>
-                <div className="panel overflow-hidden p-0">
-                    {Array.from({ length: 5 }).map((_, index) => (
-                        <div
-                            key={index}
-                            className="flex items-center gap-3 border-b border-hairline px-5 py-3.5 last:border-b-0"
-                        >
-                            <Skeleton className="size-8 rounded-lg" />
-                            <Skeleton className="h-4 w-40" />
-                            <Skeleton className="ml-auto h-6 w-20 rounded-full" />
+                    <div className="flex flex-col gap-3">
+                        <div className="flex gap-4 border-b border-hairline pb-3">
+                            {Array.from({ length: 3 }).map((_, index) => (
+                                <Skeleton key={index} className="h-4 w-24" />
+                            ))}
                         </div>
-                    ))}
+                        <div className="overflow-hidden rounded-[var(--radius-container)] border border-hairline bg-card">
+                            {Array.from({ length: 5 }).map((_, index) => (
+                                <div
+                                    key={index}
+                                    className="flex items-center gap-3 border-b border-hairline px-4 py-3.5 last:border-b-0 sm:px-5"
+                                >
+                                    <Skeleton className="size-8 rounded-lg" />
+                                    <Skeleton className="h-4 w-40" />
+                                    <Skeleton className="ml-auto h-6 w-20 rounded-full" />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="overflow-hidden rounded-[var(--radius-container)] border border-hairline bg-card">
+                    <div className="flex flex-col gap-2 border-b border-hairline px-4 py-3.5">
+                        <Skeleton className="h-3 w-20 rounded" />
+                        <Skeleton className="h-5 w-32 rounded" />
+                        <Skeleton className="h-3 w-44 max-w-full rounded" />
+                    </div>
+                    <div className="flex flex-col gap-3 p-4">
+                        <Skeleton className="h-9 w-full rounded-md" />
+                        <Skeleton className="h-9 w-full rounded-md" />
+                        <Skeleton className="h-9 w-full rounded-md" />
+                    </div>
                 </div>
             </div>
         </div>

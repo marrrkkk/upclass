@@ -47,6 +47,12 @@ const shortcutHints = [
   { keys: "/", label: "Focus search" },
 ] as const
 
+export const OPEN_APP_COMMAND_MENU = "upclass:open-command-menu"
+
+export function openAppCommandMenu() {
+  window.dispatchEvent(new Event(OPEN_APP_COMMAND_MENU))
+}
+
 export function AppCommandMenu() {
   const organizationPath = useOrganizationPath()
   const [open, setOpen] = React.useState(false)
@@ -60,8 +66,13 @@ export function AppCommandMenu() {
         setOpen(true)
       }
     }
+    const handleOpen = () => setOpen(true)
     window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
+    window.addEventListener(OPEN_APP_COMMAND_MENU, handleOpen)
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown)
+      window.removeEventListener(OPEN_APP_COMMAND_MENU, handleOpen)
+    }
   }, [])
 
   React.useEffect(() => {

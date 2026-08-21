@@ -1,35 +1,48 @@
 "use client"
 
-import { useEffect, useState, useTransition } from "react"
+import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { MessageSquare } from "lucide-react"
 
-import { createAnnouncement } from "@/app/actions/class-detail"
+import { createAnnouncement, deleteAnnouncement, updateAnnouncement } from "@/app/actions/class-detail"
 import { AnnouncementCard } from "@/components/classes/announcement-card"
 import { AnnouncementComposer } from "@/components/classes/announcement-composer"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Panel } from "@/components/ui/panel"
+import { useOptimisticMutation } from "@/hooks/use-optimistic-mutation"
 import { useStreamRealtime } from "@/hooks/classes/use-stream-realtime"
-import { executeWithOfflineHandling } from "@/lib/offline-action-handler"
 import type { AnnouncementData } from "@/types/classes"
 
 type StreamTabProps = {
   classId: string
+  currentUser: { id: string; name: string; image: string | null }
   userId?: string
   userRole: "teacher" | "student" | null
   announcements: AnnouncementData[]
   classColor: string
 }
 
-export function StreamTab({ classId, userId, userRole, announcements, classColor }: StreamTabProps) {
+type AnnouncementItem = AnnouncementData & { tempId?: string; pending?: boolean }
+
+export function StreamTab({
+  classId,
+  currentUser,
+  userId,
+  userRole,
+  announcements,
+  classColor,
+}: StreamTabProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [announcementItems, setAnnouncementItems] = useState(announcements)
+  const [announcementItems, setAnnouncementItems] = useState<AnnouncementItem[]>(announcements)
   const [open, setOpen] = useState(
     () => userRole === "teacher" && searchParams?.get("create") === "1",
   )
   const [error, setError] = useState<string | null>(null)
-  const [pending, startTransition] = useTransition()
+  const { mutate, pending } = useOptimisticMutation<AnnouncementItem[]>(
+    announcementItems,
+    setAnnouncementItems,
+  )
 
   useEffect(() => {
     setAnnouncementItems(announcements)
@@ -100,32 +113,90 @@ export function StreamTab({ classId, userId, userRole, announcements, classColor
     },
   })
 
-  const handleCreate = async (formData: FormData) => {
+  const handleCreate = (formData: FormData) => {
     setError(null)
 
-    startTransition(async () => {
-      const res = await executeWithOfflineHandling(
-        () => createAnnouncement(classId, formData),
-        "create-announcement",
-        {
-          classId,
-          content: String(formData.get("content") || ""),
+    const content = String(formData.get("content") || "").trim()
+    if (!content) return
+
+    const tempId = `announcement-${crypto.randomUUID()}`
+    const optimisticItem: AnnouncementItem = {
+      id: tempId,
+      tempId,
+      pending: true,
+      content,
+      createdAt: new Date().toISOString(),
+      author: {
+        id: currentUser.id,
+        name: currentUser.name,
+        image: currentUser.image,
+      },
+      reactions: [],
+    }
+
+    void mutate(
+      (previous) => [optimisticItem, ...previous],
+      () => createAnnouncement(classId, formData),
+      {
+        offline: {
+          type: "create-announcement",
+          payload: {
+            classId,
+            content,
+            tempId,
+          },
         },
-      )
+        queued: {
+          tempId,
+          remove: (current) => current.filter((item) => item.tempId !== tempId),
+        },
+        onSuccess: (_result, current) => {
+          // Announcements return no ID: drop the placeholder and let the
+          // server refresh/realtime bring in the real row.
+          setOpen(false)
+          router.refresh()
+          return current.filter((item) => item.tempId !== tempId)
+        },
+        onError: (_message, current) => current.filter((item) => item.tempId !== tempId),
+      },
+    )
 
-      if (res.queued) {
-        setError("Announcement queued. It will be synced when you're back online.")
-        setTimeout(() => setOpen(false), 2000)
-        return
-      }
+    // The optimistic item is already in the stream: close immediately.
+    setOpen(false)
+  }
 
-      if (!res.success) {
-        setError(res.error || "Failed to create announcement")
-        return
-      }
+  const handleUpdate = (announcementId: string, content: string) => {
+    setError(null)
 
-      setOpen(false)
-    })
+    void mutate(
+      (previous) =>
+        previous.map((item) =>
+          item.id === announcementId ? { ...item, content } : item,
+        ),
+      () => updateAnnouncement(announcementId, content),
+      {
+        onSuccess: (_result, current) => {
+          setOpen(false)
+          router.refresh()
+          return current
+        },
+      },
+    )
+  }
+
+  const handleDelete = (announcementId: string) => {
+    setError(null)
+
+    void mutate(
+      (previous) => previous.filter((item) => item.id !== announcementId),
+      () => deleteAnnouncement(announcementId),
+      {
+        onSuccess: (_result, current) => {
+          router.refresh()
+          return current
+        },
+      },
+    )
   }
 
   return (
@@ -162,6 +233,9 @@ export function StreamTab({ classId, userId, userRole, announcements, classColor
               userId={userId}
               classColor={classColor}
               userRole={userRole}
+              pending={pending}
+              onUpdate={(content) => handleUpdate(announcement.id, content)}
+              onDelete={() => handleDelete(announcement.id)}
             />
           ))}
         </div>
