@@ -1,8 +1,18 @@
+/** Small, display-only slice of a class member used by avatar stacks. */
+export type ClassMemberPreview = {
+  id: string
+  name: string | null
+  image: string | null
+}
+
 export type ClassCardData = {
   id: string
   title: string
   description: string | null
   category: string | null
+  gradeLevel: string | null
+  customGrade: string | null
+  section: string | null
   color: string | null
   schedule: string | null
   createdAt: string
@@ -10,13 +20,29 @@ export type ClassCardData = {
   role: "teaching" | "enrolled"
   teacherName: string | null
   teacherImage: string | null
+  /**
+   * Last time the class record itself changed. Optional because offline cache
+   * entries written by earlier versions do not carry it.
+   */
+  updatedAt?: string
+  /** Classwork items posted in the class. Optional for cached entries. */
+  classworkCount?: number
+  /**
+   * First few enrolled students, oldest first, for the card avatar stack.
+   * `enrolledCount` stays the source of truth for the total.
+   */
+  students?: ClassMemberPreview[]
 }
+
 
 export type ClassData = {
   id: string
   title: string
   description: string | null
   category: string | null
+  gradeLevel: string | null
+  customGrade: string | null
+  section: string | null
   code: string
   color: string
   schedule: string | null
@@ -169,4 +195,82 @@ export type MemberData = {
   email: string
   image: string | null
   role: "teacher" | "student"
+}
+
+/** One entry in a teacher's "needs grading" review queue. */
+export type ClassRailQueueItem = {
+  id: string
+  kind: "classwork" | "quiz"
+  /** Classwork or quiz id the item belongs to. */
+  itemId: string
+  title: string
+  studentId: string
+  studentName: string
+  submittedAt: string | null
+}
+
+/** One row in a student's personal grade summary. */
+export type ClassRailGrade = {
+  id: string
+  kind: "classwork" | "quiz"
+  title: string
+  grade: string | null
+  total: string | null
+  status: "graded" | "submitted" | "draft" | "pending_review"
+  updatedAt: string | null
+}
+
+/** One upcoming, not-yet-completed item for a student. */
+export type ClassRailDueItem = {
+  id: string
+  kind: "classwork" | "quiz"
+  title: string
+  dueDate: string
+}
+
+/**
+ * Role-scoped slice backing the class detail side rail. Server-queried once per
+ * class page and cached with the rest of the class detail for offline reads.
+ */
+export type ClassRailData = {
+  /** Teacher: queue of ungraded submissions and pending quiz reviews. */
+  needsGrading: ClassRailQueueItem[]
+  /** Teacher: total counts behind the queue. */
+  gradingCounts: {
+    classwork: number
+    quizzes: number
+  }
+  /** Student: own grades across classwork and quizzes. */
+  myGrades: ClassRailGrade[]
+  /** Student: classwork/quizzes still due, soonest first. */
+  upcomingDue: ClassRailDueItem[]
+  /** Student: nearest upcoming due date, used by the hero chip. */
+  nextDue: string | null
+}
+
+/** A column in the gradebook matrix: one classwork item or published quiz. */
+export type GradebookItem = {
+  id: string
+  kind: "classwork" | "quiz"
+  title: string
+  dueDate: string | null
+  points: string | null
+}
+
+/** One cell in the gradebook matrix for a given student + item. */
+export type GradebookCell = {
+  itemId: string
+  score: string | null
+  status: "unsubmitted" | "submitted" | "draft" | "pending_review" | "graded"
+  submissionId: string | null
+  attemptId: string | null
+}
+
+/** One row in the gradebook matrix: a single student across all items. */
+export type GradebookRow = {
+  studentId: string
+  studentName: string
+  studentImage: string | null
+  cells: GradebookCell[]
+  average: string | null
 }

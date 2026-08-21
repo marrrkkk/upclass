@@ -5,6 +5,7 @@ import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js"
 
 import { supabase } from "@/lib/supabase-client"
+import { scheduleRouterRefresh } from "@/lib/coalesced-router-refresh"
 import type { ClassworkData } from "@/types/classes"
 
 type UseClassworkRealtimeParams = {
@@ -42,7 +43,7 @@ export function useClassworkRealtime({
         (payload) => {
           const handled = onClassworkPayload?.(payload)
           if (handled) return
-          router.refresh()
+          scheduleRouterRefresh(`classwork:${classId}`, router)
         },
       )
       .subscribe()
@@ -69,12 +70,12 @@ export function useClassworkRealtime({
             const submissionClassworkId = newRecord?.classwork_id || oldRecord?.classwork_id
 
             if (submissionClassworkId && classworkIds.has(submissionClassworkId)) {
-              router.refresh()
+              scheduleRouterRefresh(`submissions:${classId}:${userId}`, router)
             }
             return
           }
 
-          router.refresh()
+          scheduleRouterRefresh(`submissions:${classId}:${userId}`, router)
         },
       )
       .subscribe()

@@ -41,8 +41,8 @@ const INSTALL_DISMISSED_KEY = "upclass-pwa-install-dismissed"
 const MAX_WARMED_ROUTES = 24
 
 const CORE_ROUTE_PREFIXES = [
-  "/home",
-  "/activity",
+  "/dashboard",
+  "/calendar",
   "/classes",
   "/resources",
   "/messages",
@@ -137,7 +137,7 @@ function detectInstallPlatform(): PWAInstallPlatform {
 function getRouteLabel(pathname: string) {
   const normalized = normalizePathname(pathname)
 
-  if (normalized === "/" || normalized === "/home") return "Home"
+  if (normalized === "/" || normalized === "/home" || normalized === "/dashboard") return "Dashboard"
   if (normalized.startsWith("/classes")) return "Classes"
   if (normalized.startsWith("/resources")) return "Resources"
   if (normalized.startsWith("/messages")) return "Messages"

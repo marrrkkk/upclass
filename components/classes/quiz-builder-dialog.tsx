@@ -1,10 +1,13 @@
 "use client"
 
 import type { ReactNode } from "react"
-import { Edit, FileQuestion, Plus, Settings2, XCircle } from "lucide-react"
+import { Edit, FileQuestion, Plus, Settings2 } from "lucide-react"
 
+import type { DraftQuestion } from "@/components/classes/quiz-builder-utils"
+import { QuizAiGenerator } from "@/components/classes/quiz-ai-generator"
 import { QuizQuestionEditor } from "@/components/classes/quiz-question-editor"
-import { buttonVariants } from "@/components/ui/button"
+import { Button } from "@/components/ui/button"
+import { Callout } from "@/components/ui/callout"
 import {
   Dialog,
   DialogContent,
@@ -14,14 +17,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { Field, FieldLabel, FieldRow } from "@/components/ui/field"
+import { IconBadge } from "@/components/ui/icon-badge"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Panel, PanelBody, PanelHeader, PanelHeading, PanelTitle } from "@/components/ui/panel"
+import { Text } from "@/components/ui/typography"
 import { Textarea } from "@/components/ui/textarea"
-import { cn } from "@/lib/utils"
-
-import type { DraftQuestion } from "@/components/classes/quiz-builder-utils"
 
 type QuizBuilderDialogProps = {
+  classId: string
+  onGeneratedQuiz?: (quiz: import("@/lib/quiz-ai").AiGeneratedQuiz) => void
   mode: "create" | "edit"
   open: boolean
   title: string
@@ -52,6 +57,8 @@ type QuizBuilderDialogProps = {
 }
 
 export function QuizBuilderDialog({
+  classId,
+  onGeneratedQuiz,
   mode,
   open,
   title,
@@ -60,7 +67,6 @@ export function QuizBuilderDialog({
   timeLimitSeconds,
   status,
   questions,
-  classColor,
   error,
   pending,
   trigger,
@@ -81,86 +87,86 @@ export function QuizBuilderDialog({
   onPrimaryAction,
 }: QuizBuilderDialogProps) {
   const isCreateMode = mode === "create"
-  const titleIcon = isCreateMode ? FileQuestion : Edit
-  const TitleIcon = titleIcon
-  const actionLabel = isCreateMode ? "Create Quiz" : "Edit Quiz"
+  const TitleIcon = isCreateMode ? FileQuestion : Edit
+  const actionLabel = isCreateMode ? "Create quiz" : "Edit quiz"
   const actionDescription = isCreateMode
     ? "Draft a quiz and publish when ready."
     : "Update quiz details and questions."
 
   const dialogContent = (
-    <DialogContent className="max-h-[90vh] flex flex-col sm:max-w-5xl gap-0 p-0 border-none shadow-2xl bg-background overflow-hidden">
-      <DialogHeader className="px-6 py-4 border-b bg-muted/30 shrink-0">
-        <div className="flex items-center justify-between">
-          <DialogTitle className="flex items-center gap-2 text-xl">
-            <div className="p-2 rounded-full bg-primary/10 text-primary">
-              <TitleIcon className="h-5 w-5" />
-            </div>
-            {actionLabel}
-          </DialogTitle>
-        </div>
+    <DialogContent className="flex max-h-[90vh] flex-col overflow-hidden p-0 sm:max-w-5xl">
+      <DialogHeader className="shrink-0 border-b border-hairline px-5 py-4 sm:px-6">
+        <DialogTitle className="flex items-center gap-2">
+          <IconBadge tone="primary" size="sm"><TitleIcon /></IconBadge>
+          {actionLabel}
+        </DialogTitle>
         <DialogDescription>{actionDescription}</DialogDescription>
       </DialogHeader>
 
-      <div className="flex-1 min-h-0 p-6 space-y-8 bg-muted/5 overflow-y-auto">
-        <div className="p-5 rounded-xl border bg-card shadow-sm space-y-6">
-          <div className="flex items-center gap-2 mb-2 pb-2 border-b">
-            <Settings2 className="h-4 w-4 text-muted-foreground" />
-            <h3 className="text-sm font-semibold uppercase text-muted-foreground tracking-wider">Quiz Settings</h3>
+      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto bg-surface p-4 sm:p-6">
+        <Panel padding="none" className="overflow-hidden">
+          <PanelHeader>
+            <PanelHeading>
+              <PanelTitle><Settings2 className="size-4 text-muted-foreground" /> Quiz settings</PanelTitle>
+            </PanelHeading>
+          </PanelHeader>
+          <PanelBody className="space-y-5">
+            <FieldRow>
+              <Field>
+                <FieldLabel>Title</FieldLabel>
+                <Input value={title} onChange={(event) => onTitleChange(event.target.value)} placeholder="Quiz title" />
+              </Field>
+              {!isCreateMode && onStatusChange && status ? (
+                <Field>
+                  <FieldLabel>Status</FieldLabel>
+                  <select
+                    className="focus-ring flex h-9 w-full rounded-md border border-input bg-background px-3 type-small"
+                    value={status}
+                    onChange={(event) => onStatusChange(event.target.value as "draft" | "published")}
+                  >
+                    <option value="draft">Draft</option>
+                    <option value="published">Published</option>
+                  </select>
+                </Field>
+              ) : <div />}
+            </FieldRow>
+
+            <Field>
+              <FieldLabel optional>Description</FieldLabel>
+              <Textarea value={description} onChange={(event) => onDescriptionChange(event.target.value)} rows={2} className="resize-none" />
+            </Field>
+
+            <FieldRow>
+              <Field>
+                <FieldLabel optional>Due date</FieldLabel>
+                <Input type="datetime-local" value={dueDate || ""} onChange={(event) => onDueDateChange(event.target.value || null)} />
+              </Field>
+              <Field>
+                <FieldLabel optional hint="Seconds">Time limit</FieldLabel>
+                <Input
+                  type="number"
+                  value={timeLimitSeconds}
+                  onChange={(event) => onTimeLimitChange(event.target.value)}
+                  placeholder="900"
+                />
+              </Field>
+            </FieldRow>
+          </PanelBody>
+        </Panel>
+
+        {isCreateMode && onGeneratedQuiz ? (
+          <QuizAiGenerator classId={classId} disabled={pending} onGenerated={onGeneratedQuiz} />
+        ) : null}
+
+        <section className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <Text as="h3" variant="h3">Questions</Text>
+            <Text variant="caption" tone="muted" className="numeric-tabular">
+              {questions.length} total
+            </Text>
           </div>
 
-          <div className={isCreateMode ? "space-y-2" : "grid gap-6 sm:grid-cols-2"}>
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold text-muted-foreground">Title</Label>
-              <Input value={title} onChange={(event) => onTitleChange(event.target.value)} placeholder="Quiz title" className="font-medium" />
-            </div>
-            {!isCreateMode && onStatusChange && status && (
-              <div className="space-y-2">
-                <Label className="text-xs font-semibold text-muted-foreground">Status</Label>
-                <select
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  value={status}
-                  onChange={(event) => onStatusChange(event.target.value as "draft" | "published")}
-                >
-                  <option value="draft">Draft</option>
-                  <option value="published">Published</option>
-                </select>
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-xs font-semibold text-muted-foreground">Description</Label>
-            <Textarea value={description} onChange={(event) => onDescriptionChange(event.target.value)} rows={2} className="resize-none" />
-          </div>
-
-          <div className="grid gap-6 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold text-muted-foreground">Due Date (Optional)</Label>
-              <Input type="datetime-local" value={dueDate || ""} onChange={(event) => onDueDateChange(event.target.value || null)} />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold text-muted-foreground flex items-center gap-2">
-                Time Limit (Optional)
-                <span className="text-[10px] font-normal px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Seconds</span>
-              </Label>
-              <Input
-                type="number"
-                value={timeLimitSeconds}
-                onChange={(event) => onTimeLimitChange(event.target.value)}
-                placeholder="e.g. 900 for 15 mins"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <span className="flex items-center justify-center h-6 w-6 rounded-full bg-primary/10 text-xs font-bold text-primary">{questions.length}</span>
-            <h3 className="font-semibold text-lg">Questions</h3>
-          </div>
-
-          <div className="space-y-6">
+          <div className="space-y-3">
             {questions.map((question, index) => (
               <QuizQuestionEditor
                 key={question.id}
@@ -178,56 +184,33 @@ export function QuizBuilderDialog({
               />
             ))}
 
-            <div className="flex justify-center">
-              <button
-                type="button"
-                onClick={onAddQuestion}
-                className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5 bg-background shadow-sm")}
-              >
-                <Plus className="h-4 w-4" />
-                Add Question
-              </button>
-            </div>
+            <Button type="button" variant="outline" size="sm" onClick={onAddQuestion}>
+              <Plus aria-hidden="true" />
+              Add question
+            </Button>
           </div>
-        </div>
+        </section>
 
-        {error && (
-          <div className="rounded-md bg-destructive/10 p-4 text-sm text-destructive border border-destructive/20 flex items-center gap-2">
-            <XCircle className="h-4 w-4" />
-            {error}
-          </div>
-        )}
+        {error ? <Callout tone="danger" role="alert">{error}</Callout> : null}
       </div>
 
-      <DialogFooter className="p-6 pt-4 border-t bg-background shrink-0 flex items-center justify-between sm:justify-between w-full">
-        <div className="text-xs text-muted-foreground font-medium">
-          {questions.length} Questions • {questions.reduce((total, question) => total + question.points, 0)} Total Points
-        </div>
-        <div className="flex gap-3">
-          <button
+      <DialogFooter className="shrink-0 border-t border-hairline px-5 py-4 sm:justify-between sm:px-6">
+        <Text variant="caption" tone="muted" className="numeric-tabular">
+          {questions.length} questions · {questions.reduce((total, question) => total + question.points, 0)} total points
+        </Text>
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
+          <Button type="button" variant="outline" onClick={onSave} isLoading={pending} disabled={pending}>
+            {isCreateMode ? "Save draft" : "Save changes"}
+          </Button>
+          <Button
             type="button"
-            className={cn(buttonVariants({ variant: "ghost" }))}
-            onClick={onCancel}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            className={cn(buttonVariants({ variant: "outline" }), "shadow-sm")}
-            onClick={onSave}
-            disabled={pending}
-          >
-            {pending ? (isCreateMode ? "Saving..." : "Saving...") : isCreateMode ? "Save Draft" : "Save Changes"}
-          </button>
-          <button
-            type="button"
-            className={cn(buttonVariants(), "text-white shadow-md min-w-[100px]")}
-            style={{ backgroundColor: classColor }}
             onClick={onPrimaryAction}
+            isLoading={pending}
             disabled={pending}
           >
-            {pending ? (isCreateMode ? "Publishing..." : "Saving...") : isCreateMode ? "Publish Quiz" : "Save & Publish"}
-          </button>
+            {isCreateMode ? "Publish quiz" : "Save and publish"}
+          </Button>
         </div>
       </DialogFooter>
     </DialogContent>
@@ -242,9 +225,5 @@ export function QuizBuilderDialog({
     )
   }
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      {dialogContent}
-    </Dialog>
-  )
+  return <Dialog open={open} onOpenChange={onOpenChange}>{dialogContent}</Dialog>
 }

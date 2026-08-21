@@ -2,12 +2,12 @@
 "use server"
 
 import { headers } from "next/headers"
-import { revalidatePath } from "next/cache"
 import { eq } from "drizzle-orm"
 
 import { db } from "@/db"
 import { auth } from "@/lib/auth"
 import { user } from "@/db/schema"
+import { revalidateUserOrgs } from "@/lib/server/revalidate"
 
 type ActionResponse =
   | { success: true }
@@ -60,9 +60,7 @@ export async function updateSettings(
       .set(updateData)
       .where(eq(user.id, session.user.id))
 
-    revalidatePath("/settings")
-    revalidatePath("/user")
-    revalidatePath("/home")
+    await revalidateUserOrgs(session.user.id, ["settings", "profile", "home"])
 
     return { success: true }
   } catch (error) {

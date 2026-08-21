@@ -6,6 +6,7 @@ const getSessionMock = vi.fn()
 const headersMock = vi.fn()
 const revalidatePathMock = vi.fn()
 const logActivityMock = vi.fn()
+const getOrganizationMembershipMock = vi.fn()
 const selectLimitMock = vi.fn()
 const selectWhereMock = vi.fn(() => ({ limit: selectLimitMock }))
 const selectFromMock = vi.fn(() => ({ where: selectWhereMock, limit: selectLimitMock }))
@@ -39,6 +40,10 @@ vi.mock("@/lib/activity", () => ({
   logActivity: logActivityMock,
 }))
 
+vi.mock("@/lib/org-validation", () => ({
+  getOrganizationMembership: getOrganizationMembershipMock,
+}))
+
 describe("classes actions", () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -48,6 +53,7 @@ describe("classes actions", () => {
         id: "user-1",
       },
     })
+    getOrganizationMembershipMock.mockResolvedValue({ orgId: "org-1", role: "owner" })
   })
 
   test("createClass rejects unauthorized requests", async () => {
@@ -64,10 +70,9 @@ describe("classes actions", () => {
   })
 
   test("createClass rejects invalid input after auth", async () => {
-    selectLimitMock.mockResolvedValueOnce([{ role: "teacher" }])
-
     const { createClass } = await import("@/app/actions/classes")
     const formData = new FormData()
+    formData.append("orgSlug", "school")
 
     await expect(createClass(formData)).resolves.toEqual({
       success: false,
@@ -76,9 +81,7 @@ describe("classes actions", () => {
   })
 
   test("createClass creates a class for teachers", async () => {
-    selectLimitMock
-      .mockResolvedValueOnce([{ role: "teacher" }])
-      .mockResolvedValueOnce([])
+    selectLimitMock.mockResolvedValueOnce([])
 
     const txInsertValuesMock = vi.fn().mockResolvedValue(undefined)
     const txInsertMock = vi.fn(() => ({ values: txInsertValuesMock }))
@@ -90,14 +93,19 @@ describe("classes actions", () => {
 
     const { createClass } = await import("@/app/actions/classes")
     const formData = new FormData()
+    formData.append("orgSlug", "school")
     formData.append("title", "Math 101")
-    formData.append("category", "Math")
+    formData.append("gradeLevel", "grade_10")
+    formData.append("section", "A")
 
-    await expect(createClass(formData)).resolves.toEqual({
-      success: true,
-    })
+    const result = await createClass(formData)
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data?.code).toMatch(/^[A-Z0-9]{6}$/)
+      expect(result.data?.codeEnabled).toBe(true)
+    }
     expect(transactionMock).toHaveBeenCalledTimes(1)
-    expect(revalidatePathMock).toHaveBeenCalledWith("/classes")
+    expect(revalidatePathMock).toHaveBeenCalledWith("/school/classes")
     expect(logActivityMock).toHaveBeenCalledTimes(1)
   })
 

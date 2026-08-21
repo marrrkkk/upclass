@@ -7,6 +7,7 @@ export const size = {
 }
 export const contentType = "image/png"
 
+// Classroom Focus social preview: neutral canvas, UpClass blue, and clear type hierarchy.
 export default function TwitterImage() {
   return new ImageResponse(
     (
@@ -18,11 +19,11 @@ export default function TwitterImage() {
           flexDirection: "column",
           justifyContent: "space-between",
           padding: "56px",
-          background:
-            "radial-gradient(circle at top left, rgba(96, 165, 250, 0.34), transparent 28%), radial-gradient(circle at 82% 18%, rgba(34, 211, 238, 0.26), transparent 24%), linear-gradient(135deg, #eff6ff 0%, #ffffff 54%, #e0f2fe 100%)",
-          color: "#0f172a",
+          background: "#f7f8fa",
+          color: "#17202a",
         }}
       >
+        {/* Brand */}
         <div
           style={{
             display: "flex",
@@ -34,53 +35,79 @@ export default function TwitterImage() {
             style={{
               width: "72px",
               height: "72px",
-              borderRadius: "20px",
+              borderRadius: "12px", // Card radius
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              border: "1px solid rgba(37, 99, 235, 0.16)",
-              background: "rgba(255, 255, 255, 0.84)",
+              border: "1px solid rgba(0, 0, 0, 0.08)", // Ink hairline
+              background: "#0075de", // Notion Blue
             }}
           >
             <svg width="36" height="36" viewBox="0 0 32 32" fill="none">
               <path
                 d="M10 22L22 10M22 10H14M22 10V18"
-                stroke="rgb(59, 130, 246)"
+                stroke="#ffffff"
                 strokeWidth="3"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
             </svg>
           </div>
-          <div style={{ fontSize: "34px", fontWeight: 700 }}>UpClass</div>
+          <div style={{ fontSize: "34px", fontWeight: 600 }}>UpClass</div>
         </div>
 
+        {/* Content */}
         <div style={{ display: "flex", flexDirection: "column", gap: "18px", maxWidth: "860px" }}>
-          <div style={{ fontSize: "22px", letterSpacing: "0.22em", textTransform: "uppercase", color: "#2563eb" }}>
+          <div
+            style={{
+              fontSize: "20px",
+              textTransform: "uppercase",
+              color: "#0075de",
+              fontWeight: 600,
+            }}
+          >
             Learning management for live teaching
           </div>
-          <div style={{ fontSize: "70px", lineHeight: 1.02, fontWeight: 800 }}>
+          <div
+            style={{
+              fontSize: "68px",
+              lineHeight: 1.08,
+              fontWeight: 600,
+            }}
+          >
             Keep classes, collaboration, and student momentum in one place
           </div>
-          <div style={{ fontSize: "28px", lineHeight: 1.4, color: "#334155" }}>
+          <div
+            style={{
+              fontSize: "26px",
+              lineHeight: 1.45,
+              color: "#53606d",
+            }}
+          >
             UpClass helps teachers run calmer, clearer classroom workflows across lessons, resources, and live sessions.
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: "16px" }}>
-          {["Class hubs", "Live collaboration", "Teacher dashboards"].map((label) => (
+        {/* Feature pills */}
+        <div style={{ display: "flex", gap: "14px", flexWrap: "wrap" }}>
+          {[
+            { label: "Class hubs", bg: "#e8f3ff" },
+            { label: "Live collaboration", bg: "#ffffff" },
+            { label: "Teacher dashboards", bg: "#ffffff" },
+          ].map((item) => (
             <div
-              key={label}
+              key={item.label}
               style={{
-                padding: "12px 18px",
-                borderRadius: "999px",
-                border: "1px solid rgba(37, 99, 235, 0.16)",
-                background: "rgba(255, 255, 255, 0.76)",
-                fontSize: "22px",
-                color: "#0f172a",
+                padding: "10px 20px",
+                borderRadius: "8px",
+                border: "1px solid rgba(0, 0, 0, 0.08)", // Ink hairline
+                background: item.bg,
+                fontSize: "20px",
+                fontWeight: 500,
+                color: "#17202a",
               }}
             >
-              {label}
+              {item.label}
             </div>
           ))}
         </div>

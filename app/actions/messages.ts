@@ -1,13 +1,25 @@
 "use server"
 
 import { headers } from "next/headers"
-import { revalidatePath } from "next/cache"
-import { eq, and } from "drizzle-orm"
+import { eq, and, desc, sql } from "drizzle-orm"
 
 import { db } from "@/db"
 import { auth } from "@/lib/auth"
-import { channelMessages, classChannels, classMembership, messages, user } from "@/db/schema"
-import { deliverMessageNotification } from "@/lib/notifications/delivery"
+import {
+  channelMemberState,
+  channelMessages,
+  classChannels,
+  classMembership,
+  classes,
+  directConversationMembers,
+  directConversations,
+  messageNotificationOutbox,
+  messages,
+  organizations,
+  orgMembership,
+  user,
+} from "@/db/schema"
+import { revalidateClassOrg, revalidateUserOrgs } from "@/lib/server/revalidate"
 import {
   markConversationAsReadSchema,
   markMessageAsReadSchema,
@@ -15,18 +27,62 @@ import {
   sendChannelMessageSchema,
   sendMessageSchema,
 } from "@/lib/validation/actions"
-import { searchMessageThreads } from "@/lib/server/messages"
+import {
+  assertSameOrganization,
+  ensureDirectConversation,
+  getOrgIdForSlug,
+  resolveDirectConversation,
+  searchMessageThreads,
+} from "@/lib/server/messages"
 
 type ActionResponse =
   | { success: true }
   | { success: false; error: string }
 
+type MessageSendInput = {
+  orgSlug?: string
+  receiverId: string
+  content: string
+  media?: string
+  url?: string
+  clientMessageId?: string
+}
+
+type ChannelSendInput = {
+  orgSlug?: string
+  channelId: string
+  content: string
+  media?: string
+  clientMessageId?: string
+}
+
+type PersistedMessage = {
+  id: string
+  clientMessageId: string
+  conversationId?: string | null
+  channelId?: string
+  senderId: string
+  receiverId?: string
+  content: string
+  media: string | null
+  createdAt: string
+}
+
+type SendResponse =
+  | { success: true; message: PersistedMessage; deduplicated: boolean }
+  | { success: true }
+  | { success: false; error: string }
+
+function isMessageSendInput(value: string | MessageSendInput): value is MessageSendInput {
+  return typeof value !== "string"
+}
+
 export async function sendMessage(
-  receiverId: string,
-  content: string,
-  media?: string, // JSON string array of media files
-  url?: string,
-): Promise<ActionResponse> {
+  inputOrReceiverId: MessageSendInput | string,
+  legacyContent?: string,
+  legacyMedia?: string,
+  legacyUrl?: string,
+): Promise<SendResponse> {
   const session = await auth.api.getSession({
     headers: await headers(),
   })
@@ -35,7 +91,15 @@ export async function sendMessage(
     return { success: false, error: "Unauthorized" }
   }
 
-  const parsed = sendMessageSchema.safeParse({ receiverId, content, media, url })
+  const input: MessageSendInput = isMessageSendInput(inputOrReceiverId)
+    ? inputOrReceiverId
+    : {
+        receiverId: inputOrReceiverId,
+        content: legacyContent ?? "",
+        media: legacyMedia,
+        url: legacyUrl,
+      }
+  const parsed = sendMessageSchema.safeParse(input)
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0]?.message || "Invalid message" }
   }
@@ -46,7 +110,14 @@ export async function sendMessage(
     return { success: false, error: "Cannot send message to yourself" }
   }
 
-  // Verify receiver exists and check notification settings
+  const legacyCall = !isMessageSendInput(inputOrReceiverId)
+  const sharedOrg = legacyCall
+    ? null
+    : await assertSameOrganization(session.user.id, messageInput.receiverId, messageInput.orgSlug)
+  if (!legacyCall && !sharedOrg) {
+    return { success: false, error: "Direct messages require shared organization" }
+  }
+
   const receiver = await db
     .select({
       id: user.id,
@@ -64,30 +135,96 @@ export async function sendMessage(
   }
 
   try {
-    await db.insert(messages).values({
-      id: crypto.randomUUID(),
-      senderId: session.user.id,
-      receiverId: messageInput.receiverId,
-      content: messageInput.content,
-      media: messageInput.media || null,
-      url: null, // URLs are now detected in content
-      read: false,
+    if (legacyCall) {
+      await db.insert(messages).values({
+        id: crypto.randomUUID(),
+        senderId: session.user.id,
+        receiverId: messageInput.receiverId,
+        content: messageInput.content,
+        media: messageInput.media || null,
+        url: messageInput.url || null,
+        read: false,
+      })
+      await revalidateUserOrgs(session.user.id, ["messages"])
+      return { success: true }
+    }
+    const conversation = await ensureDirectConversation(
+      session.user.id,
+      messageInput.receiverId,
+      sharedOrg!.orgId,
+    )
+    if (!conversation) return { success: false, error: "Failed to create conversation" }
+
+    const clientMessageId = messageInput.clientMessageId || crypto.randomUUID()
+    const result = await db.transaction(async (tx) => {
+      const existing = await tx
+        .select()
+        .from(messages)
+        .where(
+          and(
+            eq(messages.conversationId, conversation.id),
+            eq(messages.clientMessageId, clientMessageId),
+          ),
+        )
+        .limit(1)
+      if (existing[0]) return { row: existing[0], deduplicated: true }
+
+      const [row] = await tx
+        .insert(messages)
+        .values({
+          id: crypto.randomUUID(),
+          conversationId: conversation.id,
+          clientMessageId,
+          senderId: session.user.id,
+          receiverId: messageInput.receiverId,
+          content: messageInput.content,
+          media: messageInput.media || null,
+          url: messageInput.url || null,
+          read: false,
+        })
+        .returning()
+      if (!row) throw new Error("Message insert failed")
+
+      await tx
+        .update(directConversations)
+        .set({
+          lastMessageId: row.id,
+          lastMessageAt: row.createdAt,
+          lastMessagePreview: row.content.slice(0, 160),
+          updatedAt: new Date(),
+        })
+        .where(eq(directConversations.id, conversation.id))
+
+      if (receiver[0].messageNotifications) {
+        await tx
+          .insert(messageNotificationOutbox)
+          .values({
+            id: crypto.randomUUID(),
+            messageId: row.id,
+            recipientId: receiver[0].id,
+            channel: "email",
+          })
+          .onConflictDoNothing()
+      }
+      return { row, deduplicated: false }
     })
 
-    await deliverMessageNotification({
-      recipient: {
-        userId: receiver[0].id,
-        email: receiver[0].email,
-        messageNotifications: receiver[0].messageNotifications,
-        emailNotifications: receiver[0].emailNotifications,
-        pushNotifications: receiver[0].pushNotifications,
+    await revalidateUserOrgs(session.user.id, ["messages"])
+    if (!isMessageSendInput(inputOrReceiverId)) return { success: true }
+    return {
+      success: true,
+      deduplicated: result.deduplicated,
+      message: {
+        id: result.row.id,
+        clientMessageId: result.row.clientMessageId || clientMessageId,
+        conversationId: result.row.conversationId,
+        senderId: result.row.senderId,
+        receiverId: result.row.receiverId,
+        content: result.row.content,
+        media: result.row.media,
+        createdAt: result.row.createdAt.toISOString(),
       },
-      senderName: session.user.name,
-      preview: messageInput.content,
-    })
-
-    revalidatePath("/messages")
-    return { success: true }
+    }
   } catch (error) {
     console.error("sendMessage error", error)
     return { success: false, error: "Failed to send message" }
@@ -95,10 +232,10 @@ export async function sendMessage(
 }
 
 export async function sendChannelMessage(
-  channelId: string,
-  content: string,
-  media?: string,
-): Promise<ActionResponse> {
+  inputOrChannelId: ChannelSendInput | string,
+  legacyContent?: string,
+  legacyMedia?: string,
+): Promise<SendResponse> {
   const session = await auth.api.getSession({
     headers: await headers(),
   })
@@ -107,7 +244,10 @@ export async function sendChannelMessage(
     return { success: false, error: "Unauthorized" }
   }
 
-  const parsed = sendChannelMessageSchema.safeParse({ channelId, content, media })
+  const input: ChannelSendInput = typeof inputOrChannelId === "string"
+    ? { channelId: inputOrChannelId, content: legacyContent ?? "", media: legacyMedia }
+    : inputOrChannelId
+  const parsed = sendChannelMessageSchema.safeParse(input)
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0]?.message || "Invalid message" }
   }
@@ -116,8 +256,12 @@ export async function sendChannelMessage(
     .select({
       id: classChannels.id,
       classId: classChannels.classId,
+      orgSlug: organizations.slug,
+      orgId: organizations.id,
     })
     .from(classChannels)
+    .innerJoin(classes, eq(classes.id, classChannels.classId))
+    .innerJoin(organizations, eq(organizations.id, classes.orgId))
     .where(eq(classChannels.id, parsed.data.channelId))
     .limit(1)
 
@@ -141,18 +285,63 @@ export async function sendChannelMessage(
   }
 
   try {
-    await db.insert(channelMessages).values({
-      id: crypto.randomUUID(),
-      channelId: parsed.data.channelId,
-      senderId: session.user.id,
-      content: parsed.data.content,
-      media: parsed.data.media || null,
-      readBy: JSON.stringify([session.user.id]),
+    const clientMessageId = parsed.data.clientMessageId || crypto.randomUUID()
+    const result = await db.transaction(async (tx) => {
+      const existing = await tx
+        .select()
+        .from(channelMessages)
+        .where(
+          and(
+            eq(channelMessages.channelId, parsed.data.channelId),
+            eq(channelMessages.clientMessageId, clientMessageId),
+          ),
+        )
+        .limit(1)
+      if (existing[0]) return { row: existing[0], deduplicated: true }
+
+      const [row] = await tx
+        .insert(channelMessages)
+        .values({
+          id: crypto.randomUUID(),
+          clientMessageId,
+          channelId: parsed.data.channelId,
+          senderId: session.user.id,
+          content: parsed.data.content,
+          media: parsed.data.media || null,
+          readBy: JSON.stringify([session.user.id]),
+        })
+        .returning()
+      if (!row) throw new Error("Channel message insert failed")
+
+      await tx
+        .update(classChannels)
+        .set({
+          lastMessageId: row.id,
+          lastMessageAt: row.createdAt,
+          lastMessagePreview: row.content.slice(0, 160),
+        })
+        .where(eq(classChannels.id, parsed.data.channelId))
+      return { row, deduplicated: false }
     })
 
-    revalidatePath("/messages")
-    revalidatePath(`/messages/class/${channel[0].classId}`)
-    return { success: true }
+    await revalidateClassOrg(channel[0].classId, [
+      "messages",
+      `messages/class/${channel[0].classId}`,
+    ])
+    if (typeof inputOrChannelId === "string") return { success: true }
+    return {
+      success: true,
+      deduplicated: result.deduplicated,
+      message: {
+        id: result.row.id,
+        clientMessageId: result.row.clientMessageId || clientMessageId,
+        channelId: result.row.channelId,
+        senderId: result.row.senderId,
+        content: result.row.content,
+        media: result.row.media,
+        createdAt: result.row.createdAt.toISOString(),
+      },
+    }
   } catch (error) {
     console.error("sendChannelMessage error", error)
     return { success: false, error: "Failed to send channel message" }
@@ -184,7 +373,7 @@ export async function markMessageAsRead(messageId: string): Promise<ActionRespon
         ),
       )
 
-    revalidatePath("/messages")
+    await revalidateUserOrgs(session.user.id, ["messages"])
     return { success: true }
   } catch (error) {
     console.error("markMessageAsRead error", error)
@@ -207,17 +396,39 @@ export async function markConversationAsRead(otherUserId: string): Promise<Actio
   }
 
   try {
+    const conversation = await resolveDirectConversation(session.user.id, parsed.data.otherUserId)
+    if (conversation) {
+      const [latest] = await db
+        .select({ id: messages.id, createdAt: messages.createdAt })
+        .from(messages)
+        .where(eq(messages.conversationId, conversation.id))
+        .orderBy(desc(messages.createdAt), desc(messages.id))
+        .limit(1)
+      if (latest) {
+        await db
+          .insert(directConversationMembers)
+          .values({
+            conversationId: conversation.id,
+            userId: session.user.id,
+            lastReadCreatedAt: latest.createdAt,
+            lastReadMessageId: latest.id,
+          })
+          .onConflictDoUpdate({
+            target: [directConversationMembers.conversationId, directConversationMembers.userId],
+            set: {
+              lastReadCreatedAt: latest.createdAt,
+              lastReadMessageId: latest.id,
+              updatedAt: new Date(),
+            },
+          })
+      }
+    }
     await db
       .update(messages)
       .set({ read: true })
-      .where(
-        and(
-          eq(messages.receiverId, session.user.id),
-          eq(messages.senderId, parsed.data.otherUserId),
-        ),
-      )
+      .where(and(eq(messages.receiverId, session.user.id), eq(messages.senderId, parsed.data.otherUserId)))
 
-    revalidatePath("/messages")
+    await revalidateUserOrgs(session.user.id, ["messages"])
     return { success: true }
   } catch (error) {
     console.error("markConversationAsRead error", error)
@@ -263,28 +474,35 @@ export async function markChannelAsRead(channelId: string): Promise<ActionRespon
       return { success: false, error: "Unauthorized" }
     }
 
-    const unreadMessages = await db
-      .select({
-        id: channelMessages.id,
-        readBy: channelMessages.readBy,
-      })
+    const [latest] = await db
+      .select({ id: channelMessages.id, createdAt: channelMessages.createdAt })
       .from(channelMessages)
       .where(eq(channelMessages.channelId, channelId))
-
-    for (const message of unreadMessages) {
-      const readBy = message.readBy ? (JSON.parse(message.readBy) as string[]) : []
-      if (readBy.includes(session.user.id)) continue
-
+      .orderBy(desc(channelMessages.createdAt), desc(channelMessages.id))
+      .limit(1)
+    if (latest) {
       await db
-        .update(channelMessages)
-        .set({
-          readBy: JSON.stringify([...readBy, session.user.id]),
+        .insert(channelMemberState)
+        .values({
+          channelId,
+          userId: session.user.id,
+          lastReadCreatedAt: latest.createdAt,
+          lastReadMessageId: latest.id,
         })
-        .where(eq(channelMessages.id, message.id))
+        .onConflictDoUpdate({
+          target: [channelMemberState.channelId, channelMemberState.userId],
+          set: {
+            lastReadCreatedAt: latest.createdAt,
+            lastReadMessageId: latest.id,
+            updatedAt: new Date(),
+          },
+        })
     }
 
-    revalidatePath("/messages")
-    revalidatePath(`/messages/class/${channel[0].classId}`)
+    await revalidateClassOrg(channel[0].classId, [
+      "messages",
+      `messages/class/${channel[0].classId}`,
+    ])
     return { success: true }
   } catch (error) {
     console.error("markChannelAsRead error", error)
@@ -292,7 +510,7 @@ export async function markChannelAsRead(channelId: string): Promise<ActionRespon
   }
 }
 
-export async function searchMessages(query: string) {
+export async function searchMessages(query: string, orgSlug: string) {
   const session = await auth.api.getSession({
     headers: await headers(),
   })
@@ -307,7 +525,7 @@ export async function searchMessages(query: string) {
   }
 
   try {
-    const results = await searchMessageThreads(session.user.id, parsed.data.query)
+    const results = await searchMessageThreads(session.user.id, parsed.data.query, orgSlug)
     return { success: true as const, results }
   } catch (error) {
     console.error("searchMessages error", error)

@@ -3,21 +3,16 @@
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { UserPlus } from "lucide-react"
+
 import { joinClass } from "@/app/actions/classes"
 import { Button } from "@/components/ui/button"
-import { executeWithOfflineHandling } from "@/lib/offline-action-handler"
+import { Callout } from "@/components/ui/callout"
+import { ResponsiveOverlay } from "@/components/ui/responsive-overlay"
+import { Field, FieldHelp, FieldLabel } from "@/components/ui/field"
+import { IconBadge } from "@/components/ui/icon-badge"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { cn } from "@/lib/utils"
+import { useOrganizationPath } from "@/hooks/use-organization-path"
+import { executeWithOfflineHandling } from "@/lib/offline-action-handler"
 
 type JoinClassButtonProps = {
   iconOnly?: boolean
@@ -25,6 +20,7 @@ type JoinClassButtonProps = {
 
 export function JoinClassButton({ iconOnly = false }: JoinClassButtonProps) {
   const router = useRouter()
+  const organizationPath = useOrganizationPath()
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
@@ -51,86 +47,72 @@ export function JoinClassButton({ iconOnly = false }: JoinClassButtonProps) {
       }
 
       setOpen(false)
-      // Redirect to the class page
       if ("classId" in joinResult && joinResult.classId) {
-        router.push(`/classes/${joinResult.classId}`)
+        router.push(organizationPath(`/classes/${joinResult.classId}`))
       }
     })
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button
-          size={iconOnly ? "icon" : "sm"}
-          className={cn(
-            iconOnly ? "" : "gap-2",
-            "shadow-sm transition-all hover:shadow-md"
-          )}
-          type="button"
-          title="Join class"
-        >
-          <UserPlus className="h-4 w-4" />
-          {!iconOnly && <span>Join class</span>}
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[480px] gap-0 p-0 overflow-y-auto border-0 shadow-2xl max-h-[calc(100vh-2rem)] flex flex-col">
-        <DialogHeader className="p-6 pb-2 text-center shrink-0">
-          <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-            <UserPlus className="h-6 w-6 text-primary" />
-          </div>
-          <DialogTitle className="text-xl font-semibold tracking-tight">Join a Class</DialogTitle>
-          <DialogDescription className="text-muted-foreground">
-            Enter the 6-character class code provided by your teacher.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form action={handleJoin} className="p-6 pt-2 space-y-6 flex-1 min-h-0">
-          <div className="space-y-4">
-            <div className="flex justify-center">
-              <Input
-                id="code"
-                name="code"
-                required
-                placeholder="ABC123"
-                maxLength={6}
-                className="uppercase text-center text-3xl tracking-[0.5em] font-mono h-16 w-64 border-2 border-muted-foreground/20 focus-visible:border-primary focus-visible:ring-0 transition-all bg-muted/20 focus-visible:bg-background rounded-xl placeholder:text-muted-foreground/30"
-                onChange={(e) => {
-                  e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "")
-                }}
-              />
-            </div>
-            <Label htmlFor="code" className="sr-only">Class Code</Label>
-            <p className="text-xs text-center text-muted-foreground">
-              Ask your teacher for the class code to enter above.
-            </p>
-          </div>
-
-          {error && (
-            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive font-medium border border-destructive/20 animate-in fade-in slide-in-from-bottom-2 text-center">
-              {error}
-            </div>
-          )}
-
-          <DialogFooter className="sm:justify-center gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setOpen(false)}
-              className="text-muted-foreground hover:text-foreground w-full sm:w-auto"
-            >
+    <>
+      <Button
+        size={iconOnly ? "icon" : "default"}
+        variant="secondary"
+        type="button"
+        title="Join class"
+        aria-label={iconOnly ? "Join class" : undefined}
+        aria-haspopup="dialog"
+        onClick={() => setOpen(true)}
+        className="font-semibold border border-hairline/80 shadow-2xs"
+      >
+        <UserPlus aria-hidden="true" className="size-4" />
+        {!iconOnly ? <span>Join class</span> : null}
+      </Button>
+      <ResponsiveOverlay
+        open={open}
+        onOpenChange={setOpen}
+        title={
+          <span className="flex items-center gap-2">
+            <IconBadge tone="primary" size="sm">
+              <UserPlus />
+            </IconBadge>
+            Join a class
+          </span>
+        }
+        description="Enter the six-character code provided by your teacher."
+        desktopClassName="sm:max-w-[28rem]"
+        footer={
+          <>
+            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button
-              type="submit"
-              isLoading={pending}
-              className="min-w-[120px] shadow-md hover:shadow-lg transition-all w-full sm:w-auto"
-            >
-              {pending ? "Joining..." : "Join Class"}
+            <Button type="submit" form="join-class-form" isLoading={pending} disabled={pending}>
+              Join class
             </Button>
-          </DialogFooter>
+          </>
+        }
+      >
+        <form id="join-class-form" action={handleJoin} className="space-y-5">
+          <Field>
+            <FieldLabel htmlFor="code">Class code</FieldLabel>
+            <Input
+              id="code"
+              name="code"
+              required
+              placeholder="ABC123"
+              maxLength={6}
+              autoComplete="off"
+              className="type-mono uppercase tracking-widest text-center text-lg font-bold"
+              onChange={(event) => {
+                event.target.value = event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "")
+              }}
+            />
+            <FieldHelp>Ask your teacher for the class code.</FieldHelp>
+          </Field>
+
+          {error ? <Callout tone="danger" role="alert">{error}</Callout> : null}
         </form>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveOverlay>
+    </>
   )
 }

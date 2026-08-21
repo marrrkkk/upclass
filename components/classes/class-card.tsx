@@ -1,101 +1,291 @@
 "use client"
 
-import { memo, useMemo } from "react"
+import { memo } from "react"
 import Link from "next/link"
+import { ArrowUpRight, CalendarClock, Users } from "lucide-react"
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-
+import { EntityAvatar } from "@/components/ui/entity-avatar"
+import { useOrganizationPath } from "@/hooks/use-organization-path"
+import { courseToneFromValue, monogram, type CourseTone } from "@/lib/design-system"
+import { formatRelativeTime, formatShortDate } from "@/lib/format"
+import { getGradeLevelFallback } from "@/lib/classes/class-identity"
+import { cn } from "@/lib/utils"
 import type { ClassCardData } from "@/types/classes"
 
 type ClassCardProps = {
-  data: ClassCardData
+  /** Display data; may carry client-only optimistic markers. */
+  data: ClassCardData & {
+    tempId?: string
+    pending?: boolean
+  }
+  layout?: "grid" | "list"
   onHoverStart: (href: string) => void
   onHoverEnd: (href: string) => void
 }
 
+/** Poster field: the class accent as a soft tinted surface. */
+const posterToneClasses: Record<CourseTone, string> = {
+  "course-1": "bg-course-1/15 text-course-1",
+  "course-2": "bg-course-2/15 text-course-2",
+  "course-3": "bg-course-3/15 text-course-3",
+  "course-4": "bg-course-4/15 text-course-4",
+  "course-5": "bg-course-5/15 text-course-5",
+  "course-6": "bg-course-6/15 text-course-6",
+}
+
+function studentSummary(count: number) {
+  if (count <= 0) return "No students yet"
+  return `${count} ${count === 1 ? "student" : "students"}`
+}
+
+function classworkSummary(count: number) {
+  return `${count} classwork ${count === 1 ? "item" : "items"}`
+}
+
+/** Course accent banner with monogram emblem and enrolled count overlay. */
+function CoursePoster({
+  tone,
+  title,
+  enrolledCount,
+  isList = false,
+  isOptimistic = false,
+}: {
+  tone: CourseTone
+  title: string
+  enrolledCount: number
+  isList?: boolean
+  isOptimistic?: boolean
+}) {
+  return (
+    <div
+      data-slot="course-hero"
+      data-tone={tone}
+      className={cn(
+        "relative overflow-hidden transition-colors duration-200",
+        posterToneClasses[tone],
+        isList ? "h-full min-h-28" : "h-36",
+      )}
+    >
+      {/* Decorative geometry */}
+      <span
+        aria-hidden="true"
+        className="absolute -right-8 -top-12 size-28 rotate-12 rounded-[2rem] border-[14px] border-current opacity-15"
+      />
+      <span
+        aria-hidden="true"
+        className="absolute -bottom-12 left-[28%] size-24 -rotate-12 rounded-[1.5rem] border-[10px] border-current opacity-10"
+      />
+
+      {/* Enrolled badge overlay */}
+      <div className="absolute left-3 top-3">
+        <span className="inline-flex items-center gap-1.5 rounded-lg bg-card/90 px-2.5 py-1 text-[11px] font-bold text-foreground shadow-sm backdrop-blur-md ring-1 ring-black/5 dark:ring-white/10">
+          <Users className="size-3 opacity-70" aria-hidden="true" />
+          {enrolledCount} Enrolled
+        </span>
+      </div>
+
+      {isOptimistic ? (
+        <div className="absolute right-3 top-3">
+          <span className="inline-flex items-center gap-1.5 rounded-lg bg-card/90 px-2.5 py-1 text-[11px] font-bold text-foreground shadow-sm backdrop-blur-md ring-1 ring-black/5 dark:ring-white/10">
+            <span className="size-2 animate-pulse rounded-full bg-primary" aria-hidden="true" />
+            Creating…
+          </span>
+        </div>
+      ) : null}
+          <span className="sr-only">{enrolledCount}</span>
+          {enrolledCount > 0 ? <span className="sr-only">{studentSummary(enrolledCount)}</span> : null}
+
+      {/* Monogram + arrow */}
+      <div className="absolute inset-0 flex items-end justify-between p-3.5">
+        <span
+          aria-hidden="true"
+          className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-card/90 font-display text-base font-bold text-foreground shadow-2xs backdrop-blur-md ring-1 ring-black/5 dark:ring-white/10"
+        >
+          {monogram(title)}
+        </span>
+
+        <span
+          aria-hidden="true"
+          className="flex size-7 items-center justify-center rounded-lg bg-card/80 text-muted-foreground shadow-2xs backdrop-blur-md transition-all duration-200 group-hover:scale-105 group-hover:bg-primary group-hover:text-primary-foreground group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+        >
+          <ArrowUpRight className="size-3.5" strokeWidth={2.5} />
+        </span>
+      </div>
+    </div>
+  )
+}
+
 export const ClassCard = memo(function ClassCard({
   data,
+  layout = "grid",
   onHoverStart,
   onHoverEnd,
 }: ClassCardProps) {
-  const classColor = data.color || "#3b82f6"
-  const classHref = `/classes/${data.id}`
-  const teacherInitials = useMemo(() => {
-    return data.teacherName
-      ? data.teacherName
-          .split(" ")
-          .map((name) => name[0])
-          .join("")
-          .toUpperCase()
-          .slice(0, 2)
-      : "T"
-  }, [data.teacherName])
+  const organizationPath = useOrganizationPath()
+  const classHref = organizationPath(`/classes/${data.id}`)
+  const courseTone = courseToneFromValue(data.color, data.id)
+  const isList = layout === "list"
+  const isOptimistic = Boolean(data.tempId) && Boolean(data.pending)
+
+  const teacherName = data.teacherName || "Teacher"
+  const enrolledCount = data.enrolledCount
+  const studentLabel = studentSummary(enrolledCount)
+  const classworkCount = data.classworkCount ?? 0
+  const scheduleText = data.schedule || "Flexible schedule"
+  
+  // Structured identity fields
+  const gradeLabel = getGradeLevelFallback(data)
+  const sectionLabel = data.section
+
+  // The class row carries its own last-changed stamp; fall back to creation for
+  // offline cache entries written before it was cached.
+  const changedAt = data.updatedAt || data.createdAt
+  const changedLabel = formatRelativeTime(changedAt)
+  const changedTitle = formatShortDate(changedAt)
+
+  const accessibleName = [
+    data.title,
+    studentLabel,
+    classworkCount > 0 ? classworkSummary(classworkCount) : null,
+    teacherName,
+    data.schedule ? `Schedule: ${data.schedule}` : null,
+    changedLabel ? `updated ${changedLabel}` : null,
+  ]
+    .filter(Boolean)
+    .join(", ")
 
   return (
-    <Link
-      href={classHref}
-      prefetch={true}
-      onMouseEnter={() => onHoverStart(classHref)}
-      onMouseLeave={() => onHoverEnd(classHref)}
-      className="group block h-full"
-    >
-      <div className="relative h-full flex flex-col overflow-hidden rounded-2xl border bg-card transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-primary/20">
-        <div
-          className="relative h-28 w-full overflow-hidden"
-          style={{
-            background: `linear-gradient(135deg, ${classColor} 0%, ${classColor}dd 100%)`,
-          }}
-        >
-          <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_1px_1px,white_1px,transparent_0)] [background-size:16px_16px]" />
+    <div role="listitem" className="min-w-0">
+      <Link
+        href={classHref}
+        onMouseEnter={() => onHoverStart(classHref)}
+        onMouseLeave={() => onHoverEnd(classHref)}
+        aria-label={accessibleName}
+        className={cn(
+          "group focus-ring flex h-full flex-col overflow-hidden rounded-2xl border border-hairline/80 bg-card shadow-e1 transition-all duration-200 ease-out-expo hover:shadow-e2 hover:border-primary-border/60 hover:-translate-y-0.5",
+          isList
+            ? "grid grid-cols-[4.5rem_minmax(0,1fr)] sm:grid-cols-[8rem_minmax(0,1fr)]"
+            : "",
+        )}
+        data-slot="class-card"
+        data-layout={layout}
+        data-course-tone={courseTone}
+      >
+        <CoursePoster
+          tone={courseTone}
+          title={data.title}
+          enrolledCount={enrolledCount}
+          isList={isList}
+          isOptimistic={isOptimistic}
+        />
 
-          <div className="absolute top-3 right-3 z-20 flex items-center gap-2">
-            <div className="rounded-full bg-white/20 backdrop-blur-md px-2.5 py-1 text-[11px] font-medium text-white shadow-sm border border-white/10">
-              {data.enrolledCount} enrolled
+        {isList ? (
+          /* ── List layout ── */
+          <div className="flex min-w-0 flex-col gap-3 p-3.5 sm:flex-row sm:items-center sm:gap-6 sm:p-4">
+            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <h2 className="line-clamp-2 type-h2 tracking-[-0.01em] text-foreground transition-colors duration-[var(--duration-fast)] ease-out-expo group-hover:text-primary-strong">
+                {data.title}
+              </h2>
+              {data.description ? (
+                <p className="line-clamp-2 max-w-2xl type-small text-muted-foreground">
+                  {data.description}
+                </p>
+              ) : null}
+              {/* Tags: grade + section + schedule */}
+              <div className="flex min-w-0 flex-wrap items-center gap-1.5 mt-0.5">
+                <span className="inline-flex items-center rounded-md border border-hairline/70 bg-surface-raised px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+                  {gradeLabel}
+                </span>
+                {sectionLabel ? (
+                  <span className="inline-flex items-center rounded-md border border-hairline/70 bg-surface-raised px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                    {sectionLabel}
+                  </span>
+                ) : null}
+                <span className="inline-flex items-center gap-1 rounded-md border border-hairline/70 bg-surface-raised px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                  <CalendarClock className="size-3 opacity-70" aria-hidden="true" />
+                  <span className="truncate max-w-[130px]">{scheduleText}</span>
+                </span>
+              </div>
             </div>
-          </div>
-        </div>
-
-        <div className="flex flex-1 flex-col p-5 pt-10 relative">
-          <div className="absolute -top-7 left-5">
-            <Avatar className="h-14 w-14 border-4 border-card shadow-sm">
-              <AvatarImage src={data.teacherImage || undefined} alt={data.teacherName || "Teacher"} />
-              <AvatarFallback className="bg-blue-50 text-blue-600 font-semibold">
-                {teacherInitials}
-              </AvatarFallback>
-            </Avatar>
-          </div>
-
-          <div className="space-y-1.5 mb-4">
-            <h3 className="font-bold text-lg leading-tight tracking-tight text-foreground group-hover:text-primary transition-colors line-clamp-1">
-              {data.title}
-            </h3>
-            {data.description && (
-              <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
-                {data.description}
-              </p>
-            )}
-          </div>
-
-          <div className="mt-auto pt-4 border-t flex items-center justify-between text-xs text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <span className="font-medium text-foreground/80">
-                {data.teacherName || "Unknown Teacher"}
+            {/* Teacher */}
+            <div className="flex min-w-0 items-center gap-2 sm:w-44 sm:justify-end">
+              <EntityAvatar name={teacherName} image={data.teacherImage} size="sm" />
+              <span className="min-w-0 truncate text-xs font-semibold text-foreground/90">
+                {teacherName}
               </span>
             </div>
-            {data.category && (
-              <span
-                className="px-2 py-0.5 rounded-full font-medium"
-                style={{
-                  backgroundColor: `${classColor}10`,
-                  color: classColor,
-                }}
+          </div>
+        ) : (
+          /* ── Grid layout ── */
+          <>
+            <div className="flex min-w-0 flex-1 flex-col gap-2.5 p-4">
+              {/* Title */}
+              <h2 className="line-clamp-2 font-display text-[15px] font-bold leading-snug tracking-tight text-foreground transition-colors duration-[var(--duration-fast)] ease-out-expo group-hover:text-primary-strong">
+                {data.title}
+              </h2>
+
+              {/* Description */}
+              {data.description ? (
+                <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                  {data.description}
+                </p>
+              ) : (
+                <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground/50 italic">
+                  No description provided
+                </p>
+              )}
+
+              {/* Tags: grade + section + schedule */}
+              <div className="flex min-w-0 flex-wrap items-center gap-1.5 mt-auto pt-1">
+                <span className="sr-only">{classworkCount}</span>
+                <span className="inline-flex items-center rounded-md border border-hairline/70 bg-surface-raised px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+                  {gradeLabel}
+                </span>
+                {sectionLabel ? (
+                  <span className="inline-flex items-center rounded-md border border-hairline/70 bg-surface-raised px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                    {sectionLabel}
+                  </span>
+                ) : null}
+                <span className="inline-flex items-center gap-1 rounded-md border border-hairline/70 bg-surface-raised px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                  <CalendarClock className="size-3 opacity-70" aria-hidden="true" />
+                  <span className="truncate max-w-[130px]">{scheduleText}</span>
+                </span>
+              </div>
+            </div>
+
+            {/* Footer: teacher avatar + name */}
+            <div className="flex items-center gap-2.5 border-t border-hairline/70 px-4 py-3 bg-surface-subtle/30">
+              <div
+                role="group"
+                aria-label={enrolledCount > 0 ? `${teacherName} and ${enrolledCount} students` : teacherName}
+                className="flex items-center gap-1"
               >
-                {data.category}
+                <EntityAvatar name={teacherName} image={data.teacherImage} size="sm" />
+                {(data.students ?? []).slice(0, 3).map((student) => (
+                  <EntityAvatar key={student.id} name={student.name} image={student.image} size="sm" />
+                ))}
+                {enrolledCount > 3 ? (
+                  <span className="type-caption font-semibold text-muted-foreground">+{enrolledCount - 3}</span>
+                ) : null}
+              </div>
+              <span className="min-w-0 truncate text-xs font-semibold text-foreground/90">
+                {teacherName}
               </span>
-            )}
-          </div>
-        </div>
-      </div>
-    </Link>
+              {enrolledCount === 0 ? <span className="type-caption text-muted-foreground">No students yet</span> : null}
+            </div>
+          </>
+        )}
+        {changedAt ? (
+        <time
+          dateTime={changedAt || undefined}
+          title={changedTitle ? `Updated ${changedTitle}` : undefined}
+          suppressHydrationWarning
+          className="sr-only"
+        >
+          {changedLabel}
+        </time>
+      ) : null}
+      </Link>
+    </div>
   )
 })

@@ -1,15 +1,16 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
+import { ChevronLeft, ChevronRight, X } from "lucide-react"
+
+import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { X, ChevronLeft, ChevronRight } from "lucide-react"
-import { buttonVariants } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
+import { StatusBadge } from "@/components/ui/status-badge"
 
 type ImageViewerDialogProps = {
   images: string[]
@@ -18,7 +19,12 @@ type ImageViewerDialogProps = {
   onOpenChange: (open: boolean) => void
 }
 
-export function ImageViewerDialog({ images, currentIndex, open, onOpenChange }: ImageViewerDialogProps) {
+export function ImageViewerDialog({
+  images,
+  currentIndex,
+  open,
+  onOpenChange,
+}: ImageViewerDialogProps) {
   const [index, setIndex] = useState(currentIndex)
 
   useEffect(() => {
@@ -30,67 +36,72 @@ export function ImageViewerDialog({ images, currentIndex, open, onOpenChange }: 
   }, [open, currentIndex])
 
   const handlePrevious = () => {
-    setIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1))
+    setIndex((previous) => (previous > 0 ? previous - 1 : images.length - 1))
   }
 
   const handleNext = () => {
-    setIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0))
+    setIndex((previous) => (previous < images.length - 1 ? previous + 1 : 0))
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl w-full p-0">
+      <DialogContent className="w-full max-w-4xl overflow-hidden rounded-2xl border border-hairline/80 bg-background/95 p-0 shadow-2xl backdrop-blur-md">
         <DialogHeader className="sr-only">
-          <DialogTitle>View Image</DialogTitle>
+          <DialogTitle>View attachment</DialogTitle>
         </DialogHeader>
-        <div className="relative">
-          <button
+        <div className="relative flex min-h-72 items-center justify-center bg-black/5 p-4 dark:bg-black/40">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-sm"
             onClick={() => onOpenChange(false)}
-            className={cn(
-              buttonVariants({ variant: "ghost", size: "icon" }),
-              "absolute top-2 right-2 z-10"
-            )}
+            aria-label="Close image viewer"
+            className="absolute right-3.5 top-3.5 z-10 size-8 rounded-full border-hairline bg-card/80 backdrop-blur-xs hover:bg-card shadow-xs"
           >
-            <X className="h-5 w-5" />
-          </button>
-          
-          {images.length > 1 && (
+            <X className="size-4" />
+          </Button>
+
+          {images.length > 1 ? (
             <>
-              <button
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
                 onClick={handlePrevious}
-                className={cn(
-                  buttonVariants({ variant: "ghost", size: "icon" }),
-                  "absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-black/50 hover:bg-black/70 text-white"
-                )}
+                aria-label="Previous image"
+                className="absolute left-3.5 top-1/2 z-10 size-9 -translate-y-1/2 rounded-full border-hairline bg-card/80 backdrop-blur-xs hover:bg-card shadow-xs"
               >
-                <ChevronLeft className="h-5 w-5" />
-              </button>
-              <button
+                <ChevronLeft className="size-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
                 onClick={handleNext}
-                className={cn(
-                  buttonVariants({ variant: "ghost", size: "icon" }),
-                  "absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-black/50 hover:bg-black/70 text-white"
-                )}
+                aria-label="Next image"
+                className="absolute right-3.5 top-1/2 z-10 size-9 -translate-y-1/2 rounded-full border-hairline bg-card/80 backdrop-blur-xs hover:bg-card shadow-xs"
               >
-                <ChevronRight className="h-5 w-5" />
-              </button>
+                <ChevronRight className="size-4" />
+              </Button>
             </>
-          )}
-          
+          ) : null}
+
           <img
             src={images[index]}
-            alt={`Image ${index + 1}`}
-            className="w-full h-auto max-h-[80vh] object-contain"
+            alt={`Attachment ${index + 1}`}
+            className="max-h-[80dvh] h-auto w-full rounded-lg object-contain"
           />
-          
-          {images.length > 1 && (
-            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/50 text-white px-3 py-1 rounded-full text-sm">
-              {index + 1} / {images.length}
-            </div>
-          )}
+
+          {images.length > 1 ? (
+            <StatusBadge
+              tone="neutral"
+              className="absolute bottom-3.5 left-1/2 -translate-x-1/2 rounded-full bg-card/90 px-3 py-1 font-medium shadow-xs backdrop-blur-xs"
+            >
+              {index + 1} of {images.length}
+            </StatusBadge>
+          ) : null}
         </div>
       </DialogContent>
     </Dialog>
   )
 }
-

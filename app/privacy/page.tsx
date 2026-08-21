@@ -7,9 +7,9 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 px-4 py-16 sm:px-6">
+    <main className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col gap-6 px-4 py-16 sm:px-6">
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Privacy Policy</h1>
+        <h1 className="text-3xl font-bold">Privacy Policy</h1>
         <p className="text-muted-foreground">
           UpClass stores account, classroom, messaging, and resource data so the product can
           operate as a collaborative learning workspace.

@@ -5,6 +5,7 @@ import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js"
 
 import { supabase } from "@/lib/supabase-client"
+import { scheduleRouterRefresh } from "@/lib/coalesced-router-refresh"
 
 type AnnouncementRecord = {
   id?: string
@@ -46,7 +47,7 @@ export function useStreamRealtime({
         (payload) => {
           const handled = onAnnouncementPayload?.(payload)
           if (handled) return
-          router.refresh()
+          scheduleRouterRefresh(`announcements:${classId}`, router)
         },
       )
       .on(
@@ -59,7 +60,7 @@ export function useStreamRealtime({
         (payload) => {
           const handled = onReactionPayload?.(payload)
           if (handled) return
-          router.refresh()
+          scheduleRouterRefresh(`reactions:${classId}`, router)
         },
       )
       .subscribe()

@@ -1,41 +1,52 @@
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
-import { Spinner } from "./spinner"
 
+import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all duration-200 ease-out disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive active:scale-[0.98]",
+  "focus-ring relative inline-flex shrink-0 select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-[var(--radius-buttons)] type-small font-medium transition-[color,background-color,border-color,opacity] duration-[var(--duration-base)] ease-out-expo disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-45 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5 aria-invalid:ring-2 aria-invalid:ring-destructive/25",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-md hover:shadow-primary/20",
-        destructive:
-          "bg-destructive text-white hover:bg-destructive/90 hover:shadow-md hover:shadow-destructive/20 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
-        outline:
-          "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground hover:shadow-sm dark:bg-input/30 dark:border-input dark:hover:bg-input/50",
-        secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80 hover:shadow-sm",
-        ghost:
-          "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
-        link: "text-primary underline-offset-4 hover:underline",
+        /** Primary action: filled UpClass Blue. */
+        default: "border border-transparent bg-primary text-primary-foreground hover:bg-[var(--primary-hover)] active:bg-[var(--primary-active)]",
+        /** Destructive action: filled Vermillion. */
+        destructive: "border border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/90",
+        /** Secondary actions use a quiet semantic surface. */
+        outline: "border border-hairline-strong bg-card text-foreground hover:bg-surface-hover active:bg-surface-active",
+        secondary: "border border-transparent bg-surface-subtle text-foreground hover:bg-surface-hover active:bg-surface-active",
+        soft: "border border-transparent bg-primary-surface text-primary-text hover:bg-primary-muted",
+        /** Ghost text: low-emphasis command. */
+        inverse: "border border-transparent bg-foreground text-background hover:bg-foreground/90",
+        ghost: "border border-transparent text-foreground hover:bg-muted active:bg-secondary",
+        /** Inline text action. */
+        link: "rounded-[var(--radius-small)] border-0 text-primary-strong underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-9 px-4 py-2 has-[>svg]:px-3",
-        sm: "h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5",
-        lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
-        icon: "size-9",
-        "icon-sm": "size-8",
-        "icon-lg": "size-10",
+        xs: "h-6 gap-1 px-2 type-caption [&_svg:not([class*='size-'])]:size-3",
+        sm: "h-[var(--control-height-sm)] px-2.5",
+        default: "h-[var(--control-height-md)] px-3",
+        lg: "h-[var(--control-height-lg)] gap-2 px-4 type-small",
+        "icon-xs": "size-6 [&_svg:not([class*='size-'])]:size-3",
+        "icon-sm": "size-[var(--control-height-sm)]",
+        icon: "size-[var(--control-height-md)]",
+        "icon-lg": "size-[var(--control-height-lg)]",
+        "icon-circle": "size-[var(--control-height-md)] rounded-full [&_svg:not([class*='size-'])]:size-4",
       },
     },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
-  }
+    defaultVariants: { variant: "default", size: "default" },
+  },
 )
+
+type ButtonProps = React.ComponentProps<"button"> & VariantProps<typeof buttonVariants> & {
+  asChild?: boolean
+  isLoading?: boolean
+  leftIcon?: React.ReactNode
+  rightIcon?: React.ReactNode
+  fullWidth?: boolean
+}
 
 function Button({
   className,
@@ -43,21 +54,24 @@ function Button({
   size,
   asChild = false,
   isLoading = false,
+  leftIcon,
+  rightIcon,
+  fullWidth = false,
   children,
   disabled,
   ...props
-}: React.ComponentProps<"button"> &
-  VariantProps<typeof buttonVariants> & {
-    asChild?: boolean
-    isLoading?: boolean
-  }) {
-  const Comp = asChild ? Slot : "button"
+}: ButtonProps) {
+  const resolvedVariant = variant ?? "default"
+  const resolvedSize = size ?? "default"
+  const combinedClassName = cn(buttonVariants({ variant, size, className }), fullWidth && "w-full")
 
   if (asChild) {
     return (
       <Slot
         data-slot="button"
-        className={cn(buttonVariants({ variant, size, className }))}
+        data-variant={resolvedVariant}
+        data-size={resolvedSize}
+        className={combinedClassName}
         {...props}
       >
         {children}
@@ -68,21 +82,29 @@ function Button({
   return (
     <button
       data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
+      data-variant={resolvedVariant}
+      data-size={resolvedSize}
+      data-loading={isLoading ? "true" : undefined}
+      className={combinedClassName}
       disabled={isLoading || disabled}
+      aria-busy={isLoading || undefined}
       {...props}
     >
-      {isLoading && (
-        <Spinner
-          className={cn(
-            "text-current",
-            size?.includes("icon") ? "" : "mr-2"
-          )}
-        />
-      )}
-      {children}
+      {isLoading ? <Spinner className="absolute text-current" aria-hidden="true" /> : null}
+      <span
+        data-slot="button-label"
+        className={cn(
+          "inline-flex min-w-0 items-center justify-center gap-[inherit]",
+          isLoading && "invisible"
+        )}
+      >
+        {leftIcon && <span data-slot="button-left-icon" className="inline-flex shrink-0 items-center justify-center">{leftIcon}</span>}
+        {children}
+        {rightIcon && <span data-slot="button-right-icon" className="inline-flex shrink-0 items-center justify-center">{rightIcon}</span>}
+      </span>
     </button>
   )
 }
 
-export { Button, buttonVariants }
+export { Button, buttonVariants, type ButtonProps }
+

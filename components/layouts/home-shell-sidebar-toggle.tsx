@@ -1,27 +1,25 @@
-"use client"
+"use client";
 
-import { Menu } from "lucide-react"
+import { Menu } from "lucide-react";
 
-import { useHomeShellSidebarState } from "@/components/layouts/home-shell-sidebar-state"
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/button";
+import { useSidebar } from "@/components/ui/sidebar";
 
 export function HomeShellSidebarToggle() {
-  const isOpen = useHomeShellSidebarState((state) => state.isOpen)
-  const toggle = useHomeShellSidebarState((state) => state.toggle)
+  const { openMobile, toggleSidebar } = useSidebar();
 
   return (
     <Button
       variant="ghost"
       size="icon"
-      className="md:hidden"
-      aria-label={isOpen ? "Close navigation" : "Open navigation"}
-      aria-expanded={isOpen}
+      className="hidden sm:inline-flex md:hidden"
+      aria-label={openMobile ? "Close navigation" : "Open navigation"}
+      aria-expanded={openMobile}
       aria-controls="app-sidebar"
       type="button"
-      onClick={toggle}
+      onClick={toggleSidebar}
     >
-      <Menu className="h-5 w-5" />
+      <Menu />
     </Button>
-  )
+  );
 }
-

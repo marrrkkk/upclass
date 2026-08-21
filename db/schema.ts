@@ -1,4 +1,4 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   pgEnum,
   pgTable,
@@ -9,9 +9,9 @@ import {
   index,
   uniqueIndex,
   jsonb,
+  primaryKey,
+  check,
 } from "drizzle-orm/pg-core";
-
-export const userRole = pgEnum("user_role", ["teacher", "student"]);
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -20,9 +20,8 @@ export const user = pgTable("user", {
   emailVerified: boolean("email_verified").default(false).notNull(),
   image: text("image"),
   cover: text("cover"), // Cover image URL
-  coverColor: text("cover_color").default("#3b82f6"), // Default cover color (primary blue)
+  coverColor: text("cover_color").default("#0e6b52"), // Default cover color (primary mint)
   bio: text("bio"),
-  role: userRole("role"),
   // Notification settings
   emailNotifications: boolean("email_notifications").default(true).notNull(),
   pushNotifications: boolean("push_notifications").default(true).notNull(),
@@ -118,18 +117,181 @@ export const accountRelations = relations(account, ({ one }) => ({
   }),
 }));
 
+// Organization multi-tenancy
+export const orgRole = pgEnum("org_role", ["owner", "admin", "member", "teacher", "student"]);
+
+export const organizations = pgTable(
+  "organizations",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    slug: text("slug").notNull().unique(),
+    description: text("description"),
+    logo: text("logo"),
+    settings: jsonb("settings").$type<Record<string, unknown>>().default({}).notNull(),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("organizations_slug_idx").on(table.slug),
+    index("organizations_created_by_idx").on(table.createdBy),
+  ],
+);
+
+export const orgMembership = pgTable(
+  "org_membership",
+  {
+    id: text("id").primaryKey(),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    role: orgRole("role").notNull().default("student"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("org_membership_user_idx").on(table.userId),
+    index("org_membership_org_idx").on(table.orgId),
+    uniqueIndex("org_membership_unique_user_org").on(table.orgId, table.userId),
+  ],
+);
+
+export const onboardingState = pgTable(
+  "onboarding_state",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    scopeKey: text("scope_key").notNull(),
+    currentStep: text("current_step"),
+    completedSteps: jsonb("completed_steps").$type<string[]>().default([]).notNull(),
+    flowVersion: integer("flow_version").default(1).notNull(),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+    dismissedAt: timestamp("dismissed_at"),
+    completedAt: timestamp("completed_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("onboarding_state_user_idx").on(table.userId),
+    uniqueIndex("onboarding_state_user_scope_unique").on(table.userId, table.scopeKey),
+  ],
+);
+
+export const orgInvitations = pgTable(
+  "org_invitations",
+  {
+    id: text("id").primaryKey(),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    role: orgRole("role").notNull().default("student"),
+    token: text("token").notNull().unique(),
+    invitedBy: text("invited_by")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("org_invitations_org_idx").on(table.orgId),
+    index("org_invitations_token_idx").on(table.token),
+    uniqueIndex("org_invitations_unique_org_email").on(table.orgId, table.email),
+  ],
+);
+
+export const organizationRelations = relations(organizations, ({ one, many }) => ({
+  creator: one(user, {
+    fields: [organizations.createdBy],
+    references: [user.id],
+  }),
+  memberships: many(orgMembership),
+  invitations: many(orgInvitations),
+}));
+
+export const orgMembershipRelations = relations(orgMembership, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [orgMembership.orgId],
+    references: [organizations.id],
+  }),
+  user: one(user, {
+    fields: [orgMembership.userId],
+    references: [user.id],
+  }),
+}));
+
+export const onboardingStateRelations = relations(onboardingState, ({ one }) => ({
+  user: one(user, {
+    fields: [onboardingState.userId],
+    references: [user.id],
+  }),
+}));
+
+export const orgInvitationRelations = relations(orgInvitations, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [orgInvitations.orgId],
+    references: [organizations.id],
+  }),
+  inviter: one(user, {
+    fields: [orgInvitations.invitedBy],
+    references: [user.id],
+  }),
+}));
+
 export const classRole = pgEnum("class_role", ["teacher", "student"]);
+
+export const gradeLevel = pgEnum("grade_level", [
+  "kindergarten",
+  "grade_1",
+  "grade_2",
+  "grade_3",
+  "grade_4",
+  "grade_5",
+  "grade_6",
+  "grade_7",
+  "grade_8",
+  "grade_9",
+  "grade_10",
+  "grade_11",
+  "grade_12",
+  "college",
+  "other",
+]);
 
 export const classes = pgTable(
   "classes",
   {
     id: text("id").primaryKey(),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
     title: text("title").notNull(),
     description: text("description"),
-    category: text("category").default("General"),
+    category: text("category").default("General"), // Legacy field, kept for compatibility
+    gradeLevel: gradeLevel("grade_level"), // New structured field
+    customGrade: text("custom_grade"), // Only used when gradeLevel is 'other'
+    section: text("section"), // Optional section/stream identifier
     thumbnail: text("thumbnail"),
     code: text("code").notNull().unique(),
-    color: text("color").default("#3b82f6"), // Default blue color
+    codeEnabled: boolean("code_enabled").default(true).notNull(),
+    color: text("color").default("#0e6b52"), // Default mint color
     schedule: text("schedule"), // Class schedule (e.g., "Mon, Wed, Fri 10:00 AM")
     ownerId: text("owner_id")
       .notNull()
@@ -141,8 +303,11 @@ export const classes = pgTable(
       .notNull(),
   },
   (table) => [
+    index("classes_org_idx").on(table.orgId),
     index("classes_owner_idx").on(table.ownerId),
     index("classes_code_idx").on(table.code),
+    index("classes_grade_level_idx").on(table.gradeLevel),
+    index("classes_section_idx").on(table.section),
   ],
 );
 
@@ -171,6 +336,11 @@ export const classMembership = pgTable(
 
 export const classRelations = relations(classes, ({ many, one }) => ({
   memberships: many(classMembership),
+  resources: many(resources),
+  organization: one(organizations, {
+    fields: [classes.orgId],
+    references: [organizations.id],
+  }),
   owner: one(user, {
     fields: [classes.ownerId],
     references: [user.id],
@@ -203,17 +373,32 @@ export const resourceFileType = pgEnum("resource_file_type", [
   "other",
 ]);
 
+export const resourceType = pgEnum("resource_type", [
+  "notes",
+  "slides",
+  "worksheet",
+  "reading",
+  "reference",
+  "template",
+  "other",
+]);
+
 export const resources = pgTable(
   "resources",
   {
     id: text("id").primaryKey(),
+    orgId: text("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    classId: text("class_id").references(() => classes.id, { onDelete: "set null" }), // Optional class link
     title: text("title").notNull(),
     description: text("description"),
-    category: text("category").default("General"),
+    category: text("category").default("General"), // Legacy field, kept for compatibility
+    resourceType: resourceType("resource_type"), // New structured type
     fileUrl: text("file_url").notNull(),
     fileName: text("file_name").notNull(),
     fileType: resourceFileType("file_type").notNull(),
     fileSize: text("file_size"),
+    storagePath: text("storage_path"), // Storage object path for cleanup
+    aiSourceText: text("ai_source_text"),
     ownerId: text("owner_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
@@ -223,7 +408,141 @@ export const resources = pgTable(
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
   },
-  (table) => [index("resources_owner_idx").on(table.ownerId)],
+  (table) => [
+    index("resources_owner_idx").on(table.ownerId),
+    index("resources_org_idx").on(table.orgId),
+    index("resources_class_idx").on(table.classId),
+    index("resources_resource_type_idx").on(table.resourceType),
+  ],
+);
+
+export const resourceChunks = pgTable(
+  "resource_chunks",
+  {
+    id: text("id").primaryKey(),
+    resourceId: text("resource_id")
+      .notNull()
+      .references(() => resources.id, { onDelete: "cascade" }),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    chunkIndex: integer("chunk_index").notNull(),
+    content: text("content").notNull(),
+    contentHash: text("content_hash").notNull(),
+    pageNumber: integer("page_number"),
+    sectionTitle: text("section_title"),
+    embedding: jsonb("embedding").$type<number[] | null>(),
+    embeddingModel: text("embedding_model"),
+    embeddingVersion: text("embedding_version"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().$onUpdate(() => new Date()).notNull(),
+  },
+  (table) => [
+    uniqueIndex("resource_chunks_resource_index_unique").on(table.resourceId, table.chunkIndex),
+    index("resource_chunks_resource_idx").on(table.resourceId),
+    index("resource_chunks_org_idx").on(table.orgId),
+  ],
+);
+
+export const studyCollections = pgTable(
+  "study_collections",
+  {
+    id: text("id").primaryKey(),
+    orgId: text("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    studentId: text("student_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    description: text("description"),
+    sourceType: text("source_type"),
+    sourceId: text("source_id"),
+    archived: boolean("archived").default(false).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().$onUpdate(() => new Date()).notNull(),
+  },
+  (table) => [index("study_collections_student_idx").on(table.studentId), index("study_collections_org_idx").on(table.orgId)],
+);
+
+export const studyCards = pgTable(
+  "study_cards",
+  {
+    id: text("id").primaryKey(),
+    collectionId: text("collection_id").notNull().references(() => studyCollections.id, { onDelete: "cascade" }),
+    front: text("front").notNull(),
+    back: text("back").notNull(),
+    hint: text("hint"),
+    explanation: text("explanation"),
+    sourceRefs: jsonb("source_refs").$type<string[]>().default([]).notNull(),
+    dueAt: timestamp("due_at").defaultNow().notNull(),
+    intervalDays: integer("interval_days").default(0).notNull(),
+    ease: integer("ease").default(250).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().$onUpdate(() => new Date()).notNull(),
+  },
+  (table) => [index("study_cards_collection_due_idx").on(table.collectionId, table.dueAt)],
+);
+
+export const studySessions = pgTable(
+  "study_sessions",
+  {
+    id: text("id").primaryKey(),
+    collectionId: text("collection_id").notNull().references(() => studyCollections.id, { onDelete: "cascade" }),
+    studentId: text("student_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    mode: text("mode").notNull(),
+    correct: integer("correct").default(0).notNull(),
+    total: integer("total").default(0).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    completedAt: timestamp("completed_at"),
+  },
+  (table) => [index("study_sessions_student_idx").on(table.studentId, table.createdAt)],
+);
+
+export const studySourceStatus = pgEnum("study_source_status", ["pending", "processing", "ready", "failed"]);
+
+export const studySources = pgTable(
+  "study_sources",
+  {
+    id: text("id").primaryKey(),
+    collectionId: text("collection_id").notNull().references(() => studyCollections.id, { onDelete: "cascade" }),
+    resourceId: text("resource_id").references(() => resources.id, { onDelete: "set null" }),
+    title: text("title").notNull(),
+    status: studySourceStatus("status").default("pending").notNull(),
+    errorMessage: text("error_message"),
+    processingStartedAt: timestamp("processing_started_at"),
+    processedAt: timestamp("processed_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().$onUpdate(() => new Date()).notNull(),
+  },
+  (table) => [index("study_sources_collection_idx").on(table.collectionId), index("study_sources_status_idx").on(table.status)],
+);
+
+export const studyQuizzes = pgTable(
+  "study_quizzes",
+  {
+    id: text("id").primaryKey(),
+    collectionId: text("collection_id").notNull().references(() => studyCollections.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    description: text("description"),
+    position: integer("position").default(0).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().$onUpdate(() => new Date()).notNull(),
+  },
+  (table) => [index("study_quizzes_collection_position_idx").on(table.collectionId, table.position)],
+);
+
+export const studyQuestions = pgTable(
+  "study_questions",
+  {
+    id: text("id").primaryKey(),
+    quizId: text("quiz_id").notNull().references(() => studyQuizzes.id, { onDelete: "cascade" }),
+    prompt: text("prompt").notNull(),
+    options: jsonb("options").$type<string[]>().default([]).notNull(),
+    correctAnswer: text("correct_answer").notNull(),
+    explanation: text("explanation"),
+    sourceRefs: jsonb("source_refs").$type<string[]>().default([]).notNull(),
+    position: integer("position").default(0).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().$onUpdate(() => new Date()).notNull(),
+  },
+  (table) => [index("study_questions_quiz_position_idx").on(table.quizId, table.position)],
 );
 
 export const resourceRelations = relations(resources, ({ one }) => ({
@@ -231,7 +550,78 @@ export const resourceRelations = relations(resources, ({ one }) => ({
     fields: [resources.ownerId],
     references: [user.id],
   }),
+  organization: one(organizations, {
+    fields: [resources.orgId],
+    references: [organizations.id],
+  }),
+  class: one(classes, {
+    fields: [resources.classId],
+    references: [classes.id],
+  }),
 }));
+
+export const resourceAiMessageRole = pgEnum("resource_ai_message_role", ["user", "assistant"]);
+
+export const resourceAiConversations = pgTable(
+  "resource_ai_conversations",
+  {
+    id: text("id").primaryKey(),
+    resourceId: text("resource_id")
+      .notNull()
+      .references(() => resources.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("resource_ai_conversations_resource_user_unique").on(table.resourceId, table.userId),
+    index("resource_ai_conversations_user_updated_idx").on(table.userId, table.updatedAt),
+  ],
+);
+
+export const resourceAiMessages = pgTable(
+  "resource_ai_messages",
+  {
+    id: text("id").primaryKey(),
+    conversationId: text("conversation_id")
+      .notNull()
+      .references(() => resourceAiConversations.id, { onDelete: "cascade" }),
+    role: resourceAiMessageRole("role").notNull(),
+    content: text("content").notNull(),
+    clientMessageId: text("client_message_id"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("resource_ai_messages_conversation_created_idx").on(table.conversationId, table.createdAt),
+    uniqueIndex("resource_ai_messages_conversation_client_message_unique").on(
+      table.conversationId,
+      table.clientMessageId,
+    ),
+  ],
+);
+
+export const resourceAiRateLimits = pgTable(
+  "resource_ai_rate_limits",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    scope: text("scope").notNull(),
+    day: text("day").notNull(),
+    count: integer("count").default(0).notNull(),
+  },
+  (table) => [
+    primaryKey({
+      name: "resource_ai_rate_limits_user_scope_day_pk",
+      columns: [table.userId, table.scope, table.day],
+    }),
+  ],
+);
 
 export const announcements = pgTable(
   "announcements",
@@ -525,6 +915,8 @@ export const messages = pgTable(
   "messages",
   {
     id: text("id").primaryKey(),
+    conversationId: text("conversation_id"),
+    clientMessageId: text("client_message_id"),
     senderId: text("sender_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
@@ -538,6 +930,11 @@ export const messages = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
+    index("messages_conversation_created_idx").on(table.conversationId, table.createdAt),
+    uniqueIndex("messages_conversation_client_message_unique").on(
+      table.conversationId,
+      table.clientMessageId,
+    ),
     index("messages_sender_idx").on(table.senderId),
     index("messages_receiver_idx").on(table.receiverId),
     index("messages_read_idx").on(table.read),
@@ -557,6 +954,9 @@ export const classChannels = pgTable(
     createdBy: text("created_by")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
+    lastMessageId: text("last_message_id"),
+    lastMessageAt: timestamp("last_message_at"),
+    lastMessagePreview: text("last_message_preview"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
@@ -569,6 +969,7 @@ export const channelMessages = pgTable(
   "channel_messages",
   {
     id: text("id").primaryKey(),
+    clientMessageId: text("client_message_id"),
     channelId: text("channel_id")
       .notNull()
       .references(() => classChannels.id, { onDelete: "cascade" }),
@@ -582,9 +983,118 @@ export const channelMessages = pgTable(
   },
   (table) => [
     index("channel_messages_channel_idx").on(table.channelId),
+    index("channel_messages_channel_created_idx").on(table.channelId, table.createdAt),
+    uniqueIndex("channel_messages_channel_client_message_unique").on(
+      table.channelId,
+      table.clientMessageId,
+    ),
     index("channel_messages_sender_idx").on(table.senderId),
   ],
 );
+
+export const directConversations = pgTable(
+  "direct_conversations",
+  {
+    id: text("id").primaryKey(),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    participantOneId: text("participant_one_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    participantTwoId: text("participant_two_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    lastMessageId: text("last_message_id"),
+    lastMessageAt: timestamp("last_message_at"),
+    lastMessagePreview: text("last_message_preview"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("direct_conversations_org_participants_unique").on(
+      table.orgId,
+      table.participantOneId,
+      table.participantTwoId,
+    ),
+    index("direct_conversations_org_last_message_idx").on(table.orgId, table.lastMessageAt),
+  ],
+);
+
+export const directConversationMembers = pgTable(
+  "direct_conversation_members",
+  {
+    conversationId: text("conversation_id")
+      .notNull()
+      .references(() => directConversations.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    lastReadCreatedAt: timestamp("last_read_created_at"),
+    lastReadMessageId: text("last_read_message_id"),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.conversationId, table.userId] }),
+    index("direct_conversation_members_user_idx").on(table.userId),
+  ],
+);
+
+export const channelMemberState = pgTable(
+  "channel_member_state",
+  {
+    channelId: text("channel_id")
+      .notNull()
+      .references(() => classChannels.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    lastReadCreatedAt: timestamp("last_read_created_at"),
+    lastReadMessageId: text("last_read_message_id"),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.channelId, table.userId] }),
+    index("channel_member_state_user_idx").on(table.userId),
+  ],
+);
+
+export const messageNotificationOutbox = pgTable(
+  "message_notification_outbox",
+  {
+    id: text("id").primaryKey(),
+    messageId: text("message_id").notNull(),
+    recipientId: text("recipient_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    channel: text("channel").notNull(),
+    status: text("status").default("pending").notNull(),
+    attemptCount: integer("attempt_count").default(0).notNull(),
+    nextAttemptAt: timestamp("next_attempt_at").defaultNow().notNull(),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("message_notification_outbox_due_idx").on(table.status, table.nextAttemptAt),
+    uniqueIndex("message_notification_outbox_message_channel_unique").on(
+      table.messageId,
+      table.channel,
+    ),
+  ],
+);
+
+export const messageMigrationQuarantine = pgTable("message_migration_quarantine", {
+  id: text("id").primaryKey(),
+  originalMessageId: text("original_message_id").notNull().unique(),
+  senderId: text("sender_id").notNull(),
+  receiverId: text("receiver_id").notNull(),
+  content: text("content").notNull(),
+  media: text("media"),
+  createdAt: timestamp("created_at").notNull(),
+  reason: text("reason").notNull(),
+  quarantinedAt: timestamp("quarantined_at").defaultNow().notNull(),
+});
 
 export const activityLog = pgTable(
   "activity_log",
@@ -951,3 +1461,347 @@ export const whiteboardOperationRelations = relations(whiteboardOperations, ({ o
     references: [user.id],
   }),
 }));
+
+// ---------------------------------------------------------------------------
+// AI assistant
+// ---------------------------------------------------------------------------
+
+export const aiConversationSurface = pgEnum("ai_conversation_surface", ["dashboard", "class", "resource", "study"]);
+export const aiMessageRole = pgEnum("ai_message_role", ["user", "assistant", "system"]);
+export const aiMessageStatus = pgEnum("ai_message_status", [
+  "completed",
+  "generating",
+  "failed",
+]);
+export const orgMemoryCategory = pgEnum("org_memory_category", [
+  "teaching_rules",
+  "subject_knowledge",
+  "class_context",
+  "workflow_preferences",
+]);
+export const aiSecurityEventType = pgEnum("ai_security_event_type", [
+  "injection_detected",
+  "injection_rejected",
+  "output_redacted",
+  "conversation_locked",
+  "canary_leak_detected",
+]);
+
+export const aiConversations = pgTable(
+  "ai_conversations",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    surface: aiConversationSurface("surface").notNull(),
+    entityId: text("entity_id").notNull(), // "dashboard" for dashboard, class id for class, resource id for resource
+    title: text("title").notNull().default("New chat"),
+    isDefault: boolean("is_default").default(false).notNull(),
+    lastMessageAt: timestamp("last_message_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("ai_conversations_user_org_idx").on(table.userId, table.orgId),
+    index("ai_conversations_surface_entity_idx").on(table.surface, table.entityId),
+    index("ai_conversations_user_org_last_message_idx")
+      .on(table.userId, table.orgId, table.lastMessageAt)
+      .where(sql`surface = 'dashboard'`),
+    uniqueIndex("ai_conversations_class_default_unique")
+      .on(table.userId, table.orgId, table.surface, table.entityId)
+      .where(sql`surface = 'class' AND is_default = true`),
+  ],
+);
+
+export const aiMessages = pgTable(
+  "ai_messages",
+  {
+    id: text("id").primaryKey(),
+    conversationId: text("conversation_id")
+      .notNull()
+      .references(() => aiConversations.id, { onDelete: "cascade" }),
+    role: aiMessageRole("role").notNull(),
+    content: text("content").notNull().default(""),
+    provider: text("provider"),
+    model: text("model"),
+    status: aiMessageStatus("status").notNull().default("completed"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+    clientMessageId: text("client_message_id"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("ai_messages_conversation_idx").on(table.conversationId),
+    index("ai_messages_conversation_created_idx").on(table.conversationId, table.createdAt),
+    index("ai_messages_conversation_created_id_idx").on(
+      table.conversationId,
+      table.createdAt,
+      table.id,
+    ),
+    uniqueIndex("ai_messages_conversation_client_message_unique").on(
+      table.conversationId,
+      table.clientMessageId,
+    ),
+  ],
+);
+
+export const aiUsageEvents = pgTable(
+  "ai_usage_events",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    taskType: text("task_type").notNull(),
+    weight: integer("weight").notNull().default(1),
+    /** Correlates a usage event with its AI run (request-level identifier). */
+    runId: text("run_id"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("ai_usage_events_user_created_idx").on(table.userId, table.createdAt),
+    index("ai_usage_events_org_created_idx").on(table.orgId, table.createdAt),
+    index("ai_usage_events_run_idx").on(table.runId),
+  ],
+);
+
+export const aiTokenLogs = pgTable(
+  "ai_token_logs",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    taskType: text("task_type").notNull(),
+    model: text("model"),
+    provider: text("provider"),
+    /** Correlates a token log with its AI run (request-level identifier). */
+    runId: text("run_id"),
+    inputTokens: integer("input_tokens").notNull().default(0),
+    outputTokens: integer("output_tokens").notNull().default(0),
+    totalTokens: integer("total_tokens").notNull().default(0),
+    estimatedCostCents: integer("estimated_cost_cents").notNull().default(0),
+    cacheHit: boolean("cache_hit").default(false).notNull(),
+    latencyMs: integer("latency_ms"),
+    status: text("status").notNull().default("success"),
+    errorMessage: text("error_message"),
+    unpriced: boolean("unpriced").default(false).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("ai_token_logs_user_idx").on(table.userId),
+    index("ai_token_logs_org_idx").on(table.orgId),
+    index("ai_token_logs_task_idx").on(table.taskType),
+    index("ai_token_logs_provider_idx").on(table.provider),
+    index("ai_token_logs_run_idx").on(table.runId),
+    index("ai_token_logs_created_idx").on(table.createdAt),
+  ],
+);
+
+export const aiSecurityEvents = pgTable(
+  "ai_security_events",
+  {
+    id: text("id").primaryKey(),
+    eventType: aiSecurityEventType("event_type").notNull(),
+    patternMatched: text("pattern_matched"),
+    userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+    orgId: text("org_id").references(() => organizations.id, { onDelete: "cascade" }),
+    inputHash: text("input_hash"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("ai_security_events_user_idx").on(table.userId),
+    index("ai_security_events_created_idx").on(table.createdAt),
+  ],
+);
+
+export const conversationSummaries = pgTable(
+  "conversation_summaries",
+  {
+    conversationId: text("conversation_id")
+      .primaryKey()
+      .references(() => aiConversations.id, { onDelete: "cascade" }),
+    summary: text("summary").notNull(),
+    messageCount: integer("message_count").notNull().default(0),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [index("conversation_summaries_updated_idx").on(table.updatedAt)],
+);
+
+export const orgMemories = pgTable(
+  "org_memories",
+  {
+    id: text("id").primaryKey(),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    content: text("content").notNull(),
+    position: integer("position").notNull().default(0),
+    embedding: jsonb("embedding").$type<number[] | null>(),
+    embeddingModel: text("embedding_model"),
+    embeddingVersion: text("embedding_version"),
+    category: orgMemoryCategory("category").notNull().default("teaching_rules"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("org_memories_org_idx").on(table.orgId),
+    index("org_memories_org_position_idx").on(table.orgId, table.position),
+    index("org_memories_org_category_idx").on(table.orgId, table.category),
+    check("org_memories_title_length", sql`char_length(${table.title}) <= 200`),
+    check("org_memories_content_length", sql`char_length(${table.content}) <= 4000`),
+    check("org_memories_position_non_negative", sql`${table.position} >= 0`),
+  ],
+);
+
+export const aiConversationRelations = relations(aiConversations, ({ one, many }) => ({
+  user: one(user, {
+    fields: [aiConversations.userId],
+    references: [user.id],
+  }),
+  organization: one(organizations, {
+    fields: [aiConversations.orgId],
+    references: [organizations.id],
+  }),
+  messages: many(aiMessages),
+  summary: one(conversationSummaries, {
+    fields: [aiConversations.id],
+    references: [conversationSummaries.conversationId],
+  }),
+}));
+
+export const aiMessageRelations = relations(aiMessages, ({ one }) => ({
+  conversation: one(aiConversations, {
+    fields: [aiMessages.conversationId],
+    references: [aiConversations.id],
+  }),
+}));
+
+export const orgMemoryRelations = relations(orgMemories, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [orgMemories.orgId],
+    references: [organizations.id],
+  }),
+}));
+
+/* --------------------------------------------------------------------------- */
+/* AI feedback, action proposals, and tool events (run-attributable)           */
+/* --------------------------------------------------------------------------- */
+
+export const aiFeedbackRating = pgEnum("ai_feedback_rating", ["up", "down"]);
+
+export const aiFeedback = pgTable(
+  "ai_feedback",
+  {
+    id: text("id").primaryKey(),
+    messageId: text("message_id")
+      .notNull()
+      .references(() => aiMessages.id, { onDelete: "cascade" }),
+    runId: text("run_id"),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    rating: aiFeedbackRating("rating").notNull(),
+    reason: text("reason"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("ai_feedback_message_user_unique").on(table.messageId, table.userId),
+    index("ai_feedback_user_idx").on(table.userId),
+    index("ai_feedback_org_idx").on(table.orgId),
+    index("ai_feedback_run_idx").on(table.runId),
+  ],
+);
+
+export const aiActionProposalStatus = pgEnum("ai_action_proposal_status", [
+  "completed",
+  "failed",
+]);
+
+/**
+ * Durable idempotency ledger for confirmed AI actions. The primary key IS the
+ * proposal id issued by the action tool; re-confirming a completed proposal
+ * replays the stored result instead of creating another entity.
+ */
+export const aiActionProposals = pgTable(
+  "ai_action_proposals",
+  {
+    id: text("id").primaryKey(),
+    runId: text("run_id"),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    action: text("action").notNull(),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+    status: aiActionProposalStatus("status").notNull().default("completed"),
+    result: jsonb("result").$type<Record<string, unknown> | null>(),
+    errorMessage: text("error_message"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("ai_action_proposals_user_idx").on(table.userId),
+    index("ai_action_proposals_org_idx").on(table.orgId),
+    index("ai_action_proposals_run_idx").on(table.runId),
+  ],
+);
+
+/** Per-tool-call usage metrics for the tool-quality evaluation loop. */
+export const aiToolEvents = pgTable(
+  "ai_tool_events",
+  {
+    id: text("id").primaryKey(),
+    runId: text("run_id"),
+    messageId: text("message_id").references(() => aiMessages.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    toolName: text("tool_name").notNull(),
+    success: boolean("success").notNull().default(true),
+    emptyResult: boolean("empty_result").notNull().default(false),
+    latencyMs: integer("latency_ms"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("ai_tool_events_tool_idx").on(table.toolName),
+    index("ai_tool_events_run_idx").on(table.runId),
+    index("ai_tool_events_org_idx").on(table.orgId),
+  ],
+);

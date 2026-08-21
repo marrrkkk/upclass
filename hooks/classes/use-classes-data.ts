@@ -1,100 +1,63 @@
 "use client"
 
-import { useEffect, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 
-import { useCacheData, useOfflineCollectionCache } from "@/lib/cache-hooks"
-import { BackgroundCache } from "@/lib/background-cache"
 import { usePrefetch } from "@/hooks/use-prefetch"
-import { useClassesStore } from "@/stores/classes-store"
+import { BackgroundCache } from "@/lib/background-cache"
 import { BackgroundSync } from "@/lib/background-sync"
-
+import { useCacheData, useOfflineCollectionCache } from "@/lib/cache-hooks"
 import type { ClassCardData } from "@/types/classes"
 
 type UseClassesDataArgs = {
   teachingClasses: ClassCardData[]
   enrolledClasses: ClassCardData[]
-  isAuthenticated: boolean
-  activeTab: "teaching" | "enrolled"
   searchQuery: string
 }
 
-export function useClassesData({
-  teachingClasses,
-  enrolledClasses,
-  isAuthenticated,
-  activeTab,
-  searchQuery,
-}: UseClassesDataArgs) {
-  const {
-    setTeachingClasses,
-    setEnrolledClasses,
-    setIsAuthenticated,
-    teachingClasses: storeTeachingClasses,
-    enrolledClasses: storeEnrolledClasses,
-  } = useClassesStore()
+export function useClassesData({ teachingClasses, enrolledClasses, searchQuery }: UseClassesDataArgs) {
   const { prefetchOnHover, cancelPrefetch } = usePrefetch()
-
-  useEffect(() => {
-    const hasServerClasses = teachingClasses.length > 0 || enrolledClasses.length > 0
-    const isOffline = typeof window !== "undefined" && !navigator.onLine
-
-    if (isOffline && !hasServerClasses) {
-      return
-    }
-
-    setTeachingClasses(teachingClasses)
-    setEnrolledClasses(enrolledClasses)
-    setIsAuthenticated(isAuthenticated)
-  }, [
-    enrolledClasses,
-    isAuthenticated,
-    setEnrolledClasses,
-    setIsAuthenticated,
-    setTeachingClasses,
-    teachingClasses,
-  ])
-
-  const allClasses = useMemo(
-    () => [...storeTeachingClasses, ...storeEnrolledClasses],
-    [storeEnrolledClasses, storeTeachingClasses],
-  )
-
-  useCacheData(allClasses, "classes", true)
+  const [cachedTeaching, setCachedTeaching] = useState<ClassCardData[]>([])
+  const [cachedEnrolled, setCachedEnrolled] = useState<ClassCardData[]>([])
 
   useOfflineCollectionCache<ClassCardData>({
     onlineData: [...teachingClasses, ...enrolledClasses],
     getCachedData: () => BackgroundCache.getInstance().getCachedClasses(),
     onHydrate: (cachedClasses) => {
-      const teaching = cachedClasses.filter((classItem) => classItem.role === "teaching")
-      const enrolled = cachedClasses.filter((classItem) => classItem.role !== "teaching")
-
-      setTeachingClasses(teaching)
-      setEnrolledClasses(enrolled)
-      setIsAuthenticated(Boolean(cachedClasses.length))
+      setCachedTeaching(cachedClasses.filter((classItem) => classItem.role === "teaching"))
+      setCachedEnrolled(cachedClasses.filter((classItem) => classItem.role !== "teaching"))
     },
   })
+
+  // Server props are the source of truth; fall back to the IndexedDB cache
+  // only when no server data was provided (e.g. offline first load).
+  const resolvedTeaching = teachingClasses.length > 0 ? teachingClasses : cachedTeaching
+  const resolvedEnrolled = enrolledClasses.length > 0 ? enrolledClasses : cachedEnrolled
+
+  const allClasses = useMemo(
+    () => [...resolvedTeaching, ...resolvedEnrolled],
+    [resolvedEnrolled, resolvedTeaching],
+  )
+
+  useCacheData(allClasses, "classes", true)
 
   useEffect(() => {
     if (allClasses.length === 0 || !navigator.onLine) return
 
     const imageUrls = allClasses
       .map((classItem) => classItem.teacherImage)
-      .filter((url): url is string => !!url)
+      .filter((url): url is string => Boolean(url))
 
     if (imageUrls.length === 0) return
 
-    const sync = BackgroundSync.getInstance()
-    sync.cacheImages(imageUrls)
+    BackgroundSync.getInstance().cacheImages(imageUrls)
   }, [allClasses])
 
-  const visibleClasses = activeTab === "teaching" ? storeTeachingClasses : storeEnrolledClasses
-
   const filteredClasses = useMemo(() => {
-    if (!searchQuery.trim()) return visibleClasses
+    if (!searchQuery.trim()) return allClasses
 
     const queryWords = searchQuery.toLowerCase().trim().split(/\s+/)
 
-    return visibleClasses.filter((classItem) => {
+    return allClasses.filter((classItem) => {
       const searchableText = [
         classItem.title,
         classItem.description,
@@ -108,7 +71,7 @@ export function useClassesData({
 
       return queryWords.every((word) => searchableText.includes(word))
     })
-  }, [searchQuery, visibleClasses])
+  }, [allClasses, searchQuery])
 
   return {
     filteredClasses,

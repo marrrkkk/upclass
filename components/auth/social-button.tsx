@@ -1,15 +1,11 @@
-"use client";
+"use client"
 
-import React from "react";
-import { Button } from "../ui/button";
-import { authClient } from "@/lib/auth-client";
+import type { ReactNode } from "react"
 
-export default function SocialButton({
-  provider,
-  children,
-  className,
-}: {
-  provider:
+import { authClient } from "@/lib/auth-client"
+import { Button } from "@/components/ui/button"
+
+type SocialProvider =
   | "github"
   | "apple"
   | "discord"
@@ -26,23 +22,30 @@ export default function SocialButton({
   | "reddit"
   | "roblox"
   | "vk"
-  | "kick";
-  children: React.ReactNode;
-  className?: string;
+  | "kick"
+
+export default function SocialButton({
+  provider,
+  children,
+  className,
+}: {
+  provider: SocialProvider
+  children: ReactNode
+  className?: string
 }) {
   return (
     <Button
       onClick={async () => {
         await authClient.signIn.social({
           provider,
-          callbackURL: "/home",
-        });
+          callbackURL: "/org",
+        })
       }}
       type="button"
-      variant={"outline"}
+      variant="secondary"
       className={className}
     >
       {children}
     </Button>
-  );
+  )
 }

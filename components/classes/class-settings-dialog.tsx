@@ -1,22 +1,38 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { Settings, Plus, Trash2 } from "lucide-react"
-import { updateClass, deleteClass } from "@/app/actions/classes"
-import { buttonVariants } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
+import { Settings, Trash2 } from "lucide-react"
+import { Slot } from "@radix-ui/react-slot"
+
+import { deleteClass, updateClass } from "@/app/actions/classes"
+import { Button } from "@/components/ui/button"
+import { Callout } from "@/components/ui/callout"
+import { CopyButton } from "@/components/ui/copy-button"
+import { CourseSwatch } from "@/components/ui/course-identity"
+import { useToast } from "@/components/ui/toast"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { ResponsiveOverlay } from "@/components/ui/responsive-overlay"
+import { Field, FieldGroup, FieldHelp, FieldLabel, FieldRow } from "@/components/ui/field"
+import { IconBadge } from "@/components/ui/icon-badge"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Mono, Text } from "@/components/ui/typography"
+import { Textarea } from "@/components/ui/textarea"
+import { useOrganizationPath } from "@/hooks/use-organization-path"
+import type {
+  OptimisticMutationOptions,
+  OptimisticMutationResult,
+} from "@/hooks/use-optimistic-mutation"
 import { cn } from "@/lib/utils"
 
 type ClassData = {
@@ -24,328 +40,421 @@ type ClassData = {
   title: string
   description: string | null
   category: string | null
+  gradeLevel: string | null
+  customGrade: string | null
+  section: string | null
+  code: string
   color: string
   schedule: string | null
 }
 
+/** The `mutate` handle from `useOptimisticMutation` for a single class record. */
+export type ClassSettingsMutate = <TResult extends OptimisticMutationResult>(
+  next: ClassData,
+  action: () => Promise<TResult>,
+  options?: OptimisticMutationOptions<ClassData, TResult>,
+) => Promise<void>
+
 type ClassSettingsDialogProps = {
   classData: ClassData
   trigger?: React.ReactNode
+  /** Optimistic mutation handle owned by the class detail hero. */
+  mutate: ClassSettingsMutate
+  /** Whether a settings update is currently in flight. */
+  pending: boolean
 }
 
-export function ClassSettingsDialog({ classData, trigger }: ClassSettingsDialogProps) {
+const GRADE_LEVELS = [
+  { value: "kindergarten", label: "Kindergarten" },
+  { value: "grade_1", label: "Grade 1" },
+  { value: "grade_2", label: "Grade 2" },
+  { value: "grade_3", label: "Grade 3" },
+  { value: "grade_4", label: "Grade 4" },
+  { value: "grade_5", label: "Grade 5" },
+  { value: "grade_6", label: "Grade 6" },
+  { value: "grade_7", label: "Grade 7" },
+  { value: "grade_8", label: "Grade 8" },
+  { value: "grade_9", label: "Grade 9" },
+  { value: "grade_10", label: "Grade 10" },
+  { value: "grade_11", label: "Grade 11" },
+  { value: "grade_12", label: "Grade 12" },
+  { value: "college", label: "College" },
+  { value: "other", label: "Other" },
+] as const
+
+const COURSE_COLOR_VALUES = [
+  "#0e6b52",
+  "#8b5cf6",
+  "#ec4899",
+  "#f43f5e",
+  "#f97316",
+  "#eab308",
+  "#10b981",
+  "#06b6d4",
+]
+
+const SCHEDULE_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+function parseSchedule(schedule: string | null) {
+  if (!schedule) return { days: [], time: "" }
+
+  try {
+    const parts = schedule.trim().split(" ")
+    const timePart = parts.slice(-2).join(" ")
+    const daysPart = parts.slice(0, -2).join(" ").replace(/,/g, "").split(" ")
+    const date = new Date(`2000-01-01 ${timePart}`)
+    const time = Number.isNaN(date.getTime())
+      ? ""
+      : date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
+
+    return {
+      days: daysPart.filter((day) => SCHEDULE_DAYS.includes(day)),
+      time,
+    }
+  } catch {
+    return { days: [], time: "" }
+  }
+}
+
+export function ClassSettingsDialog({ classData, trigger, mutate, pending }: ClassSettingsDialogProps) {
   const router = useRouter()
+  const organizationPath = useOrganizationPath()
+  const toast = useToast()
   const [open, setOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [pending, startTransition] = useTransition()
   const [deletePending, startDeleteTransition] = useTransition()
-  const [selectedColor, setSelectedColor] = useState(classData.color || "#3b82f6")
-
-  // Parse initial schedule data
-  const parseSchedule = (scheduleStr: string | null) => {
-    if (!scheduleStr) return { days: [], time: "" }
-
-    try {
-      // Expected format: "Mon, Wed 10:00 AM" or similar
-      const parts = scheduleStr.trim().split(' ')
-      const timePart = parts.slice(-2).join(' ') // "10:00 AM"
-      const daysPart = parts.slice(0, -2).join(' ').replace(/,/g, '').split(' ') // ["Mon", "Wed"]
-
-      // Convert 12h to 24h for input type="time"
-      const date = new Date(`2000-01-01 ${timePart}`)
-      const time24 = !isNaN(date.getTime())
-        ? date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
-        : ""
-
-      return {
-        days: daysPart.filter(d => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].includes(d)),
-        time: time24
-      }
-    } catch (e) {
-      return { days: [], time: "" }
-    }
-  }
-
+  const [selectedColor, setSelectedColor] = useState(classData.color || "#0e6b52")
   const initialSchedule = parseSchedule(classData.schedule)
   const [selectedDays, setSelectedDays] = useState<string[]>(initialSchedule.days)
   const [selectedTime, setSelectedTime] = useState(initialSchedule.time)
+  
+  // New structured fields
+  const [title, setTitle] = useState(classData.title)
+  const [gradeLevel, setGradeLevel] = useState<string>(classData.gradeLevel || "")
+  const [customGrade, setCustomGrade] = useState(classData.customGrade || "")
+  const [section, setSection] = useState(classData.section || "")
 
-  const handleUpdate = async (formData: FormData) => {
-    setError(null)
-    startTransition(async () => {
-      const res = await updateClass(classData.id, formData)
-      if (!res.success) {
-        setError(res.error)
-        return
+  // Live identity preview
+  const classIdentityPreview = useMemo(() => {
+    const parts: string[] = []
+    
+    if (title.trim()) {
+      parts.push(title.trim())
+    }
+    
+    if (gradeLevel) {
+      const gradeLevelLabel = GRADE_LEVELS.find((g) => g.value === gradeLevel)?.label
+      if (gradeLevel === "other" && customGrade.trim()) {
+        parts.push(customGrade.trim())
+      } else if (gradeLevelLabel) {
+        parts.push(gradeLevelLabel)
       }
-      setOpen(false)
-    })
+    }
+    
+    if (section.trim()) {
+      parts.push(section.trim())
+    }
+    
+    return parts.length > 0 ? parts.join(" - ") : "Preview will appear here"
+  }, [title, gradeLevel, customGrade, section])
+
+  const handleUpdate = (formData: FormData) => {
+    setError(null)
+
+    const nextClass: ClassData = {
+      ...classData,
+      title: String(formData.get("title") || "").trim(),
+      description: String(formData.get("description") || "") || null,
+      gradeLevel: String(formData.get("gradeLevel") || "") || null,
+      customGrade:
+        gradeLevel === "other" ? String(formData.get("customGrade") || "") || null : null,
+      section: String(formData.get("section") || "") || null,
+      schedule: String(formData.get("schedule") || "") || null,
+      color: selectedColor,
+    }
+
+    void mutate(
+      nextClass,
+      () => updateClass(classData.id, formData),
+      {
+        onSuccess: (_result, current) => {
+          setOpen(false)
+          // Revalidate so the server-rendered hero matches the optimistic record.
+          router.refresh()
+          return current
+        },
+      },
+    )
   }
 
   const handleDelete = () => {
+    setDeleteDialogOpen(false)
+    setOpen(false)
+    // Leave immediately; the class still exists server-side if the delete fails,
+    // so it reappears in the classes list and a toast explains the failure.
+    router.push(organizationPath("/classes"))
     startDeleteTransition(async () => {
       const res = await deleteClass(classData.id)
       if (!res.success) {
-        setError(res.error)
-        setDeleteDialogOpen(false)
-        return
+        toast.error("Couldn't delete class", res.error)
       }
-      setDeleteDialogOpen(false)
-      setOpen(false)
-      router.push("/classes")
     })
   }
 
-  // Predefined premium colors
-  const premiumColors = [
-    "#3b82f6", // Blue
-    "#8b5cf6", // Violet
-    "#ec4899", // Pink
-    "#f43f5e", // Rose
-    "#f97316", // Orange
-    "#eab308", // Yellow
-    "#10b981", // Emerald
-    "#06b6d4", // Cyan
-  ]
-
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger ? (
-          trigger
-        ) : (
-          <button
-            className={cn(buttonVariants({ variant: "outline", size: "icon" }), "h-10 w-10 rounded-lg bg-background/50 backdrop-blur-sm border-white/20 hover:bg-white/10 transition-all")}
-            type="button"
-            title="Class settings"
-          >
-            <Settings className="h-5 w-5" />
-          </button>
+    <>
+      <Slot
+        onClick={() => setOpen(true)}
+        aria-haspopup="dialog"
+      >
+        {trigger || (
+          <Button type="button" variant="outline" size="icon" aria-label="Class settings">
+            <Settings aria-hidden="true" />
+          </Button>
         )}
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[550px] gap-0 p-0 overflow-y-auto border-0 shadow-2xl max-h-[calc(100vh-2rem)] flex flex-col">
-        <DialogHeader className="p-6 pb-2 bg-gradient-to-r from-muted/50 to-muted/10 shrink-0">
-          <DialogTitle className="text-xl font-semibold tracking-tight">Class Settings</DialogTitle>
-          <DialogDescription className="text-muted-foreground">
-            Update your class information and appearance.
-          </DialogDescription>
-        </DialogHeader>
-        <form action={handleUpdate} className="p-6 space-y-6 flex-1 min-h-0">
-          <div className="grid gap-5">
-            <div className="space-y-2">
-              <Label htmlFor="title" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Title</Label>
+      </Slot>
+      <ResponsiveOverlay
+        open={open}
+        onOpenChange={setOpen}
+        title="Class settings"
+        description="Update course information, schedule, and access."
+        desktopClassName="sm:max-w-[38rem]"
+        footer={
+          <>
+            <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button type="submit" form="class-settings-form" isLoading={pending} disabled={pending}>
+              Save changes
+            </Button>
+          </>
+        }
+      >
+        <form id="class-settings-form" action={handleUpdate} className="space-y-5">
+          <div className="rounded-lg border border-hairline bg-surface-sunken p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 space-y-1">
+                <Text variant="h4">Invite code</Text>
+                <Mono className="block type-h3 text-foreground">{classData.code}</Mono>
+                <Text variant="caption" tone="muted">Share this code so students can join.</Text>
+              </div>
+              <CopyButton value={classData.code} label="class invite code" showLabel variant="outline" />
+            </div>
+          </div>
+
+          {/* Class Identity Preview */}
+          <div className="rounded-lg border border-hairline/70 bg-surface-raised px-4 py-3 shadow-2xs">
+            <p className="text-xs font-medium text-muted-foreground mb-1">Class identity</p>
+            <p className="text-sm font-semibold text-foreground">
+              {classIdentityPreview}
+            </p>
+          </div>
+
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="title">Subject or class name</FieldLabel>
               <Input
                 id="title"
                 name="title"
                 required
-                defaultValue={classData.title}
-                placeholder="e.g. Mastering UI Design"
-                className="h-11 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors text-base"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
               />
-            </div>
+            </Field>
 
-            <div className="grid sm:grid-cols-2 gap-5">
-              <div className="space-y-2">
-                <Label htmlFor="category" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Category</Label>
-                <Input
-                  id="category"
-                  name="category"
-                  defaultValue={classData.category || ""}
-                  placeholder="e.g. UI/UX"
-                  className="h-10 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Schedule</Label>
-                <div className="space-y-3">
-                  <div className="flex flex-wrap gap-1.5">
-                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
-                      <button
-                        key={day}
-                        type="button"
-                        onClick={() => {
-                          setSelectedDays(prev =>
-                            prev.includes(day)
-                              ? prev.filter(d => d !== day)
-                              : [...prev, day]
-                          )
-                        }}
-                        className={cn(
-                          "px-2.5 py-1.5 rounded-md text-xs font-medium border transition-all",
-                          selectedDays.includes(day)
-                            ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                            : "bg-background border-border text-muted-foreground hover:bg-muted"
-                        )}
-                      >
-                        {day}
-                      </button>
+            <FieldRow>
+              <Field>
+                <FieldLabel htmlFor="gradeLevel">Grade level</FieldLabel>
+                <Select
+                  name="gradeLevel"
+                  required
+                  value={gradeLevel}
+                  onValueChange={setGradeLevel}
+                >
+                  <SelectTrigger id="gradeLevel">
+                    <SelectValue placeholder="Select grade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {GRADE_LEVELS.map((grade) => (
+                      <SelectItem key={grade.value} value={grade.value}>
+                        {grade.label}
+                      </SelectItem>
                     ))}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="time"
-                      value={selectedTime}
-                      onChange={(e) => setSelectedTime(e.target.value)}
-                      className="h-10 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors w-full"
-                    />
-                  </div>
-                  <input
-                    type="hidden"
-                    name="schedule"
-                    value={
-                      selectedDays.length > 0 && selectedTime
-                        ? `${selectedDays.join(', ')} ${new Date(`2000-01-01T${selectedTime}`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
-                        : ""
-                    }
-                  />
-                </div>
-              </div>
-            </div>
+                  </SelectContent>
+                </Select>
+              </Field>
 
-            <div className="space-y-2">
-              <Label htmlFor="description" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Description</Label>
+              {gradeLevel === "other" ? (
+                <Field>
+                  <FieldLabel htmlFor="customGrade">Custom grade</FieldLabel>
+                  <Input
+                    id="customGrade"
+                    name="customGrade"
+                    required
+                    placeholder="Year 1 College"
+                    value={customGrade}
+                    onChange={(e) => setCustomGrade(e.target.value)}
+                  />
+                </Field>
+              ) : (
+                <Field>
+                  <FieldLabel htmlFor="section" optional>Section</FieldLabel>
+                  <Input
+                    id="section"
+                    name="section"
+                    placeholder="Rizal"
+                    value={section}
+                    onChange={(e) => setSection(e.target.value)}
+                  />
+                </Field>
+              )}
+            </FieldRow>
+
+            {gradeLevel === "other" && (
+              <Field>
+                <FieldLabel htmlFor="section-other" optional>Section</FieldLabel>
+                <Input
+                  id="section-other"
+                  name="section"
+                  placeholder="Rizal"
+                  value={section}
+                  onChange={(e) => setSection(e.target.value)}
+                />
+              </Field>
+            )}
+
+            <FieldRow>
+              <Field>
+                <FieldLabel htmlFor="settings-time" optional>Meeting time</FieldLabel>
+                <Input
+                  id="settings-time"
+                  type="time"
+                  value={selectedTime}
+                  onChange={(event) => setSelectedTime(event.target.value)}
+                />
+              </Field>
+            </FieldRow>
+
+            <Field>
+              <FieldLabel optional>Meeting days</FieldLabel>
+              <div className="flex flex-wrap gap-1.5">
+                {SCHEDULE_DAYS.map((day) => {
+                  const selected = selectedDays.includes(day)
+                  return (
+                    <Button
+                      key={day}
+                      type="button"
+                      size="sm"
+                      variant={selected ? "default" : "outline"}
+                      aria-pressed={selected}
+                      onClick={() => {
+                        setSelectedDays((current) =>
+                          current.includes(day)
+                            ? current.filter((value) => value !== day)
+                            : [...current, day],
+                        )
+                      }}
+                    >
+                      {day}
+                    </Button>
+                  )
+                })}
+              </div>
+              <input
+                type="hidden"
+                name="schedule"
+                value={
+                  selectedDays.length > 0 && selectedTime
+                    ? `${selectedDays.join(", ")} ${new Date(`2000-01-01T${selectedTime}`).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
+                    : ""
+                }
+              />
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="description" optional>Description</FieldLabel>
               <Textarea
                 id="description"
                 name="description"
                 defaultValue={classData.description || ""}
-                placeholder="What will learners get from this class?"
                 rows={3}
-                className="resize-none bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors"
+                className="resize-none"
               />
-            </div>
+            </Field>
 
-            <div className="space-y-3">
-              <Label htmlFor="settings-color" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Theme Color</Label>
-              <div className="flex flex-wrap gap-3">
-                {premiumColors.map((color) => (
+            <Field>
+              <FieldLabel>Course color</FieldLabel>
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Course color">
+                {COURSE_COLOR_VALUES.map((color, index) => (
                   <button
                     key={color}
                     type="button"
                     onClick={() => setSelectedColor(color)}
+                    aria-label={`Select course color ${index + 1}`}
+                    aria-pressed={selectedColor === color}
                     className={cn(
-                      "h-8 w-8 rounded-full border-2 transition-all hover:scale-110",
-                      selectedColor === color ? "border-foreground ring-2 ring-offset-2 ring-foreground/20" : "border-transparent"
+                      "focus-ring rounded-lg",
+                      selectedColor === color && "ring-2 ring-primary ring-offset-2 ring-offset-background",
                     )}
-                    style={{ backgroundColor: color }}
-                    title={color}
-                  />
+                  >
+                    <CourseSwatch value={color} courseKey={`${classData.id}-${index}`} size="md" />
+                  </button>
                 ))}
-                <div className="relative ml-2">
+                <label className="focus-within:focus-ring relative cursor-pointer rounded-lg" aria-label="Choose a custom course color">
                   <input
-                    type="color" // Hidden color input
-                    id="settings-custom-color"
-                    onChange={(e) => setSelectedColor(e.target.value)}
-                    className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                    type="color"
+                    onChange={(event) => setSelectedColor(event.target.value)}
+                    className="absolute inset-0 size-full cursor-pointer opacity-0"
                   />
-                  <div className="flex items-center justify-center h-8 w-8 rounded-full border border-dashed border-muted-foreground/50 hover:bg-muted text-muted-foreground">
-                    <Plus className="h-4 w-4" />
-                  </div>
-                </div>
+                  <CourseSwatch value={selectedColor} courseKey={`${classData.id}-custom`} size="md" />
+                </label>
               </div>
               <input type="hidden" name="color" value={selectedColor} />
-            </div>
-          </div>
+              <FieldHelp>The stored color is mapped to an accessible course accent.</FieldHelp>
+            </Field>
+          </FieldGroup>
 
-          {error && (
-            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive font-medium border border-destructive/20 animate-in fade-in slide-in-from-bottom-2">
-              {error}
-            </div>
-          )}
+          {error ? <Callout tone="danger" role="alert">{error}</Callout> : null}
 
-          {/* Danger Zone */}
-          <div className="border-t border-destructive/20 pt-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold text-destructive">Danger Zone</p>
-                <p className="text-xs text-muted-foreground">Permanently delete this class</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setDeleteDialogOpen(true)}
-                className={cn(buttonVariants({ variant: "destructive", size: "sm" }), "gap-2")}
-              >
-                <Trash2 className="h-4 w-4" />
-                Delete Class
-              </button>
-            </div>
-          </div>
-
-          <DialogFooter className="pt-2">
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className={cn(buttonVariants({ variant: "ghost" }), "text-muted-foreground hover:text-foreground")}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={pending}
-              className={cn(buttonVariants(), "min-w-[100px] shadow-md hover:shadow-lg transition-all", pending && "opacity-80")}
-            >
-              {pending ? "Updating..." : "Save Changes"}
-            </button>
-          </DialogFooter>
+          <Callout
+            tone="danger"
+            action={
+              <Button type="button" variant="destructive" size="sm" onClick={() => setDeleteDialogOpen(true)}>
+                <Trash2 aria-hidden="true" />
+                Delete class
+              </Button>
+            }
+          >
+            <Text variant="h4" tone="danger">Danger zone</Text>
+            <Text variant="caption" tone="muted">Permanently delete this class and all course data.</Text>
+          </Callout>
         </form>
-      </DialogContent>
+      </ResponsiveOverlay>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-[420px] gap-0 p-0 overflow-y-auto border-0 shadow-2xl max-h-[calc(100vh-2rem)]">
-          <DialogHeader className="p-6 pb-4 bg-gradient-to-r from-destructive/10 to-destructive/5 border-b border-destructive/20">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center">
-                <Trash2 className="h-5 w-5 text-destructive" />
-              </div>
-              <div>
-                <DialogTitle className="text-lg font-semibold">Delete Class</DialogTitle>
-                <DialogDescription className="text-sm text-muted-foreground">
-                  This action cannot be undone
-                </DialogDescription>
-              </div>
-            </div>
-          </DialogHeader>
-
-          <div className="p-6 text-center space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Are you sure you want to permanently delete
-            </p>
-            <p className="text-lg font-semibold text-foreground truncate">
-              {classData.title}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              All announcements, classwork, quizzes, and student submissions will be deleted.
-            </p>
-          </div>
-
-          <div className="px-6 py-4 bg-muted/30 border-t flex items-center justify-center gap-3">
-            <button
-              type="button"
-              onClick={() => setDeleteDialogOpen(false)}
-              disabled={deletePending}
-              className={cn(buttonVariants({ variant: "outline" }), "min-w-[100px]")}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent className="sm:max-w-[26rem]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <IconBadge tone="danger" size="sm"><Trash2 /></IconBadge>
+              Delete class
+            </AlertDialogTitle>
+            <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <Callout tone="danger" icon={false}>
+            Permanently delete {classData.title}, including all announcements, classwork, quizzes, and submissions?
+          </Callout>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletePending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={handleDelete}
               disabled={deletePending}
-              className={cn(buttonVariants({ variant: "destructive" }), "min-w-[120px] gap-2")}
             >
-              {deletePending ? (
-                "Deleting..."
-              ) : (
-                <>
-                  <Trash2 className="h-4 w-4" />
-                  Delete Class
-                </>
-              )}
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </Dialog>
+              <Trash2 aria-hidden="true" />
+              Delete class
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }

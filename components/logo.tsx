@@ -13,13 +13,13 @@ type LogoProps = {
 }
 
 const sizeMap = {
-  sm: { icon: "h-4 w-4", container: "p-1", text: "text-sm" },
-  md: { icon: "h-6 w-6", container: "p-1.5", text: "text-lg" },
-  lg: { icon: "h-8 w-8", container: "p-2", text: "text-3xl" },
+  sm: { icon: "h-4 w-4", text: "text-sm" },
+  md: { icon: "h-5 w-5", text: "text-lg" },
+  lg: { icon: "h-7 w-7", text: "text-2xl" },
 }
 
 export function Logo({ 
-  href = "/home", 
+  href = "/dashboard", 
   className, 
   iconClassName,
   textClassName,
@@ -29,12 +29,12 @@ export function Logo({
 }: LogoProps) {
   const sizes = sizeMap[size]
   const content = (
-    <div className={cn("flex items-center gap-2.5 hover:opacity-80 transition-opacity", className)}>
-      <div className={cn("bg-primary/10 rounded-lg text-primary", sizes.container, iconClassName)}>
-        <ArrowUpRight className={cn(sizes.icon)} strokeWidth={3} />
-      </div>
+    <div className={cn("flex items-center gap-2 transition-opacity hover:opacity-80", className)}>
+      <span className="inline-flex items-center justify-center rounded-[var(--radius-control)] bg-primary p-1 text-primary-foreground">
+        <ArrowUpRight className={cn(sizes.icon, iconClassName)} strokeWidth={2.5} />
+      </span>
       {showText && (
-        <span className={cn("font-bold tracking-tight", sizes.text, textClassName)}>
+        <span className={cn("font-display font-semibold", sizes.text, textClassName)}>
           UpClass
         </span>
       )}
@@ -51,4 +51,3 @@ export function Logo({
 
   return <div onClick={onClick}>{content}</div>
 }
-

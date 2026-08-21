@@ -1,72 +1,126 @@
-import Link from "next/link"
+import Link from "next/link";
 
-import { BackgroundRefreshClient } from "@/components/layouts/background-refresh-client"
-import { RouteContentTransition } from "@/components/layouts/route-content-transition"
-import { HomeShellSidebarDrawer } from "@/components/layouts/home-shell-sidebar-drawer"
-import { HomeShellSidebarToggle } from "@/components/layouts/home-shell-sidebar-toggle"
-import { PageHeader } from "@/components/page-header"
-import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils";
+import { BackgroundRefreshClient } from "@/components/layouts/background-refresh-client";
+import { AppCommandMenu } from "@/components/layouts/app-command-menu";
+import { HomeShellSidebarToggle } from "@/components/layouts/home-shell-sidebar-toggle";
+import { SidebarCollapseToggle } from "@/components/layouts/sidebar-collapse-toggle";
+import { KeyboardShortcuts } from "@/components/layouts/keyboard-shortcuts";
+import { MobileNavigation } from "@/components/layouts/mobile-navigation";
+import { NavigationProgress } from "@/components/layouts/navigation-progress";
+import { PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
+import { AiPanelProvider } from "@/components/ai/ai-panel-provider";
+import { AiSidePanel } from "@/components/ai/ai-side-panel";
+import { Sidebar } from "@/components/sidebar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { responsive } from "@/lib/design-system";
+import type { OrgRole } from "@/types/organization";
 
 type HomeShellProps = {
-  children: React.ReactNode
-  isAuthenticated: boolean
-  recentClasses?: Array<{
-    id: string
-    title: string
-    color: string | null
-  }>
+  children: React.ReactNode;
+  isAuthenticated: boolean;
+  recentClasses?: Array<{ id: string; title: string; color: string | null }>;
   userInfo?: {
-    name: string | null
-    email: string | null
-    image: string | null
-  } | null
-  userId?: string
-}
+    name: string | null;
+    email: string | null;
+    image: string | null;
+  } | null;
+  userId?: string;
+  organizationRole?: OrgRole | null;
+  defaultSidebarOpen?: boolean;
+};
 
-export function HomeShell({ children, isAuthenticated, recentClasses, userInfo, userId }: HomeShellProps) {
+export function HomeShell({
+  children,
+  isAuthenticated,
+  recentClasses,
+  userInfo,
+  userId,
+  organizationRole,
+  defaultSidebarOpen = true,
+}: HomeShellProps) {
   return (
-    <div className="min-h-screen bg-background">
+    <div
+      className="app-shell-bg h-dvh min-h-dvh overflow-hidden"
+      data-density="compact"
+      data-slot="app-shell"
+    >
+      <a
+        href="#main-content"
+        className="focus-ring fixed left-4 top-3 z-[90] -translate-y-20 rounded-md bg-primary px-3 py-2 type-small font-medium text-primary-foreground transition-transform focus:translate-y-0"
+      >
+        Skip to content
+      </a>
       <BackgroundRefreshClient />
+      <NavigationProgress />
+      {isAuthenticated ? <KeyboardShortcuts /> : null}
 
-      <div className="flex">
-        <HomeShellSidebarDrawer recentClasses={recentClasses} userId={userId} userInfo={userInfo} />
+      <AiPanelProvider>
+        <SidebarProvider
+          defaultOpen={defaultSidebarOpen}
+          className="h-full min-h-0"
+        >
+          {isAuthenticated ? (
+            <Sidebar
+              recentClasses={recentClasses}
+              userId={userId}
+              userInfo={userInfo}
+              organizationRole={organizationRole}
+            />
+          ) : null}
 
-        <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-          <div className="sticky top-0 z-30 border-b bg-background">
-            <div className="flex h-14 items-center gap-3 px-4 sm:h-16 sm:px-6 md:px-8">
-              <div className="flex min-w-0 items-center gap-3">
+          <SidebarInset className="h-full min-h-0 overflow-hidden">
+            <header className="sticky top-0 z-30 shrink-0 border-b border-hairline/70 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85">
+              <div className="flex h-[var(--app-header-height)] items-center gap-2 px-3 sm:px-4 md:px-5">
                 <HomeShellSidebarToggle />
-              </div>
-
-              <div className="flex min-w-0 flex-1 items-center justify-end">
+                <SidebarCollapseToggle />
                 {isAuthenticated && userInfo ? (
-                  <div className="w-full">
+                  <>
                     <PageHeader user={userInfo} userId={userId} />
-                  </div>
+                  </>
                 ) : (
                   <div className="flex w-full items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">Welcome to UpClass</span>
-                    </div>
+                    <span className="type-small text-muted-foreground">
+                      Welcome to UpClass
+                    </span>
                     <div className="flex items-center gap-2">
                       <Button variant="outline" size="sm" asChild>
-                        <Link href="/sign-in">Sign In</Link>
+                        <Link href="/sign-in">Sign in</Link>
                       </Button>
                       <Button size="sm" asChild>
-                        <Link href="/sign-in">Get Started</Link>
+                        <Link href="/sign-up">Get started</Link>
                       </Button>
                     </div>
                   </div>
                 )}
+                {isAuthenticated ? (
+                  <div className="hidden" aria-hidden="true">
+                    <AppCommandMenu />
+                  </div>
+                ) : null}
               </div>
-            </div>
-          </div>
+            </header>
 
-          <div className="flex-1 px-4 py-6 sm:px-6 md:px-8">
-            <RouteContentTransition>{children}</RouteContentTransition>
-          </div>
-        </div>
-      </div>
+            <main
+              id="main-content"
+              tabIndex={-1}
+              className={cn(
+                "minimal-scrollbar min-w-0 flex-1 overflow-y-auto scroll-mt-16",
+                responsive.pagePadding,
+              )}
+            >
+              {children}
+            </main>
+          </SidebarInset>
+
+          {isAuthenticated ? (
+            <AiSidePanel organizationRole={organizationRole} />
+          ) : null}
+
+          <MobileNavigation isAuthenticated={isAuthenticated} />
+        </SidebarProvider>
+      </AiPanelProvider>
     </div>
-  )
+  );
 }

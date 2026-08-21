@@ -12,8 +12,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
 import { ClassDetailTabSkeleton } from "@/components/skeletons"
 import { type ClassDetailTab } from "@/lib/classes/class-detail-tabs"
-
-const ALL_TABS: ClassDetailTab[] = ["stream", "classwork", "quizzes", "people"]
+import { useOrganizationPath } from "@/hooks/use-organization-path"
 
 type ClassDetailTabContextValue = {
   activeTab: ClassDetailTab
@@ -29,15 +28,19 @@ const ClassDetailTabContext = createContext<ClassDetailTabContextValue | null>(n
 export function ClassDetailTabProvider({
   activeTab,
   classId,
+  visibleTabs,
   children,
 }: {
   activeTab: ClassDetailTab
   classId: string
+  /** Tabs this role can navigate to; only these get prefetched. */
+  visibleTabs: ClassDetailTab[]
   children: React.ReactNode
 }) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const organizationPath = useOrganizationPath()
   const [isPending, startTransition] = useTransition()
   const [optimisticTab, setOptimisticTab] = useState<ClassDetailTab>(activeTab)
   const [cachedTabs, setCachedTabs] = useState<Set<ClassDetailTab>>(
@@ -58,14 +61,14 @@ export function ClassDetailTabProvider({
   }, [activeTab])
 
   useEffect(() => {
-    ALL_TABS.forEach((tab) => {
-      const href = tab === "stream" ? `/classes/${classId}` : `/classes/${classId}?tab=${tab}`
+    visibleTabs.forEach((tab) => {
+      const href = tab === "stream" ? organizationPath(`/classes/${classId}`) : organizationPath(`/classes/${classId}?tab=${tab}`)
       router.prefetch(href)
     })
-  }, [classId, router])
+  }, [classId, organizationPath, router, visibleTabs])
 
   const prefetchTab = (tab: ClassDetailTab) => {
-    const href = tab === "stream" ? `/classes/${classId}` : `/classes/${classId}?tab=${tab}`
+    const href = tab === "stream" ? organizationPath(`/classes/${classId}`) : organizationPath(`/classes/${classId}?tab=${tab}`)
     router.prefetch(href)
   }
 

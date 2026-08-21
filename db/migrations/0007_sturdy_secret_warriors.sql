@@ -1,0 +1,2 @@
+-- Intentionally empty. This journal entry corresponds to an existing schema snapshot
+-- and must remain present so Drizzle can read the complete migration history.

@@ -1,0 +1,10 @@
+CREATE TYPE "public"."study_source_status" AS ENUM('pending', 'processing', 'ready', 'failed');
+ALTER TYPE "public"."ai_conversation_surface" ADD VALUE IF NOT EXISTS 'study';
+CREATE TABLE "study_sources" ("id" text PRIMARY KEY NOT NULL, "collection_id" text NOT NULL REFERENCES "study_collections"("id") ON DELETE cascade, "resource_id" text REFERENCES "resources"("id") ON DELETE set null, "title" text NOT NULL, "status" "study_source_status" DEFAULT 'pending' NOT NULL, "error_message" text, "processing_started_at" timestamp, "processed_at" timestamp, "created_at" timestamp DEFAULT now() NOT NULL, "updated_at" timestamp DEFAULT now() NOT NULL);
+CREATE INDEX "study_sources_collection_idx" ON "study_sources" ("collection_id");
+CREATE INDEX "study_sources_status_idx" ON "study_sources" ("status");
+CREATE TABLE "study_quizzes" ("id" text PRIMARY KEY NOT NULL, "collection_id" text NOT NULL REFERENCES "study_collections"("id") ON DELETE cascade, "title" text NOT NULL, "description" text, "position" integer DEFAULT 0 NOT NULL, "created_at" timestamp DEFAULT now() NOT NULL, "updated_at" timestamp DEFAULT now() NOT NULL);
+CREATE INDEX "study_quizzes_collection_position_idx" ON "study_quizzes" ("collection_id", "position");
+CREATE TABLE "study_questions" ("id" text PRIMARY KEY NOT NULL, "quiz_id" text NOT NULL REFERENCES "study_quizzes"("id") ON DELETE cascade, "prompt" text NOT NULL, "options" jsonb DEFAULT '[]'::jsonb NOT NULL, "correct_answer" text NOT NULL, "explanation" text, "source_refs" jsonb DEFAULT '[]'::jsonb NOT NULL, "position" integer DEFAULT 0 NOT NULL, "created_at" timestamp DEFAULT now() NOT NULL, "updated_at" timestamp DEFAULT now() NOT NULL);
+CREATE INDEX "study_questions_quiz_position_idx" ON "study_questions" ("quiz_id", "position");
+CREATE INDEX IF NOT EXISTS "study_collections_owner_org_idx" ON "study_collections" ("student_id", "org_id", "archived");

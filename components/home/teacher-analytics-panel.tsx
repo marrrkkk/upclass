@@ -1,29 +1,42 @@
 "use client"
 
 import Link from "next/link"
+import { Users } from "lucide-react"
 
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { EmptyState } from "@/components/ui/empty-state"
+import { EntityAvatar } from "@/components/ui/entity-avatar"
+import {
+  Panel,
+  PanelBody,
+  PanelDescription,
+  PanelHeader,
+  PanelHeading,
+  PanelTitle,
+} from "@/components/ui/panel"
+import { SectionHeader } from "@/components/ui/section"
+import { StatusBadge } from "@/components/ui/status-badge"
+import { Text } from "@/components/ui/typography"
+import { useOrganizationPath } from "@/hooks/use-organization-path"
 
-type ReviewQueueItem = {
+export type ReviewQueueItem = {
   submissionId: string
   classId: string
   className: string
-  classColor: string
+  classColor: string | null
   classworkTitle: string
   studentName: string
   submittedAt: string | null
   attachmentCount: number
 }
 
-type WeeklySummary = {
+export type WeeklySummary = {
   submissions: number
   graded: number
   unreadQuestions: number
   overdue: number
 }
 
-type LowParticipationItem = {
+export type LowParticipationItem = {
   userId: string
   studentName: string
   classId: string
@@ -56,95 +69,58 @@ export function TeacherAnalyticsPanel({
   reviewQueue,
   weeklySummary,
 }: TeacherAnalyticsPanelProps) {
+  const organizationPath = useOrganizationPath()
+
   return (
-    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.3fr_1fr]">
-      <Card>
-        <CardHeader>
-          <CardTitle>Review Queue</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {reviewQueue.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Everything submitted has been reviewed.</p>
+    <section className="space-y-4">
+      <SectionHeader
+        title="Teacher attention"
+        description={`${weeklySummary.graded} graded and ${weeklySummary.submissions} submissions updated this week. ${reviewQueue.length} ${reviewQueue.length === 1 ? "item is" : "items are"} currently ready for review above.`}
+      />
+
+      <Panel padding="none" variant="panel" className="overflow-hidden">
+        <PanelHeader>
+          <PanelHeading>
+            <PanelTitle>Students to check in with</PanelTitle>
+            <PanelDescription>Students without activity in the last seven days.</PanelDescription>
+          </PanelHeading>
+        </PanelHeader>
+
+        <PanelBody className="p-0">
+          {lowParticipation.length === 0 ? (
+            <EmptyState
+              icon={<Users />}
+              tone="success"
+              title="Participation looks current"
+              description="No low-participation alerts this week."
+            />
           ) : (
-            reviewQueue.map((item) => (
-              <Link
-                key={item.submissionId}
-                href={`/classes/${item.classId}?tab=classwork`}
-                className="block rounded-lg border p-4 transition-colors hover:bg-muted/30"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-1">
-                    <p className="font-medium">{item.classworkTitle}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {item.studentName} in {item.className}
-                    </p>
-                  </div>
-                  <Badge
-                    variant="outline"
-                    style={{ borderColor: item.classColor, color: item.classColor }}
+            <ul className="divide-y divide-hairline">
+              {lowParticipation.map((entry) => (
+                <li key={`${entry.classId}-${entry.userId}`}>
+                  <Link
+                    href={organizationPath(`/classes/${entry.classId}?tab=people`)}
+                    className="row-interactive focus-ring flex items-center gap-3 px-5 py-4"
                   >
-                    {item.attachmentCount} attachments
-                  </Badge>
-                </div>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Submitted {formatRelativeDate(item.submittedAt)}
-                </p>
-              </Link>
-            ))
+                    <EntityAvatar name={entry.studentName} colorKey={entry.userId} size="md" />
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <Text variant="h4" truncate>
+                        {entry.studentName}
+                      </Text>
+                      <Text variant="caption" tone="muted" truncate>
+                        {entry.className} Â· Last active {formatRelativeDate(entry.lastActiveAt)}
+                      </Text>
+                    </div>
+                    <StatusBadge tone="warning" dot>
+                      Check in
+                    </StatusBadge>
+                  </Link>
+                </li>
+              ))}
+            </ul>
           )}
-        </CardContent>
-      </Card>
-
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Weekly Summary</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-3">
-            <div className="rounded-lg bg-muted/20 p-4">
-              <p className="text-2xl font-bold">{weeklySummary.submissions}</p>
-              <p className="text-sm text-muted-foreground">Submissions</p>
-            </div>
-            <div className="rounded-lg bg-muted/20 p-4">
-              <p className="text-2xl font-bold">{weeklySummary.graded}</p>
-              <p className="text-sm text-muted-foreground">Graded</p>
-            </div>
-            <div className="rounded-lg bg-muted/20 p-4">
-              <p className="text-2xl font-bold">{weeklySummary.unreadQuestions}</p>
-              <p className="text-sm text-muted-foreground">Unread questions</p>
-            </div>
-            <div className="rounded-lg bg-muted/20 p-4">
-              <p className="text-2xl font-bold">{weeklySummary.overdue}</p>
-              <p className="text-sm text-muted-foreground">Overdue items</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Low Participation Alerts</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {lowParticipation.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No low-participation alerts this week.</p>
-            ) : (
-              lowParticipation.map((entry) => (
-                <Link
-                  key={`${entry.classId}-${entry.userId}`}
-                  href={`/classes/${entry.classId}?tab=people`}
-                  className="block rounded-lg border p-4 transition-colors hover:bg-muted/30"
-                >
-                  <p className="font-medium">{entry.studentName}</p>
-                  <p className="text-sm text-muted-foreground">{entry.className}</p>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Last active {formatRelativeDate(entry.lastActiveAt)}
-                  </p>
-                </Link>
-              ))
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+        </PanelBody>
+      </Panel>
+    </section>
   )
 }

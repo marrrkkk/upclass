@@ -1,10 +1,7 @@
 "use client"
 
 import { BackgroundCache } from "./background-cache"
-import { useClassesStore } from "@/stores/classes-store"
-import { useResourcesStore } from "@/stores/resources-store"
-import { useMessagesStore } from "@/stores/messages-store"
-import { useNotificationsStore } from "@/stores/notifications-store"
+import { getCacheBuffer } from "./cache-buffer"
 
 // Background sync manager that caches all data types
 export class BackgroundSync {
@@ -29,12 +26,12 @@ export class BackgroundSync {
     }
 
     try {
-      const classesState = useClassesStore.getState()
-      const resourcesState = useResourcesStore.getState()
-      const messagesState = useMessagesStore.getState()
-      const notificationsState = useNotificationsStore.getState()
+      const buffer = getCacheBuffer()
+      const allClasses = (buffer.classes ?? []) as Array<{ teacherImage?: string | null }>
+      const resources = (buffer.resources ?? []) as Array<{ authorImage?: string | null }>
+      const messages = buffer.messages ?? []
+      const notifications = buffer.notifications ?? []
 
-      const allClasses = [...classesState.teachingClasses, ...classesState.enrolledClasses]
       const cachedImages = new Set<string>()
 
       allClasses.forEach((classItem) => {
@@ -43,28 +40,17 @@ export class BackgroundSync {
         }
       })
 
-      resourcesState.resources.forEach((resource) => {
+      resources.forEach((resource) => {
         if (resource.authorImage) {
           cachedImages.add(resource.authorImage)
         }
       })
 
-      messagesState.conversations.forEach((conversation) => {
-        if (conversation.userImage) {
-          cachedImages.add(conversation.userImage)
-        }
-      })
-
-      if (messagesState.currentOtherUser?.image) {
-        cachedImages.add(messagesState.currentOtherUser.image)
-      }
-
       await Promise.all([
         this.cache.cacheClasses(allClasses),
-        this.cache.cacheResources(resourcesState.resources),
-        this.cache.cacheMessages(messagesState.currentMessages),
-        this.cache.cacheConversations(messagesState.conversations),
-        this.cache.cacheNotifications(notificationsState.notifications),
+        this.cache.cacheResources(resources),
+        this.cache.cacheMessages(messages),
+        this.cache.cacheNotifications(notifications),
         cachedImages.size > 0 ? this.cacheImages([...cachedImages]) : Promise.resolve(),
       ])
 

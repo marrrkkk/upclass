@@ -100,7 +100,7 @@ function getActivityHref(item: {
   }
 
   if (!item.classId) {
-    return "/home"
+    return "/dashboard"
   }
 
   if (item.eventType === "announcement_created") {

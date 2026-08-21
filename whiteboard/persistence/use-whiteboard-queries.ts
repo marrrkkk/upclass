@@ -57,6 +57,9 @@ export function useWhiteboardBoard(boardId: string, initialData: WhiteboardPageD
     queryKey: ["whiteboard", boardId],
     queryFn: () => fetchBoard(boardId),
     initialData,
+    // The server page already streamed the freshest snapshot; skip the
+    // duplicate mount refetch. Conflict reloads still refetch explicitly.
+    staleTime: 60_000,
   })
 }
 

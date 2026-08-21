@@ -5,7 +5,8 @@ import Link from "next/link"
 import { WifiOff } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { EmptyState } from "@/components/ui/empty-state"
+import { Panel } from "@/components/ui/panel"
 
 type OfflineRouteGuardProps = {
   title: string
@@ -41,23 +42,23 @@ export function OfflineRouteGuard({
 
   if (!isOnline) {
     return (
-      <div className="mx-auto flex max-w-3xl flex-col gap-6 py-10">
-        <Card className="border shadow-sm">
-          <CardHeader className="items-center text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
-              <WifiOff className="h-6 w-6" />
-            </div>
-            <CardTitle>{title}</CardTitle>
-            <CardDescription className="max-w-md">{description}</CardDescription>
-          </CardHeader>
-          {backHref ? (
-            <CardContent className="flex justify-center pt-0">
+      <div className="mx-auto flex min-h-[50dvh] w-full max-w-3xl items-center py-8">
+        <Panel padding="none" className="w-full">
+          <EmptyState
+            icon={<WifiOff aria-hidden="true" />}
+            tone="warning"
+            size="page"
+            title={title}
+            description={description}
+            role="status"
+            aria-live="polite"
+            action={backHref ? (
               <Button asChild variant="outline">
                 <Link href={backHref}>{backLabel}</Link>
               </Button>
-            </CardContent>
-          ) : null}
-        </Card>
+            ) : undefined}
+          />
+        </Panel>
       </div>
     )
   }

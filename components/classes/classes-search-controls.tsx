@@ -1,61 +1,113 @@
 "use client"
 
-import { Search } from "lucide-react"
+import { ArrowUpDown, Search, X } from "lucide-react"
 
-import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 type ClassesSearchControlsProps = {
-  activeTab: "teaching" | "enrolled"
   searchQuery: string
-  onTabChange: (tab: "teaching" | "enrolled") => void
+  /** Result count; `undefined` hides the count while the grid is streaming. */
+  resultCount?: number
+  sortOrder: "newest" | "oldest"
   onSearchChange: (value: string) => void
+  onSortChange: (order: "newest" | "oldest") => void
+  onReset: () => void
 }
 
 export function ClassesSearchControls({
-  activeTab,
   searchQuery,
-  onTabChange,
+  resultCount,
+  sortOrder,
   onSearchChange,
+  onSortChange,
+  onReset,
 }: ClassesSearchControlsProps) {
-  return (
-    <div className="flex flex-row gap-4 justify-start items-center">
-      <div className="inline-flex p-1 bg-muted/40 rounded-xl border">
-        <button
-          className={cn(
-            "px-6 py-2 rounded-lg text-sm font-medium transition-all duration-300 ease-in-out",
-            activeTab === "teaching"
-              ? "bg-white text-primary shadow-sm ring-1 ring-black/5"
-              : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
-          )}
-          onClick={() => onTabChange("teaching")}
-        >
-          Teaching
-        </button>
-        <button
-          className={cn(
-            "px-6 py-2 rounded-lg text-sm font-medium transition-all duration-300 ease-in-out",
-            activeTab === "enrolled"
-              ? "bg-white text-primary shadow-sm ring-1 ring-black/5"
-              : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
-          )}
-          onClick={() => onTabChange("enrolled")}
-        >
-          Enrolled
-        </button>
-      </div>
+  const hasChanged = Boolean(searchQuery.trim()) || sortOrder !== "newest"
 
-      <div className="relative w-full sm:w-72">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <Search className="h-4 w-4 text-muted-foreground" />
-        </div>
-        <input
-          type="text"
-          placeholder="Search classes..."
+  return (
+    <section
+      role="search"
+      aria-label="Class filters"
+      className="flex flex-col gap-3 rounded-xl border border-hairline/80 bg-card/80 p-2 sm:p-2.5 shadow-2xs backdrop-blur-xs lg:flex-row lg:items-center"
+    >
+      <div className="relative w-full lg:max-w-md">
+        <label htmlFor="classes-search" className="sr-only">
+          Search classes
+        </label>
+        <Search
+          className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground/70"
+          aria-hidden="true"
+        />
+        <Input
+          id="classes-search"
+          type="search"
+          placeholder="Search by class, subject, or teacher…"
           value={searchQuery}
           onChange={(event) => onSearchChange(event.target.value)}
-          className="block w-full rounded-xl border-0 py-2.5 pl-10 text-sm ring-1 ring-inset ring-gray-200 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-primary/20 bg-muted/20 transition-all hover:bg-muted/30 focus:bg-white"
+          className="h-10 border-0 bg-surface/50 pl-9 pr-10 text-[13.5px] focus-visible:bg-surface focus-visible:ring-2 focus-visible:ring-primary/20 rounded-lg shadow-2xs"
         />
+        {searchQuery ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            className="absolute right-2 top-1/2 -translate-y-1/2 size-6 rounded-md text-muted-foreground hover:text-foreground"
+            aria-label="Clear search"
+            onClick={() => onSearchChange("")}
+          >
+            <X className="size-3.5" />
+          </Button>
+        ) : null}
       </div>
-    </div>
+
+      <div className="flex min-w-0 flex-wrap items-center gap-2 lg:ml-auto lg:flex-nowrap">
+        {/* Visually hidden for screen readers and tests */}
+        {resultCount != null ? (
+          <span className="sr-only" aria-live="polite">
+            {resultCount} {resultCount === 1 ? "class" : "classes"}
+          </span>
+        ) : null}
+
+        {hasChanged ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onReset}
+            className="h-10 rounded-lg px-3 text-xs font-semibold text-muted-foreground hover:text-foreground"
+          >
+            Reset
+          </Button>
+        ) : null}
+
+        <Select
+          value={sortOrder}
+          onValueChange={(value) => onSortChange(value as "newest" | "oldest")}
+        >
+          <SelectTrigger
+            aria-label="Sort classes"
+            className="h-10 w-[9.5rem] rounded-lg border border-hairline/70 bg-surface/50 text-xs font-semibold shadow-2xs hover:bg-surface focus-visible:ring-primary/20"
+          >
+            <ArrowUpDown aria-hidden="true" className="size-3.5 text-muted-foreground" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent align="end" className="rounded-lg">
+            <SelectItem value="newest" className="text-xs font-medium">
+              Newest first
+            </SelectItem>
+            <SelectItem value="oldest" className="text-xs font-medium">
+              Oldest first
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </section>
   )
 }

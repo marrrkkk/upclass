@@ -1,29 +1,42 @@
 "use client"
 
 import { useEffect, useState, useTransition } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { BookOpen, Edit, Trash2 } from "lucide-react"
 
-import { createClasswork, deleteClasswork, gradeSubmission, submitClasswork, updateClasswork } from "@/app/actions/class-detail"
+import {
+  createClasswork,
+  deleteClasswork,
+  gradeSubmission,
+  submitClasswork,
+  updateClasswork,
+} from "@/app/actions/class-detail"
 import { ClassworkCard } from "@/components/classes/classwork-card"
 import { ClassworkCreateDialog } from "@/components/classes/classwork-create-dialog"
-import { useClassworkRealtime } from "@/hooks/classes/use-classwork-realtime"
-import type { ClassworkData, SubmissionData } from "@/types/classes"
-import { buttonVariants } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Callout } from "@/components/ui/callout"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { ResponsiveOverlay } from "@/components/ui/responsive-overlay"
+import { EmptyState } from "@/components/ui/empty-state"
+import { Field, FieldLabel, FieldRow } from "@/components/ui/field"
+import { IconBadge } from "@/components/ui/icon-badge"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Panel } from "@/components/ui/panel"
+import { Text } from "@/components/ui/typography"
 import { Textarea } from "@/components/ui/textarea"
+import { useClassworkRealtime } from "@/hooks/classes/use-classwork-realtime"
+import { useOptimisticMutation } from "@/hooks/use-optimistic-mutation"
 import { executeWithOfflineHandling } from "@/lib/offline-action-handler"
-import { cn } from "@/lib/utils"
+import type { ClassworkData, SubmissionData } from "@/types/classes"
 
 type ClassworkTabProps = {
   classId: string
@@ -34,18 +47,22 @@ type ClassworkTabProps = {
   classColor: string
 }
 
+/** Client-only marker for classwork that exists only in this local list. */
+type ClassworkItem = ClassworkData & { tempId?: string; pending?: boolean }
+
 export function ClassworkTab({ classId, userId, userRole, classwork, submissions, classColor }: ClassworkTabProps) {
   const router = useRouter()
-  const [classworkItems, setClassworkItems] = useState(classwork)
+  const searchParams = useSearchParams()
+  const [classworkItems, setClassworkItems] = useState<ClassworkItem[]>(classwork)
   const [submissionItems, setSubmissionItems] = useState(submissions)
-  const [createOpen, setCreateOpen] = useState(false)
+  const [createOpen, setCreateOpen] = useState(
+    () => userRole === "teacher" && searchParams?.get("create") === "1",
+  )
   const [error, setError] = useState<string | null>(null)
-  const [pending, startTransition] = useTransition()
+  const [submissionPending, startSubmissionTransition] = useTransition()
   const [editClassworkOpen, setEditClassworkOpen] = useState<string | null>(null)
   const [deleteClassworkOpen, setDeleteClassworkOpen] = useState<string | null>(null)
-  const [editPending, startEditTransition] = useTransition()
-  const [deletePending, startDeleteTransition] = useTransition()
-  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const { mutate, pending } = useOptimisticMutation<ClassworkItem[]>(classworkItems, setClassworkItems)
 
   useEffect(() => {
     setClassworkItems(classwork)
@@ -150,46 +167,67 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
     },
   })
 
-  const handleCreateClasswork = async (formData: FormData) => {
+  const handleCreateClasswork = (formData: FormData) => {
     setError(null)
 
-    startTransition(async () => {
-      const result = await executeWithOfflineHandling(
-        () => createClasswork(classId, formData),
-        "create-classwork",
-        {
-          classId,
-          title: String(formData.get("title") || ""),
-          description: String(formData.get("description") || ""),
-          type:
-            String(formData.get("type") || "") === "material" ||
-            String(formData.get("type") || "") === "quiz"
-              ? (String(formData.get("type")) as "material" | "quiz")
-              : "assignment",
-          dueDate: String(formData.get("dueDate") || ""),
-          points: String(formData.get("points") || ""),
+    const title = String(formData.get("title") || "").trim()
+    const type =
+      String(formData.get("type") || "") === "material" ||
+      String(formData.get("type") || "") === "quiz"
+        ? (String(formData.get("type")) as "material" | "quiz")
+        : "assignment"
+    const tempId = `classwork-${crypto.randomUUID()}`
+    const optimisticItem: ClassworkItem = {
+      id: tempId,
+      tempId,
+      pending: true,
+      title,
+      description: String(formData.get("description") || "") || null,
+      type,
+      dueDate: String(formData.get("dueDate") || "") || null,
+      points: String(formData.get("points") || "") || null,
+      createdAt: new Date().toISOString(),
+    }
+
+    void mutate(
+      (previous) => [optimisticItem, ...previous],
+      () => createClasswork(classId, formData),
+      {
+        offline: {
+          type: "create-classwork",
+          payload: {
+            classId,
+            title,
+            description: optimisticItem.description ?? "",
+            type,
+            dueDate: optimisticItem.dueDate ?? "",
+            points: optimisticItem.points ?? "",
+            tempId,
+          },
         },
-      )
+        queued: {
+          tempId,
+          remove: (current) => current.filter((item) => item.tempId !== tempId),
+        },
+        onSuccess: (_result, current) => {
+          // Classwork returns no ID, so drop the placeholder and let the
+          // server refresh/realtime bring in the real row.
+          setCreateOpen(false)
+          router.refresh()
+          return current.filter((item) => item.tempId !== tempId)
+        },
+        onError: (_message, current) => current.filter((item) => item.tempId !== tempId),
+      },
+    )
 
-      if (result.queued) {
-        setError("Action queued. It will be synced when you're back online.")
-        setTimeout(() => setCreateOpen(false), 2000)
-        return
-      }
-
-      if (!result.success) {
-        setError(result.error || "Failed to create classwork")
-        return
-      }
-
-      setCreateOpen(false)
-    })
+    // The optimistic item is already in the list: close immediately.
+    setCreateOpen(false)
   }
 
   const handleSubmit = async (classworkId: string, formData: FormData) => {
     setError(null)
 
-    startTransition(async () => {
+    startSubmissionTransition(async () => {
       const result = await executeWithOfflineHandling(
         () => submitClasswork(classworkId, formData),
         "submit-classwork",
@@ -217,7 +255,7 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
 
   const handleGrade = async (submissionId: string, formData: FormData) => {
     setError(null)
-    startTransition(async () => {
+    startSubmissionTransition(async () => {
       const result = await gradeSubmission(submissionId, formData)
       if (!result.success) {
         setError(result.error)
@@ -228,33 +266,46 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
     })
   }
 
-  const handleEditClasswork = async (classworkId: string, formData: FormData) => {
-    startEditTransition(async () => {
-      const result = await updateClasswork(classworkId, formData)
-      if (!result.success) {
-        setError(result.error)
-        return
-      }
+  const handleEditClasswork = (classworkId: string, formData: FormData) => {
+    setError(null)
 
-      setEditClassworkOpen(null)
-      router.refresh()
-    })
+    void mutate(
+      (previous) =>
+        previous.map((item) =>
+          item.id === classworkId
+            ? {
+                ...item,
+                title: String(formData.get("title") || "").trim(),
+                description: String(formData.get("description") || "") || null,
+                dueDate: String(formData.get("dueDate") || "") || null,
+                points: String(formData.get("points") || "") || null,
+              }
+            : item,
+        ),
+      () => updateClasswork(classworkId, formData),
+      {
+        onSuccess: (_result, current) => {
+          setEditClassworkOpen(null)
+          router.refresh()
+          return current
+        },
+      },
+    )
   }
 
-  const handleDeleteClasswork = async (classworkId: string) => {
-    setDeletingId(classworkId)
+  const handleDeleteClasswork = (classworkId: string) => {
     setDeleteClassworkOpen(null)
-    startDeleteTransition(async () => {
-      const result = await deleteClasswork(classworkId)
-      if (!result.success) {
-        setError(result.error)
-        setDeletingId(null)
-        return
-      }
 
-      router.refresh()
-      setDeletingId(null)
-    })
+    void mutate(
+      (previous) => previous.filter((item) => item.id !== classworkId),
+      () => deleteClasswork(classworkId),
+      {
+        onSuccess: (_result, current) => {
+          router.refresh()
+          return current
+        },
+      },
+    )
   }
 
   const getSubmissionForClasswork = (classworkId: string) =>
@@ -264,11 +315,9 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
     submissionItems.filter((submission) => submission.classworkId === classworkId)
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 max-w-4xl mx-auto w-full">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold tracking-tight">Classwork</h2>
-
-        {userRole === "teacher" && (
+    <section className="space-y-4">
+      {userRole === "teacher" ? (
+        <div className="flex justify-end">
           <ClassworkCreateDialog
             classColor={classColor}
             error={error}
@@ -277,34 +326,33 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
             onOpenChange={setCreateOpen}
             onSubmit={handleCreateClasswork}
           />
-        )}
-      </div>
+        </div>
+      ) : null}
 
       {classworkItems.length === 0 ? (
-        <Card className="border-dashed bg-muted/10 border-2">
-          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="p-4 rounded-full bg-muted/50 mb-4">
-              <BookOpen className="h-8 w-8 text-muted-foreground/60" />
-            </div>
-            <h3 className="text-lg font-medium">No classwork yet</h3>
-            <p className="mt-2 text-sm text-muted-foreground max-w-sm">
-              {userRole === "teacher"
+        <Panel padding="none">
+          <EmptyState
+            icon={<BookOpen />}
+            title="No classwork yet"
+            description={
+              userRole === "teacher"
                 ? "Assignments, quizzes, and materials you create will appear here."
-                : "Check back later for new assignments from your teacher."}
-            </p>
-          </CardContent>
-        </Card>
+                : "Check back later for new assignments from your teacher."
+            }
+          />
+        </Panel>
       ) : (
-        <div className="grid gap-4">
+        <div className="space-y-3">
           {classworkItems.map((item) => (
             <ClassworkCard
               key={item.id}
               allSubmissions={getSubmissionsForClasswork(item.id)}
               classColor={classColor}
-              deleting={deletingId === item.id}
+              classId={classId}
+              deleting={false}
               error={error}
               item={item}
-              pending={pending}
+              pending={submissionPending}
               submission={getSubmissionForClasswork(item.id)}
               userRole={userRole}
               onDelete={() => setDeleteClassworkOpen(item.id)}
@@ -321,65 +369,57 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
         if (!item) return null
 
         return (
-          <Dialog open={!!editClassworkOpen} onOpenChange={(open) => !open && setEditClassworkOpen(null)}>
-            <DialogContent className="sm:max-w-[550px] gap-0 p-0 overflow-y-auto border-0 shadow-2xl max-h-[calc(100vh-2rem)] flex flex-col">
-              <DialogHeader className="p-6 pb-2 bg-gradient-to-r from-muted/50 to-muted/10 border-b border-border/50">
-                <DialogTitle className="text-xl font-semibold tracking-tight flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                    <Edit className="h-5 w-5" />
-                  </div>
-                  Edit Classwork
-                </DialogTitle>
-              </DialogHeader>
-              <form action={(formData) => handleEditClasswork(item.id, formData)} className="p-6 space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="edit-title">Title</Label>
-                  <Input id="edit-title" name="title" defaultValue={item.title} required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-description">Description</Label>
-                  <Textarea
-                    id="edit-description"
-                    name="description"
-                    defaultValue={item.description || ""}
-                    className="min-h-[100px] resize-none"
+          <ResponsiveOverlay
+            open={!!editClassworkOpen}
+            onOpenChange={(open) => !open && setEditClassworkOpen(null)}
+            title={
+              <span className="flex items-center gap-2">
+                <IconBadge tone="primary" size="sm"><Edit /></IconBadge>
+                Edit classwork
+              </span>
+            }
+            description="Update the assignment details shown to students."
+            desktopClassName="sm:max-w-[34rem]"
+            footer={
+              <>
+                <Button type="button" variant="ghost" onClick={() => setEditClassworkOpen(null)}>Cancel</Button>
+                <Button type="submit" form="edit-classwork-form" isLoading={pending} disabled={pending}>
+                  Save
+                </Button>
+              </>
+            }
+          >
+            <form id="edit-classwork-form" action={(formData) => handleEditClasswork(item.id, formData)} className="space-y-5">
+              <Field>
+                <FieldLabel htmlFor="edit-title">Title</FieldLabel>
+                <Input id="edit-title" name="title" defaultValue={item.title} required />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="edit-description" optional>Description</FieldLabel>
+                <Textarea
+                  id="edit-description"
+                  name="description"
+                  defaultValue={item.description || ""}
+                  className="min-h-24 resize-none"
+                />
+              </Field>
+              <FieldRow>
+                <Field>
+                  <FieldLabel htmlFor="edit-dueDate" optional>Due date</FieldLabel>
+                  <Input
+                    id="edit-dueDate"
+                    name="dueDate"
+                    type="datetime-local"
+                    defaultValue={item.dueDate ? new Date(item.dueDate).toISOString().slice(0, 16) : ""}
                   />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-dueDate">Due Date</Label>
-                    <Input
-                      id="edit-dueDate"
-                      name="dueDate"
-                      type="datetime-local"
-                      defaultValue={item.dueDate ? new Date(item.dueDate).toISOString().slice(0, 16) : ""}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-points">Points</Label>
-                    <Input id="edit-points" name="points" type="number" defaultValue={item.points || ""} />
-                  </div>
-                </div>
-                <DialogFooter className="pt-4">
-                  <button
-                    type="button"
-                    onClick={() => setEditClassworkOpen(null)}
-                    className={cn(buttonVariants({ variant: "ghost" }))}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={editPending}
-                    className={cn(buttonVariants(), "min-w-[100px]")}
-                    style={{ backgroundColor: classColor }}
-                  >
-                    {editPending ? "Saving..." : "Save"}
-                  </button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="edit-points" optional>Points</FieldLabel>
+                  <Input id="edit-points" name="points" type="number" defaultValue={item.points || ""} />
+                </Field>
+              </FieldRow>
+            </form>
+          </ResponsiveOverlay>
         )
       })()}
 
@@ -388,55 +428,38 @@ export function ClassworkTab({ classId, userId, userRole, classwork, submissions
         if (!item) return null
 
         return (
-          <Dialog open={!!deleteClassworkOpen} onOpenChange={(open) => !open && setDeleteClassworkOpen(null)}>
-            <DialogContent className="sm:max-w-[420px] gap-0 p-0 overflow-y-auto border-0 shadow-2xl max-h-[calc(100vh-2rem)]">
-              <DialogHeader className="p-6 pb-4 bg-gradient-to-r from-destructive/10 to-destructive/5 border-b border-destructive/20">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center">
-                    <Trash2 className="h-5 w-5 text-destructive" />
-                  </div>
-                  <div>
-                    <DialogTitle className="text-lg font-semibold">Delete Classwork</DialogTitle>
-                    <DialogDescription className="text-sm text-muted-foreground">
-                      This action cannot be undone
-                    </DialogDescription>
-                  </div>
-                </div>
-              </DialogHeader>
-
-              <div className="p-6 text-center space-y-4">
-                <p className="text-sm text-muted-foreground">Are you sure you want to delete this classwork?</p>
-                <p className="text-lg font-semibold text-foreground truncate">&quot;{item.title}&quot;</p>
-                <p className="text-xs text-muted-foreground">All student submissions will also be deleted.</p>
-              </div>
-
-              <div className="px-6 py-4 bg-muted/30 border-t flex items-center justify-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setDeleteClassworkOpen(null)}
-                  disabled={deletePending}
-                  className={cn(buttonVariants({ variant: "outline" }), "min-w-[100px]")}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
+          <AlertDialog
+            open={!!deleteClassworkOpen}
+            onOpenChange={(open) => !open && setDeleteClassworkOpen(null)}
+          >
+            <AlertDialogContent className="sm:max-w-[26rem]">
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center gap-2">
+                  <IconBadge tone="danger" size="sm"><Trash2 /></IconBadge>
+                  Delete classwork
+                </AlertDialogTitle>
+                <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <Callout tone="danger" icon={false}>
+                <Text variant="small">
+                  Delete &ldquo;{item.title}&rdquo; and all associated student submissions?
+                </Text>
+              </Callout>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={pending}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   onClick={() => handleDeleteClasswork(item.id)}
-                  disabled={deletePending}
-                  className={cn(buttonVariants({ variant: "destructive" }), "min-w-[120px] gap-2")}
+                  disabled={pending}
                 >
-                  {deletePending ? "Deleting..." : (
-                    <>
-                      <Trash2 className="h-4 w-4" />
-                      Delete
-                    </>
-                  )}
-                </button>
-              </div>
-            </DialogContent>
-          </Dialog>
+                  <Trash2 aria-hidden="true" />
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         )
       })()}
-    </div>
+    </section>
   )
 }

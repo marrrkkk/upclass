@@ -33,7 +33,7 @@ type TldrawSnapshotLike = {
 
 const COLOR_MAP: Record<string, string> = {
   black: "#111827",
-  blue: "#2563eb",
+  blue: "#0e6b52",
   green: "#16a34a",
   grey: "#6b7280",
   orange: "#ea580c",

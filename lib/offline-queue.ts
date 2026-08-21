@@ -9,6 +9,8 @@ import {
 const createAnnouncementPayloadSchema = z.object({
   classId: z.string().min(1, "Class ID is required"),
   content: z.string().trim().min(1, "Content is required"),
+  /** Client-generated ID of the optimistic announcement for queue reconciliation. */
+  tempId: z.string().optional(),
 })
 
 const createClassworkPayloadSchema = z.object({
@@ -18,6 +20,8 @@ const createClassworkPayloadSchema = z.object({
   type: z.enum(["assignment", "quiz", "material"]).default("assignment"),
   dueDate: z.string().trim().optional(),
   points: z.string().trim().optional(),
+  /** Client-generated ID of the optimistic classwork for queue reconciliation. */
+  tempId: z.string().optional(),
 })
 
 const submitClassworkPayloadSchema = z
@@ -42,9 +46,11 @@ const submitClassworkPayloadSchema = z
 
 const sendDirectMessagePayloadSchema = z
   .object({
+    orgSlug: z.string().min(1, "Organization is required"),
     receiverId: z.string().min(1, "Receiver is required"),
     content: z.string().trim().optional(),
     media: z.string().trim().optional(),
+    clientMessageId: z.string().trim().min(1).max(64),
   })
   .refine((value) => !!value.content || !!value.media, {
     message: "Message content or media is required",
@@ -52,9 +58,11 @@ const sendDirectMessagePayloadSchema = z
 
 const sendChannelMessagePayloadSchema = z
   .object({
+    orgSlug: z.string().min(1, "Organization is required"),
     channelId: z.string().min(1, "Channel is required"),
     content: z.string().trim().optional(),
     media: z.string().trim().optional(),
+    clientMessageId: z.string().trim().min(1).max(64),
   })
   .refine((value) => !!value.content || !!value.media, {
     message: "Message content or media is required",
@@ -66,9 +74,13 @@ const createQuizPayloadSchema = z.object({
 })
 
 export const offlineActionPayloadSchemas = {
-  "create-class": createClassSchema,
+  "create-class": createClassSchema.extend({
+    orgSlug: z.string().trim().min(1, "Organization is required"),
+    /** Client-generated ID of the optimistic class for queue reconciliation. */
+    tempId: z.string().optional(),
+  }),
   "join-class": joinClassSchema,
-  "create-resource": createResourceSchema,
+  // Note: "create-resource" is intentionally excluded - resource uploads are online-only
   "create-announcement": createAnnouncementPayloadSchema,
   "create-classwork": createClassworkPayloadSchema,
   "submit-classwork": submitClassworkPayloadSchema,
@@ -129,6 +141,13 @@ function retryDelayMs(attemptCount: number) {
   const max = 5 * 60_000
   return Math.min(base * 2 ** Math.max(0, attemptCount - 1), max)
 }
+
+/**
+ * How long a `syncing` claim is considered owned by its tab. Multi-tab sync
+ * must not re-execute an action another tab is already processing, but a tab
+ * that dies mid-sync must not leave the action stuck forever.
+ */
+const SYNC_CLAIM_STALE_MS = 30_000
 
 function isRetryableError(error: string) {
   return !/(unauthorized|required|invalid|not found|already|cannot|only .* can|you are not)/i.test(
@@ -288,6 +307,7 @@ async function removeAction(id: string) {
 }
 
 function appendFormData(formData: FormData, payload: Record<string, unknown>, skipKeys: string[] = []) {
+  if (!payload || typeof payload !== "object") return
   for (const [key, value] of Object.entries(payload)) {
     if (skipKeys.includes(key) || value == null) continue
     formData.append(key, String(value))
@@ -308,12 +328,7 @@ async function processQueuedAction(action: QueuedAction) {
       appendFormData(formData, action.payload)
       return await joinClass(formData)
     }
-    case "create-resource": {
-      const { createResource } = await import("@/app/actions/resources")
-      const formData = new FormData()
-      appendFormData(formData, action.payload)
-      return await createResource(formData)
-    }
+    // Note: "create-resource" case removed - resources are online-only due to file uploads
     case "create-announcement": {
       const { createAnnouncement } = await import("@/app/actions/class-detail")
       const formData = new FormData()
@@ -336,17 +351,13 @@ async function processQueuedAction(action: QueuedAction) {
     case "send-direct-message": {
       const { sendMessage } = await import("@/app/actions/messages")
       return await sendMessage(
-        action.payload.receiverId,
-        action.payload.content || "",
-        action.payload.media,
+        { ...action.payload, content: action.payload.content || "" },
       )
     }
     case "send-channel-message": {
       const { sendChannelMessage } = await import("@/app/actions/messages")
       return await sendChannelMessage(
-        action.payload.channelId,
-        action.payload.content || "",
-        action.payload.media,
+        { ...action.payload, content: action.payload.content || "" },
       )
     }
     case "create-quiz": {
@@ -368,6 +379,11 @@ export async function syncOfflineActions() {
 
   for (const action of actions) {
     if (action.status === "failed") continue
+    // Another tab (or a concurrent sync pass) owns fresh claims; only stale
+    // claims from crashed tabs are re-processed.
+    if (action.status === "syncing" && now - action.updatedAt < SYNC_CLAIM_STALE_MS) {
+      continue
+    }
     if (action.nextRetryAt > now) continue
 
     await markSyncing(action)

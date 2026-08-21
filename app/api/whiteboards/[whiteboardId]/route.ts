@@ -1,4 +1,5 @@
 import { headers } from "next/headers"
+import { unstable_rethrow } from "next/navigation"
 import { NextResponse } from "next/server"
 import { and, eq } from "drizzle-orm"
 
@@ -64,6 +65,7 @@ async function requireWhiteboardAccess(boardId: string) {
       headers: await headers(),
     })
   } catch (error) {
+    unstable_rethrow(error)
     console.error("Failed to get whiteboard API session", error)
     return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) }
   }

@@ -1,9 +1,9 @@
-import type { Metadata, Viewport } from "next"
-import { Analytics } from '@vercel/analytics/next'
-import { SpeedInsights } from '@vercel/speed-insights/next'
+import type { Metadata, Viewport } from "next";
+import { Geist_Mono, Inter } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
-import "./globals.css"
-import { ThemeProvider } from "@/components/theme-provider"
+import "./globals.css";
 import {
   defaultDescription,
   siteKeywords,
@@ -11,7 +11,19 @@ import {
   siteTitle,
   siteUrl,
   socialImagePath,
-} from "@/lib/seo"
+} from "@/lib/seo";
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
+const geistMono = Geist_Mono({
+  subsets: ["latin"],
+  variable: "--font-geist-mono",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -27,10 +39,10 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   icons: {
     icon: [
-      { url: '/icon.svg', type: 'image/svg+xml' },
-      { url: '/favicon.ico', sizes: 'any' },
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" },
     ],
-    apple: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+    apple: [{ url: "/icon.svg", type: "image/svg+xml" }],
   },
   appleWebApp: {
     capable: true,
@@ -71,33 +83,36 @@ export const metadata: Metadata = {
       "max-video-preview": -1,
     },
   },
-}
+};
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
   userScalable: true,
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "hsl(var(--primary))" },
-    { media: "(prefers-color-scheme: dark)", color: "hsl(var(--primary))" },
-  ],
-}
+  themeColor: "#f7f8fa",
+};
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode
+  children: React.ReactNode;
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="font-sans antialiased" suppressHydrationWarning>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          {children}
-        </ThemeProvider>
+      <body
+        className={`${inter.variable} ${geistMono.variable} font-sans antialiased`}
+        suppressHydrationWarning
+      >
+        {/*
+          DESIGN.md contract — Classroom Focus, light-only.
+          Neutral #F7F8FA canvas, white working surfaces, graphite text,
+          UpClass Blue #0075DE as the functional signal, and Inter typography.
+        */}
+        {children}
         <Analytics />
         <SpeedInsights />
       </body>
     </html>
-  )
+  );
 }

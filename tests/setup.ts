@@ -23,12 +23,16 @@ vi.mock("next/link", () => ({
   default: ({
     children,
     href,
+    prefetch,
     ...props
   }: React.AnchorHTMLAttributes<HTMLAnchorElement> & {
     href: string
     children: React.ReactNode
-  }) =>
-    React.createElement("a", { href, ...props }, children),
+    prefetch?: boolean | null
+  }) => {
+    void prefetch
+    return React.createElement("a", { href, ...props }, children)
+  },
 }))
 
 if (typeof window !== "undefined") {

@@ -1,34 +1,37 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { MessageSquare } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { SidebarCount, SidebarNavLink } from "@/components/sidebar/sidebar-nav-link"
 import { supabase } from "@/lib/supabase-client"
+import { authorizeSupabaseRealtime } from "@/lib/supabase-realtime-auth"
 
 type MessagesSectionProps = {
   userId: string
+  onNavigate?: () => void
+  collapsed?: boolean
 }
 
-export function MessagesSection({ userId }: MessagesSectionProps) {
+export function MessagesSection({ userId, onNavigate, collapsed = false }: MessagesSectionProps) {
   const [unreadCount, setUnreadCount] = useState(0)
+  const pathname = usePathname()
+
+  // Extract org slug from pathname
+  const orgSlug = pathname?.split('/')[1] || ''
+  const messagesPath = orgSlug ? `/${orgSlug}/messages` : '/messages'
+  const activePath = pathname || "/"
+  const isActive = activePath === messagesPath || activePath.startsWith(`${messagesPath}/`)
 
   useEffect(() => {
     if (!supabase || !userId) return
 
-    // Fetch initial unread count
+    let cancelled = false
+    // Fetch initial unread count through authenticated app API.
     const fetchUnreadCount = async () => {
       try {
-        const { count, error } = await supabase!
-          .from("messages")
-          .select("*", { count: "exact", head: true })
-          .eq("receiver_id", userId)
-          .eq("read", false)
-
-        if (!error && count !== null) {
-          setUnreadCount(count)
-        }
+        const response = await fetch(`/api/messages/unread?orgSlug=${encodeURIComponent(orgSlug)}`, { cache: "no-store" })
+        if (response.ok && !cancelled) setUnreadCount((await response.json()).count || 0)
       } catch (err) {
         console.error("Error fetching unread count:", err)
       }
@@ -37,7 +40,10 @@ export function MessagesSection({ userId }: MessagesSectionProps) {
     fetchUnreadCount()
 
     // Subscribe to real-time changes
-    const channel = supabase!
+    let channel: ReturnType<typeof supabase.channel> | null = null
+    void authorizeSupabaseRealtime().then((authorized) => {
+      if (!authorized || cancelled || !supabase) return
+      channel = supabase
       .channel(`messages:${userId}`)
       .on(
         "postgres_changes",
@@ -92,14 +98,13 @@ export function MessagesSection({ userId }: MessagesSectionProps) {
         },
       )
       .subscribe()
+    })
 
     return () => {
-      supabase?.removeChannel(channel)
+      cancelled = true
+      if (channel) supabase?.removeChannel(channel)
     }
   }, [userId])
-
-  const pathname = usePathname()
-  const isActive = pathname?.startsWith("/messages")
 
   // Refetch count when messages page becomes active
   useEffect(() => {
@@ -107,15 +112,8 @@ export function MessagesSection({ userId }: MessagesSectionProps) {
 
     const refetchCount = async () => {
       try {
-        const { count, error } = await supabase!
-          .from("messages")
-          .select("*", { count: "exact", head: true })
-          .eq("receiver_id", userId)
-          .eq("read", false)
-
-        if (!error && count !== null) {
-          setUnreadCount(count)
-        }
+        const response = await fetch(`/api/messages/unread?orgSlug=${encodeURIComponent(orgSlug)}`, { cache: "no-store" })
+        if (response.ok) setUnreadCount((await response.json()).count || 0)
       } catch (err) {
         console.error("Error refetching unread count:", err)
       }
@@ -126,31 +124,15 @@ export function MessagesSection({ userId }: MessagesSectionProps) {
 
 
   return (
-    <Link
-      href="/messages"
-      className={cn(
-        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 group/item",
-        isActive
-          ? "bg-primary text-primary-foreground shadow-md"
-          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-      )}
-    >
-      <MessageSquare className={cn(
-        "h-4 w-4 transition-transform group-hover/item:scale-110",
-        isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"
-      )} />
-      <span>Messages</span>
-      {unreadCount > 0 && (
-        <span className={cn(
-          "ml-auto rounded-full px-2 py-0.5 min-w-[1.25rem] text-center text-[10px] font-bold shadow-sm",
-          isActive
-            ? "bg-white text-primary"
-            : "bg-primary text-primary-foreground"
-        )}>
-          {unreadCount > 99 ? "99+" : unreadCount}
-        </span>
-      )}
-    </Link>
+    <SidebarNavLink
+      href={messagesPath}
+      active={Boolean(isActive)}
+      icon={<MessageSquare />}
+      label="Messages"
+      trailing={collapsed ? undefined : <SidebarCount count={unreadCount} />}
+      collapsed={collapsed}
+      onClick={onNavigate}
+    />
   )
 }
 

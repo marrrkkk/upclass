@@ -1,39 +1,36 @@
 "use client"
 
 import dynamic from "next/dynamic"
-import { useState, useTransition, useRef } from "react"
+import * as React from "react"
 import { useRouter } from "next/navigation"
-import { Upload, Palette, Image as ImageIcon, X, Crop, Pencil, Check } from "lucide-react"
+import { Check, Image as ImageIcon, Pencil, Upload, X } from "lucide-react"
+
 import { updateProfile } from "@/app/actions/profile"
-import { Button, buttonVariants } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { useUploadThing } from "@/lib/uploadthing"
+  PROFILE_COVER_OPTIONS,
+  ProfileCover,
+  ProfileCoverSwatch,
+} from "@/components/profile/profile-cover"
+import { Button } from "@/components/ui/button"
+import { Callout } from "@/components/ui/callout"
+import { ResponsiveOverlay } from "@/components/ui/responsive-overlay"
+import { EntityAvatar } from "@/components/ui/entity-avatar"
+import { Field, FieldGroup, FieldHelp, FieldLabel } from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
+import { StatusBadge } from "@/components/ui/status-badge"
+import { Textarea } from "@/components/ui/textarea"
+import { Text } from "@/components/ui/typography"
+import { useSupabaseUpload } from "@/lib/supabase-storage"
 import { cn } from "@/lib/utils"
 
 const CoverCropper = dynamic(
-  () => import("./cover-cropper").then((mod) => mod.CoverCropper),
-  {
-    ssr: false,
-  },
+  () => import("./cover-cropper").then((module) => module.CoverCropper),
+  { ssr: false },
 )
 
 const ImageCropper = dynamic(
-  () => import("@/components/settings/profile-image-cropper").then((mod) => mod.ImageCropper),
-  {
-    ssr: false,
-  },
+  () => import("@/components/settings/profile-image-cropper").then((module) => module.ImageCropper),
+  { ssr: false },
 )
 
 type EditProfileDialogProps = {
@@ -49,54 +46,70 @@ type EditProfileDialogProps = {
   }
 }
 
-// Premium cover colors - same as class colors for consistency
-const coverColors = [
-  "#3b82f6", // Blue
-  "#8b5cf6", // Violet
-  "#ec4899", // Pink
-  "#ef4444", // Red
-  "#f97316", // Orange
-  "#eab308", // Yellow
-  "#22c55e", // Green
-  "#14b8a6", // Teal
-  "#06b6d4", // Cyan
-  "#6366f1", // Indigo
-]
+const DEFAULT_COVER_VALUE = "#0e6b52"
 
 export function EditProfileDialog({ user }: EditProfileDialogProps) {
   const router = useRouter()
-  const [open, setOpen] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [pending, startTransition] = useTransition()
+  const [open, setOpen] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
+  const [pending, startTransition] = React.useTransition()
 
-  // Avatar state
-  const [imageUrl, setImageUrl] = useState<string>(user.image || "")
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const [avatarCropOpen, setAvatarCropOpen] = useState(false)
-  const [avatarCropSrc, setAvatarCropSrc] = useState<string | null>(null)
+  const [name, setName] = React.useState(user.name)
+  const [bio, setBio] = React.useState(user.bio || "")
 
-  // Cover state
-  const [coverColor, setCoverColor] = useState(user.coverColor || "#3b82f6")
-  const [coverImageUrl, setCoverImageUrl] = useState<string>(user.cover || "")
-  const [coverFile, setCoverFile] = useState<File | null>(null)
-  const coverInputRef = useRef<HTMLInputElement>(null)
-  const [coverCropOpen, setCoverCropOpen] = useState(false)
-  const [coverCropSrc, setCoverCropSrc] = useState<string | null>(null)
+  const [imageUrl, setImageUrl] = React.useState(user.image || "")
+  const [selectedFile, setSelectedFile] = React.useState<File | null>(null)
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
+  const [avatarCropOpen, setAvatarCropOpen] = React.useState(false)
+  const [avatarCropSrc, setAvatarCropSrc] = React.useState<string | null>(null)
 
-  const { startUpload, isUploading } = useUploadThing("imageUploader")
+  const [coverColor, setCoverColor] = React.useState(user.coverColor || DEFAULT_COVER_VALUE)
+  const [coverImageUrl, setCoverImageUrl] = React.useState(user.cover || "")
+  const [coverFile, setCoverFile] = React.useState<File | null>(null)
+  const coverInputRef = React.useRef<HTMLInputElement>(null)
+  const [coverCropOpen, setCoverCropOpen] = React.useState(false)
+  const [coverCropSrc, setCoverCropSrc] = React.useState<string | null>(null)
+
+  const { startUpload, isUploading } = useSupabaseUpload("avatars")
+
+  const reset = React.useCallback(() => {
+    setError(null)
+    setName(user.name)
+    setBio(user.bio || "")
+    setSelectedFile(null)
+    setImageUrl(user.image || "")
+    setCoverFile(null)
+    setCoverImageUrl(user.cover || "")
+    setCoverColor(user.coverColor || DEFAULT_COVER_VALUE)
+    setAvatarCropSrc(null)
+    setCoverCropSrc(null)
+    if (fileInputRef.current) fileInputRef.current.value = ""
+    if (coverInputRef.current) coverInputRef.current.value = ""
+  }, [user])
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen)
+    if (!nextOpen) reset()
+  }
 
   const handleSubmit = async (formData: FormData) => {
     setError(null)
 
-    // Upload avatar if selected
+    if (!name.trim()) {
+      setError("Name is required")
+      return
+    }
+
     if (selectedFile) {
       try {
         const uploadResult = await startUpload([selectedFile])
-        if (uploadResult && uploadResult[0]) {
-          formData.append("image", uploadResult[0].ufsUrl || uploadResult[0].url || "")
+        const uploadedImage = uploadResult?.[0]?.url
+        if (!uploadedImage) {
+          setError("Failed to upload avatar image")
+          return
         }
-      } catch (err) {
+        formData.append("image", uploadedImage)
+      } catch {
         setError("Failed to upload avatar image")
         return
       }
@@ -104,332 +117,279 @@ export function EditProfileDialog({ user }: EditProfileDialogProps) {
       formData.append("image", imageUrl)
     }
 
-    // Upload cover image if selected
     if (coverFile) {
       try {
         const uploadResult = await startUpload([coverFile])
-        if (uploadResult && uploadResult[0]) {
-          formData.append("cover", uploadResult[0].ufsUrl || uploadResult[0].url || "")
+        const uploadedCover = uploadResult?.[0]?.url
+        if (!uploadedCover) {
+          setError("Failed to upload cover image")
+          return
         }
-      } catch (err) {
+        formData.append("cover", uploadedCover)
+      } catch {
         setError("Failed to upload cover image")
         return
       }
-    } else if (coverImageUrl && !coverImageUrl.startsWith("data:") && !coverImageUrl.startsWith("blob:")) {
+    } else if (
+      coverImageUrl &&
+      !coverImageUrl.startsWith("data:") &&
+      !coverImageUrl.startsWith("blob:")
+    ) {
       formData.append("cover", coverImageUrl)
     }
 
-    // Add cover color
     formData.append("coverColor", coverColor)
-
-    // Role is required but shouldn't change in edit mode
     formData.append("role", user.role || "student")
 
     startTransition(async () => {
-      const res = await updateProfile(formData)
-      if (!res.success) {
-        setError(res.error)
+      const result = await updateProfile(formData)
+      if (!result.success) {
+        setError(result.error)
         return
       }
+
       setOpen(false)
-      // Reset form
-      setSelectedFile(null)
-      setImageUrl(user.image || "")
-      setCoverFile(null)
-      setCoverImageUrl(user.cover || "")
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ""
-      }
-      if (coverInputRef.current) {
-        coverInputRef.current.value = ""
-      }
+      reset()
       router.refresh()
     })
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+  const readImage = (
+    event: React.ChangeEvent<HTMLInputElement>,
+    onRead: (value: string) => void,
+  ) => {
+    const file = event.target.files?.[0]
     if (file) {
       setError(null)
-      // Open cropper instead of directly setting
       const reader = new FileReader()
-      reader.onloadend = () => {
-        setAvatarCropSrc(reader.result as string)
-        setAvatarCropOpen(true)
-      }
+      reader.onloadend = () => onRead(reader.result as string)
       reader.readAsDataURL(file)
     }
-    // Reset input
-    e.target.value = ""
+    event.target.value = ""
   }
 
   const handleAvatarCropComplete = (croppedBlob: Blob) => {
     const file = new File([croppedBlob], "avatar.jpg", { type: "image/jpeg" })
     setSelectedFile(file)
-    const previewUrl = URL.createObjectURL(croppedBlob)
-    setImageUrl(previewUrl)
-  }
-
-  const handleCoverFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setError(null)
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setCoverCropSrc(reader.result as string)
-        setCoverCropOpen(true)
-      }
-      reader.readAsDataURL(file)
-    }
-    // Reset input
-    e.target.value = ""
+    setImageUrl(URL.createObjectURL(croppedBlob))
   }
 
   const handleCoverCropComplete = (croppedBlob: Blob) => {
     const file = new File([croppedBlob], "cover.jpg", { type: "image/jpeg" })
     setCoverFile(file)
-    const previewUrl = URL.createObjectURL(croppedBlob)
-    setCoverImageUrl(previewUrl)
+    setCoverImageUrl(URL.createObjectURL(croppedBlob))
   }
-
-  const initials = user.name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2)
 
   return (
     <>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger asChild>
-          <Button
-            variant="secondary"
-            size="sm"
-            className="gap-2 shadow-sm h-9 px-4 transition-all hover:bg-secondary/80 text-foreground font-medium"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-            Edit Profile
-          </Button>
-        </DialogTrigger>
-        <DialogContent className="sm:max-w-[550px] gap-0 p-0 border-0 shadow-2xl max-h-[90vh] flex flex-col overflow-y-auto">
-          {/* Cover Preview */}
-          <div
-            className="h-28 relative overflow-hidden"
-            style={{ backgroundColor: coverColor }}
-          >
-            {coverImageUrl && (
-              <img
-                src={coverImageUrl}
-                alt="Cover preview"
-                className="absolute inset-0 w-full h-full object-cover"
-              />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/20" />
-          </div>
+      <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
+        <Pencil aria-hidden="true" />
+        Edit profile
+      </Button>
 
-          <div className="flex-1 overflow-y-auto">
-            <DialogHeader className="p-6 pt-4 pb-2">
-              <DialogTitle className="text-xl font-semibold tracking-tight">Edit Profile</DialogTitle>
-              <DialogDescription className="text-muted-foreground">
-                Customize your profile appearance.
-              </DialogDescription>
-            </DialogHeader>
+      <ResponsiveOverlay
+        open={open}
+        onOpenChange={handleOpenChange}
+        title="Edit profile"
+        description="Update your identity, biography, and profile images."
+        desktopClassName="sm:max-w-xl"
+        footer={
+          <>
+            <Button type="button" variant="ghost" onClick={() => handleOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="edit-profile-form"
+              isLoading={pending || isUploading}
+              disabled={!name.trim()}
+            >
+              {pending || isUploading ? "Saving" : "Save changes"}
+            </Button>
+          </>
+        }
+      >
+        <ProfileCover
+          color={coverColor}
+          image={coverImageUrl}
+          name="Profile cover preview"
+          className="h-20 sm:h-20"
+        />
 
-            <form action={handleSubmit} className="p-6 pt-2 space-y-6">
-              {/* Cover Customization */}
-              <div className="space-y-3">
-                <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider flex items-center gap-2">
-                  <Palette className="h-3 w-3" />
-                  Cover
-                </Label>
-
-                <div className="flex flex-wrap gap-2">
-                  {coverColors.map((color) => (
-                    <button
-                      key={color}
-                      type="button"
-                      onClick={() => {
-                        setCoverColor(color)
-                        // Clear cover image when selecting a color
-                        setCoverImageUrl("")
-                        setCoverFile(null)
-                      }}
-                      className={cn(
-                        "h-8 w-8 rounded-full border-2 transition-all hover:scale-110",
-                        coverColor === color && !coverImageUrl
-                          ? "border-foreground ring-2 ring-offset-2 ring-foreground/20"
-                          : "border-transparent"
-                      )}
-                      style={{ backgroundColor: color }}
-                      title={color}
-                    />
-                  ))}
-
-                  {/* Upload Cover Button */}
+        <form id="edit-profile-form" action={handleSubmit} className="space-y-6 px-1 pt-5">
+          <Field>
+            <FieldLabel>Cover</FieldLabel>
+            <div role="radiogroup" aria-label="Cover color" className="flex flex-wrap gap-2">
+              {PROFILE_COVER_OPTIONS.map((option) => {
+                const selected = coverColor === option.value && !coverImageUrl
+                return (
                   <button
+                    key={option.value}
                     type="button"
-                    onClick={() => coverInputRef.current?.click()}
+                    role="radio"
+                    aria-checked={selected}
+                    aria-label={option.label}
+                    onClick={() => {
+                      setCoverColor(option.value)
+                      setCoverImageUrl("")
+                      setCoverFile(null)
+                    }}
                     className={cn(
-                      "h-8 w-8 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center hover:border-primary hover:bg-primary/5 transition-all",
-                      coverImageUrl && "border-primary bg-primary/10"
+                      "touch-target focus-ring flex size-9 items-center justify-center rounded-md border transition-colors",
+                      selected
+                        ? "border-primary bg-primary-surface"
+                        : "border-hairline bg-card hover:bg-muted",
                     )}
-                    title="Upload cover image"
                   >
-                    <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                    <ProfileCoverSwatch value={option.value} />
                   </button>
-                  <input
-                    ref={coverInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleCoverFileChange}
-                    className="hidden"
-                  />
-                </div>
-
-                {coverImageUrl && (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Check className="h-3 w-3 text-green-500" />
-                    <span>Custom cover image selected</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCoverImageUrl("")
-                        setCoverFile(null)
-                      }}
-                      className="text-destructive hover:underline"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Profile Picture */}
-              <div className="flex flex-col items-center gap-4 pb-2">
-                <div className="relative group">
-                  <Avatar className="h-24 w-24 ring-4 ring-background shadow-lg transition-transform group-hover:scale-105">
-                    <AvatarImage src={imageUrl || undefined} alt="Profile" className="object-cover" />
-                    <AvatarFallback className="bg-gradient-to-br from-primary to-primary/60 text-primary-foreground text-2xl font-bold">
-                      {initials}
-                    </AvatarFallback>
-                  </Avatar>
-
-                  <label
-                    className="absolute bottom-0 right-0 p-2 bg-primary text-primary-foreground rounded-full shadow-lg cursor-pointer hover:bg-primary/90 transition-colors transform group-hover:scale-110"
-                    title="Change photo"
-                  >
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleFileChange}
-                      className="hidden"
-                    />
-                    <Upload className="h-4 w-4" />
-                  </label>
-                </div>
-
-                {selectedFile && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground animate-in fade-in slide-in-from-top-1">
-                    <span>{selectedFile.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedFile(null)
-                        setImageUrl(user.image || "")
-                        if (fileInputRef.current) {
-                          fileInputRef.current.value = ""
-                        }
-                      }}
-                      className="p-1 rounded-full hover:bg-destructive/10 hover:text-destructive transition-colors"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <div className="grid gap-5">
-                {/* Name */}
-                <div className="space-y-2">
-                  <Label htmlFor="name" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Display Name</Label>
-                  <Input
-                    id="name"
-                    name="name"
-                    required
-                    defaultValue={user.name}
-                    placeholder="Enter your name"
-                    className="h-11 bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors text-base"
-                  />
-                </div>
-
-                {/* Bio */}
-                <div className="space-y-2">
-                  <Label htmlFor="bio" className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Bio</Label>
-                  <Textarea
-                    id="bio"
-                    name="bio"
-                    defaultValue={user.bio || ""}
-                    placeholder="Tell us about yourself..."
-                    rows={3}
-                    className="resize-none bg-muted/20 border-muted-foreground/20 focus-visible:bg-background transition-colors"
-                  />
-                </div>
-
-                {/* Role Display (read-only) */}
-                {user.role && (
-                  <div className="space-y-2">
-                    <Label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Account Role</Label>
-                    <div className="rounded-lg border border-muted-foreground/10 bg-muted/10 px-4 py-3 flex items-center justify-between">
-                      <span className="font-medium capitalize">{user.role}</span>
-                      <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">Read-only</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {error && (
-                <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive font-medium border border-destructive/20 animate-in fade-in slide-in-from-bottom-2">
-                  {error}
-                </div>
-              )}
-
-              <DialogFooter className="pt-2">
+                )
+              })}
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                aria-label="Upload cover image"
+                onClick={() => coverInputRef.current?.click()}
+                className="touch-target"
+              >
+                <ImageIcon aria-hidden="true" />
+              </Button>
+              <input
+                ref={coverInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(event) =>
+                  readImage(event, (value) => {
+                    setCoverCropSrc(value)
+                    setCoverCropOpen(true)
+                  })
+                }
+              />
+            </div>
+            <FieldHelp>Choose a semantic cover tone or upload a cropped image.</FieldHelp>
+            {coverImageUrl ? (
+              <div className="flex items-center gap-2">
+                <Text variant="caption" tone="success" className="inline-flex items-center gap-1.5">
+                  <Check aria-hidden="true" className="size-3.5" />
+                  Cover image selected
+                </Text>
                 <Button
                   type="button"
                   variant="ghost"
+                  size="sm"
                   onClick={() => {
-                    setOpen(false)
-                    setSelectedFile(null)
-                    setImageUrl(user.image || "")
+                    setCoverImageUrl("")
                     setCoverFile(null)
-                    setCoverImageUrl(user.cover || "")
-                    setCoverColor(user.coverColor || "#3b82f6")
-                    setError(null)
-                    if (fileInputRef.current) {
-                      fileInputRef.current.value = ""
-                    }
-                    if (coverInputRef.current) {
-                      coverInputRef.current.value = ""
-                    }
                   }}
-                  className="text-muted-foreground hover:text-foreground"
                 >
-                  Cancel
+                  Remove
                 </Button>
+              </div>
+            ) : null}
+          </Field>
+
+          <Field>
+            <FieldLabel>Profile picture</FieldLabel>
+            <div className="flex items-center gap-4">
+              <EntityAvatar
+                name={name || user.name}
+                image={imageUrl || null}
+                colorKey={user.id}
+                size="xl"
+              />
+              <div className="flex flex-wrap gap-2">
                 <Button
-                  type="submit"
-                  isLoading={pending || isUploading}
-                  className="min-w-[100px] shadow-md hover:shadow-lg transition-all"
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
                 >
-                  {pending || isUploading ? "Saving..." : "Save Changes"}
+                  <Upload aria-hidden="true" />
+                  Upload
                 </Button>
-              </DialogFooter>
-            </form>
-          </div>
-        </DialogContent>
-      </Dialog>
+                {imageUrl ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedFile(null)
+                      setImageUrl("")
+                      if (fileInputRef.current) fileInputRef.current.value = ""
+                    }}
+                  >
+                    <X aria-hidden="true" />
+                    Remove
+                  </Button>
+                ) : null}
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(event) =>
+                  readImage(event, (value) => {
+                    setAvatarCropSrc(value)
+                    setAvatarCropOpen(true)
+                  })
+                }
+              />
+            </div>
+            <FieldHelp>PNG, JPG, or GIF up to 4 MB.</FieldHelp>
+          </Field>
+
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="profile-name">Display name</FieldLabel>
+              <Input
+                id="profile-name"
+                name="name"
+                value={name}
+                required
+                onChange={(event) => setName(event.target.value)}
+              />
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="profile-bio" optional hint={`${bio.length}/500`}>
+                Biography
+              </FieldLabel>
+              <Textarea
+                id="profile-bio"
+                name="bio"
+                value={bio}
+                rows={4}
+                maxLength={500}
+                className="resize-none"
+                onChange={(event) => setBio(event.target.value)}
+              />
+            </Field>
+
+            {user.role ? (
+              <Field>
+                <FieldLabel>Account role</FieldLabel>
+                <div className="flex items-center justify-between border-y border-hairline py-3">
+                  <StatusBadge tone={user.role === "teacher" ? "info" : "neutral"} dot>
+                    {user.role === "teacher" ? "Teacher" : "Student"}
+                  </StatusBadge>
+                  <Text variant="caption" tone="muted">
+                    Read-only
+                  </Text>
+                </div>
+              </Field>
+            ) : null}
+          </FieldGroup>
+
+          {error ? (
+            <Callout tone="danger" role="alert">
+              {error}
+            </Callout>
+          ) : null}
+        </form>
+      </ResponsiveOverlay>
 
       {coverCropOpen ? (
         <CoverCropper
@@ -451,4 +411,3 @@ export function EditProfileDialog({ user }: EditProfileDialogProps) {
     </>
   )
 }
-

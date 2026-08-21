@@ -2,10 +2,12 @@
 "use client"
 
 import { Component, ReactNode } from "react"
-import { AlertCircle, RefreshCw, Home } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { AlertTriangle, Home, RefreshCw } from "lucide-react"
 import Link from "next/link"
+
+import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/ui/empty-state"
+import { Panel } from "@/components/ui/panel"
 import { BackgroundCache } from "@/lib/background-cache"
 
 interface Props {
@@ -166,6 +168,10 @@ export class OfflineErrorBoundary extends Component<Props, State> {
       return this.props.children
     }
 
+    // Extract orgSlug from current URL
+    const orgSlug = typeof window !== 'undefined' ? window.location.pathname.split('/')[1] : ''
+    const homePath = orgSlug ? `/${orgSlug}/dashboard` : '/dashboard'
+
     // Only block rendering for an actual error on an uncached cold start.
     if (this.state.hasError && !this.state.hasCache) {
       if (this.props.fallback) {
@@ -173,34 +179,33 @@ export class OfflineErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="flex min-h-screen items-center justify-center p-4">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <div className="flex items-center justify-center mb-4">
-                <AlertCircle className="h-12 w-12 text-orange-500" />
-              </div>
-              <CardTitle className="text-center">
-                {this.state.isOffline ? "You're Offline" : "Something Went Wrong"}
-              </CardTitle>
-              <CardDescription className="text-center">
-                {this.state.isOffline
-                  ? "This route is not cached on this device yet. Reconnect once to make it available offline."
-                  : this.state.error?.message || "An unexpected error occurred."}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3">
-              <Button onClick={this.handleRetry} className="w-full">
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Retry
-              </Button>
-              <Button variant="outline" asChild className="w-full">
-                <Link href="/home">
-                  <Home className="mr-2 h-4 w-4" />
-                  Go to Home
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
+        <div className="mx-auto flex min-h-[60dvh] w-full max-w-2xl items-center p-4">
+          <Panel padding="none" className="w-full">
+            <EmptyState
+              icon={<AlertTriangle aria-hidden="true" />}
+              tone={this.state.isOffline ? "warning" : "danger"}
+              size="page"
+              title={this.state.isOffline ? "Route unavailable offline" : "Something went wrong"}
+              description={this.state.isOffline
+                ? "This route is not cached on this device yet. Reconnect once to make it available offline."
+                : this.state.error?.message || "An unexpected error occurred."}
+              role="alert"
+              action={(
+                <>
+                  <Button onClick={this.handleRetry}>
+                    <RefreshCw aria-hidden="true" />
+                    Retry
+                  </Button>
+                  <Button variant="outline" asChild>
+                    <Link href={homePath}>
+                      <Home aria-hidden="true" />
+                      Go to home
+                    </Link>
+                  </Button>
+                </>
+              )}
+            />
+          </Panel>
         </div>
       )
     }

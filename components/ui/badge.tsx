@@ -4,25 +4,33 @@ import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * Pill tag — DESIGN.md Pill Tag.
+ *
+ * Category labels, status indicators, counts. Uses pill shape (full round),
+ * colored fill or hairline surface. For lifecycle/role state prefer
+ * `StatusBadge`, which maps a semantic `tone` to the same tokens.
+ */
 const badgeVariants = cva(
-  "inline-flex items-center justify-center rounded-full border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive transition-all duration-200 ease-out overflow-hidden",
+  "inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden whitespace-nowrap rounded-full border px-3 py-1 type-caption font-medium transition-[background-color,transform] duration-200 ease-out [&>svg]:size-3 [&>svg]:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
   {
     variants: {
       variant: {
-        default:
-          "border-transparent bg-primary text-primary-foreground [a&]:hover:bg-primary/90",
-        secondary:
-          "border-transparent bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90",
-        destructive:
-          "border-transparent bg-destructive text-white [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
-        outline:
-          "text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
+        default: "border-hairline bg-muted/70 text-foreground [a&]:hover:bg-muted",
+        primary: "border-primary-border bg-primary-surface text-primary-text [a&]:hover:bg-primary-surface/80",
+        secondary: "border-hairline bg-muted/70 text-foreground [a&]:hover:bg-muted",
+        success: "border-success-border bg-success-surface text-success-text",
+        warning: "border-warning-border bg-warning-surface text-warning-text",
+        info: "border-info-border bg-info-surface text-info-text",
+        destructive: "border-destructive-border bg-destructive-surface text-destructive-text",
+        outline: "border-hairline bg-transparent text-foreground [a&]:hover:bg-muted/60",
+        solid: "border-transparent bg-primary text-primary-foreground [a&]:hover:bg-[var(--primary-hover)]",
       },
     },
     defaultVariants: {
       variant: "default",
     },
-  }
+  },
 )
 
 function Badge({
@@ -30,16 +38,11 @@ function Badge({
   variant,
   asChild = false,
   ...props
-}: React.ComponentProps<"span"> &
-  VariantProps<typeof badgeVariants> & { asChild?: boolean }) {
+}: React.ComponentProps<"span"> & VariantProps<typeof badgeVariants> & { asChild?: boolean }) {
   const Comp = asChild ? Slot : "span"
 
   return (
-    <Comp
-      data-slot="badge"
-      className={cn(badgeVariants({ variant }), className)}
-      {...props}
-    />
+    <Comp data-slot="badge" className={cn(badgeVariants({ variant }), className)} {...props} />
   )
 }
 
