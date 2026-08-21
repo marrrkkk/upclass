@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Deploy-gate test runs on Vercel.** The deploy build's `vitest run` now forces `NODE_ENV=test` in the Vitest config. Vercel presets `NODE_ENV=production` for the whole build, which made Vitest resolve React's production bundles (`React.act` missing, breaking all component suites) and browser-shim Node builtins (failing suite collection with `No such built-in module: node:`). All 102 suites / 496 tests now pass under production-mode CI conditions.
+
 - **Resource upload cleanup and storage-path safety.** If the resource row insert fails after a successful upload, the uploaded object is now removed from Supabase storage instead of being orphaned. Storage paths are validated as bucket-relative object paths before reaching the database, only paths under the uploader's own folder are persisted (others are dropped), and deletion only removes objects inside the owner's folder, using the full stored path instead of the truncated filename segment.
 
 - **Offline queue multi-tab duplicate execution.** A tab no longer executes actions another tab is currently syncing; claims older than 30 seconds are treated as stale and reclaimed, so crashes still recover but duplicate runs are prevented.
