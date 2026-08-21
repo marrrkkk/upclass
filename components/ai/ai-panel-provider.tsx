@@ -16,7 +16,7 @@ import {
 const PANEL_STORAGE_KEY = "upclass:ai-panel-open"
 
 export type AiPanelSeed = {
-  surface: "class" | "resource"
+  surface: "class" | "resource" | "study"
   entityId: string
   label: string
 }

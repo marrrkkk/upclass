@@ -14,7 +14,7 @@ export function ChatPageView({
   initialMessages,
 }: {
   conversationId: string
-  surface: "dashboard" | "class" | "resource"
+  surface: "dashboard" | "class" | "resource" | "study"
   entityId: string
   initialMessages: ChatInitialMessage[]
 }) {

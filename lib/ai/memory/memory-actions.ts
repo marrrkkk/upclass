@@ -9,7 +9,7 @@ import { and, count, eq, sql } from "drizzle-orm"
 
 import { db } from "@/db"
 import { orgMemories, orgMembership } from "@/db/schema"
-import { generateEmbedding, invalidateEmbeddingCache } from "@/lib/ai/embeddings"
+import { generateEmbedding, getActiveEmbeddingIdentity, invalidateEmbeddingCache } from "@/lib/ai/embeddings"
 import { sanitizeMemoryContent } from "@/lib/ai/security/input-sanitizer"
 import type { OrgMemoryRow } from "@/lib/ai/memory/rag-retriever"
 import type { AiMemoryCategory } from "@/lib/ai/types"
@@ -87,6 +87,7 @@ export async function createOrgMemory(
     .where(eq(orgMemories.orgId, input.orgId))
 
   const embedding = await embedMemoryText(title, content)
+  const embeddingIdentity = getActiveEmbeddingIdentity()
 
   const rows = await db
     .insert(orgMemories)
@@ -97,6 +98,8 @@ export async function createOrgMemory(
       content,
       position: (Number(maxPosition?.max) ?? -1) + 1,
       embedding,
+      embeddingModel: embeddingIdentity?.modelId ?? null,
+      embeddingVersion: embeddingIdentity?.version ?? null,
       category: input.category,
     })
     .returning()
@@ -127,6 +130,7 @@ export async function updateOrgMemory(
 
   const contentChanged = content !== existing.content || title !== existing.title
   const embedding = contentChanged ? await embedMemoryText(title, content) : existing.embedding
+  const embeddingIdentity = getActiveEmbeddingIdentity()
 
   if (contentChanged) {
     await invalidateEmbeddingCache([`${existing.title}\n${existing.content}`])
@@ -138,6 +142,8 @@ export async function updateOrgMemory(
       title,
       content,
       embedding,
+      embeddingModel: contentChanged ? embeddingIdentity?.modelId ?? null : existing.embeddingModel,
+      embeddingVersion: contentChanged ? embeddingIdentity?.version ?? null : existing.embeddingVersion,
       category: input.category ?? existing.category,
     })
     .where(and(eq(orgMemories.id, memoryId), eq(orgMemories.orgId, orgId)))

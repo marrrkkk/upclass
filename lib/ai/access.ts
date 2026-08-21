@@ -4,7 +4,7 @@
 import { and, eq, inArray } from "drizzle-orm"
 
 import { db } from "@/db"
-import { classes, classMembership, orgMembership, resources } from "@/db/schema"
+import { classes, classMembership, orgMembership, resources, studyCollections } from "@/db/schema"
 import { getConversation } from "@/lib/ai/conversations"
 import { orgRoleAsClassRole } from "@/lib/org-permissions"
 import type { OrgRole } from "@/types/organization"
@@ -73,6 +73,14 @@ export async function resolveAiSurfaceAccess(params: {
       allowed: true,
       role: orgRoleAsClassRole(params.orgRole),
     }
+  }
+
+  if (params.surface === "study") {
+    const [space] = await db.select({ id: studyCollections.id, orgId: studyCollections.orgId, studentId: studyCollections.studentId }).from(studyCollections).where(eq(studyCollections.id, params.entityId)).limit(1)
+    if (!space) return { allowed: false, role: "student", reason: "class_not_found" }
+    if (space.orgId !== params.orgId) return { allowed: false, role: "student", reason: "org_mismatch" }
+    if (space.studentId !== params.userId) return { allowed: false, role: "student", reason: "not_a_member" }
+    return { allowed: true, role: "student" }
   }
 
   const [classRow] = await db

@@ -46,6 +46,7 @@ import { parseActionProposals } from "@/lib/ai/tools/action-proposal-schemas"
 import { isStructuredCard } from "@/lib/ai/tools/structured-outputs"
 import type { AiSourceRef, AiSurface, AiResourceContext } from "@/lib/ai/types"
 import { extractResourceText } from "@/lib/resource-text-extraction"
+import { ensureResourceChunks, retrieveResourceChunks } from "@/lib/resource-chunks"
 import { createRecommendations } from "@/lib/ai/recommendations"
 
 export const maxDuration = 60
@@ -69,7 +70,7 @@ const assistantBodySchema = z.object({
   ),
   orgSlug: z.string().min(1),
   conversationId: z.string().min(1),
-  surface: z.enum(["dashboard", "class", "resource"]),
+  surface: z.enum(["dashboard", "class", "resource", "study"]),
   entityId: z.string().min(1),
   devModel: z.string().optional().nullable(),
   clientMessageId: z.string().optional().nullable(),
@@ -329,6 +330,17 @@ export async function POST(request: NextRequest) {
         fileType: resource.fileType,
         fileName: resource.fileName,
         sourceText,
+      }
+      await ensureResourceChunks({ id: resource.id, orgId, aiSourceText: sourceText })
+      const chunks = await retrieveResourceChunks({
+        resourceId: resource.id,
+        orgId,
+        query: userMessageContent,
+      })
+      if (chunks.length > 0) {
+        resourceContext.sourceText = chunks
+          .map((chunk) => `[Source chunk ${chunk.chunkIndex + 1}]\n${chunk.content}`)
+          .join("\n\n")
       }
     }
 

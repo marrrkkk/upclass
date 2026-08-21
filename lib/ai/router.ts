@@ -18,6 +18,7 @@ import {
 import { AiProviderError, isRetryableError, toAiProviderError } from "@/lib/ai/errors"
 import { resolveLanguageModel } from "@/lib/ai/registry"
 import type { AiSensitivity } from "@/lib/ai/types"
+import { getModelPolicy, isModelAllowedForSensitivity } from "@/lib/ai/policy"
 import { withReasoningStrip } from "@/lib/ai/strip-reasoning-middleware"
 
 export type ModelCandidate = {
@@ -49,19 +50,26 @@ export async function buildModelCandidates(options: {
   sensitivity?: AiSensitivity
 }): Promise<ModelCandidate[]> {
   if (options.modelId) {
-    return resolveLanguageModel(options.modelId)
+    const allowed = !options.sensitivity || isModelAllowedForSensitivity(options.modelId, options.sensitivity)
+    return allowed && resolveLanguageModel(options.modelId)
       ? [{ modelId: options.modelId, provider: options.modelId.split(":")[0] }]
       : []
   }
 
   if (options.needsTools) {
     const { available, stressed } = await selectToolCallingModels(options.sensitivity)
-    return [...available, ...stressed].map(capacityToCandidate)
+    const candidates = [...available, ...stressed].map(capacityToCandidate)
+    return options.sensitivity && !getModelPolicy(options.sensitivity).allowFallback
+      ? candidates.slice(0, 1)
+      : candidates
   }
 
   const selector = options.complexity === "complex" ? selectComplexTextModels : selectSimpleTextModels
   const { available, stressed } = await selector(options.sensitivity)
-  return [...available, ...stressed].map(capacityToCandidate)
+  const candidates = [...available, ...stressed].map(capacityToCandidate)
+  return options.sensitivity && !getModelPolicy(options.sensitivity).allowFallback
+    ? candidates.slice(0, 1)
+    : candidates
 }
 
 function resolveCandidate(candidate: ModelCandidate): LanguageModel | null {

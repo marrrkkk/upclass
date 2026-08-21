@@ -519,3 +519,17 @@ export async function countConversationMessages(conversationId: string): Promise
     .where(eq(aiMessages.conversationId, conversationId))
   return Number(row?.count ?? 0)
 }
+
+export async function getCompletedMessagesAfter(
+  conversationId: string,
+  offset: number,
+  limit = 50,
+): Promise<AiMessageRow[]> {
+  return db
+    .select()
+    .from(aiMessages)
+    .where(and(eq(aiMessages.conversationId, conversationId), eq(aiMessages.status, "completed")))
+    .orderBy(asc(aiMessages.createdAt), asc(aiMessages.id))
+    .offset(Math.max(0, offset))
+    .limit(Math.min(50, Math.max(1, limit)))
+}

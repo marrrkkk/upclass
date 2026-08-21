@@ -10,6 +10,7 @@ const MAX_BURST_BUCKETS = 10_000
 const DAILY_LIMITS: Record<string, number> = {
   chat: 200,
   quiz: 20,
+  learn: 20,
 }
 
 type BurstBucket = { windowStart: number; count: number }

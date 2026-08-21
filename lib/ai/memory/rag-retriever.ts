@@ -12,6 +12,7 @@ import { orgMemories } from "@/db/schema"
 import {
   cosineSimilarity,
   generateEmbedding,
+  getActiveEmbeddingIdentity,
   type RankedItem,
 } from "@/lib/ai/embeddings"
 import type { AiMemoryCategory } from "@/lib/ai/types"
@@ -32,6 +33,8 @@ export type OrgMemoryRow = {
   content: string
   position: number
   embedding: number[] | null
+  embeddingModel: string | null
+  embeddingVersion: string | null
   category: AiMemoryCategory
   createdAt: Date
   updatedAt: Date
@@ -126,6 +129,7 @@ export async function retrieveMemories(options: {
   }
 
   const queryEmbedding = await generateEmbedding(options.query)
+  const identity = getActiveEmbeddingIdentity()
 
   if (!queryEmbedding) {
     // No embedding provider: graceful degradation — newest memories, no RAG flag.
@@ -136,8 +140,13 @@ export async function retrieveMemories(options: {
   }
 
   const scored = memories.map((memory) => {
-    const similarity = memory.embedding
-      ? cosineSimilarity(memory.embedding, queryEmbedding)
+    const compatible = Boolean(
+      memory.embedding && identity &&
+      memory.embeddingModel === identity.modelId &&
+      memory.embeddingVersion === identity.version,
+    )
+    const similarity = compatible
+      ? cosineSimilarity(memory.embedding!, queryEmbedding)
       : 0
     const boosted = Math.min(
       1,

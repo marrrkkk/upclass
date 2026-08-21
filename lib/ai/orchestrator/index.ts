@@ -25,6 +25,7 @@ import { appendDynamicContext, buildStaticPrompt } from "./prompt-builder"
 import { promptCache, promptCacheKey } from "./prompt-cache"
 import { logOrchestration } from "./orchestration-logger"
 import { logAiInvocation } from "@/lib/ai/token-logger"
+import { classifySensitivity } from "@/lib/ai/policy"
 
 export type OrchestrateParams = {
   orgId: string
@@ -65,16 +66,24 @@ export async function orchestrate(params: OrchestrateParams): Promise<Orchestrat
   const tracker = createBudgetTracker()
   const stageMs: Record<string, number> = {}
 
-  const sensitivity = params.sensitivity ?? "org_context"
+  const initialSensitivity = params.sensitivity ?? classifySensitivity({
+    role: params.role,
+    surface: params.surface ?? "dashboard",
+  })
 
   const classified = params.intent
     ? { intent: params.intent }
     : await classifyIntent({
         message: params.message,
         userId: params.userId,
-        sensitivity,
+        sensitivity: initialSensitivity,
       })
   const intent = classified.intent
+  const sensitivity = params.sensitivity ?? classifySensitivity({
+    role: params.role,
+    surface: params.surface ?? "dashboard",
+    intent,
+  })
   if (classified.usage) {
     void logAiInvocation({
       runId: params.runId,

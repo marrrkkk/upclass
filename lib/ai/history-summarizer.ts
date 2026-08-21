@@ -97,13 +97,16 @@ export function shouldSummarize(messageCount: number, threshold = SUMMARY_THRESH
  */
 export async function summarizeConversation(
   messages: SummaryMessage[],
-  options: { sensitivity?: AiSensitivity } = {},
+  options: { sensitivity?: AiSensitivity; priorSummary?: string } = {},
 ): Promise<ConversationSummaryResult> {
   if (messages.length === 0) {
     return { summary: "", method: "heuristic", messageCount: 0 }
   }
 
-  const content = truncateMessages(messages)
+  const content = [
+    options.priorSummary ? `Existing summary:\n${options.priorSummary.slice(0, SUMMARY_MAX_CHARS)}` : "",
+    `New messages:\n${truncateMessages(messages)}`,
+  ].filter(Boolean).join("\n\n")
   const system =
     "You summarize classroom assistant conversations. Output ONLY a compact plain-text summary (max 200 words) covering topics, entities, decisions, and unresolved items. No labels, no markdown."
 

@@ -2,9 +2,9 @@
  * Shared domain types for the AI assistant.
  */
 
-export type AiSurface = "dashboard" | "class" | "resource"
+export type AiSurface = "dashboard" | "class" | "resource" | "study"
 /** All surfaces that can host an AI run (assistant + feature surfaces). */
-export type AiRunSurface = "dashboard" | "class" | "resource" | "quiz" | "pulse"
+export type AiRunSurface = "dashboard" | "class" | "resource" | "study" | "quiz" | "pulse"
 export type AiMessageRole = "user" | "assistant" | "system"
 export type AiMessageStatus = "completed" | "generating" | "failed"
 

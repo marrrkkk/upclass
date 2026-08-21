@@ -44,7 +44,7 @@ export type ChatThreadVariant = "page" | "panel"
 
 export type ChatThreadProps = {
   conversationId: string
-  surface: "dashboard" | "class" | "resource"
+  surface: "dashboard" | "class" | "resource" | "study"
   entityId: string
   initialMessages: ChatInitialMessage[]
   variant?: ChatThreadVariant

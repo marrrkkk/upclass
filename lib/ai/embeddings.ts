@@ -15,6 +15,7 @@ import { embed, embedMany, type EmbeddingModel } from "ai"
 import { cacheGet, cacheSet, cacheDelete } from "@/lib/ai/cache-layer"
 
 export const TARGET_DIMENSIONS = 768
+export const EMBEDDING_VERSION = "v1"
 const EMBEDDING_CACHE_TTL = 86_400
 const MAX_BATCH_SIZE = 20
 
@@ -65,8 +66,23 @@ export function cosineSimilarity(a: number[], b: number[]): number {
   return dot / (Math.sqrt(normA) * Math.sqrt(normB))
 }
 
-function embeddingCacheKey(text: string): string {
-  return `emb:${createHash("sha256").update(text, "utf8").digest("hex")}`
+function embeddingCacheKey(text: string, modelId: string): string {
+  return `emb:${EMBEDDING_VERSION}:${modelId}:${createHash("sha256").update(text, "utf8").digest("hex")}`
+}
+
+function getConfiguredEmbeddingEntry(): EmbeddingChainEntry | null {
+  const pinned = process.env.AI_EMBEDDING_MODEL
+  const candidates = pinned
+    ? EMBEDDING_CHAIN.filter((entry) => `${entry.provider}:${entry.modelId}` === pinned)
+    : EMBEDDING_CHAIN
+  return candidates.find((entry) => getEmbeddingModel(entry) !== null) ?? null
+}
+
+export function getActiveEmbeddingIdentity(): { modelId: string; version: string } | null {
+  const entry = getConfiguredEmbeddingEntry()
+  return entry
+    ? { modelId: `${entry.provider}:${entry.modelId}`, version: EMBEDDING_VERSION }
+    : null
 }
 
 /**
@@ -74,7 +90,10 @@ function embeddingCacheKey(text: string): string {
  * embedding provider is configured or the call fails.
  */
 export async function generateEmbedding(text: string): Promise<number[] | null> {
-  const key = embeddingCacheKey(text)
+  const entry = getConfiguredEmbeddingEntry()
+  if (!entry) return null
+  const modelId = `${entry.provider}:${entry.modelId}`
+  const key = embeddingCacheKey(text, modelId)
   const cached = await cacheGet(key)
   if (cached !== null) {
     try {
@@ -85,11 +104,10 @@ export async function generateEmbedding(text: string): Promise<number[] | null> 
     }
   }
 
-  for (const entry of EMBEDDING_CHAIN) {
-    const model = getEmbeddingModel(entry)
-    if (!model) continue
+  const model = getEmbeddingModel(entry)
+  if (!model) return null
 
-    try {
+  try {
       const { embedding } = await embed({
         model,
         value: text,
@@ -98,9 +116,8 @@ export async function generateEmbedding(text: string): Promise<number[] | null> 
       const normalized = normalizeEmbedding(embedding, TARGET_DIMENSIONS)
       await cacheSet(key, JSON.stringify(normalized), EMBEDDING_CACHE_TTL)
       return normalized
-    } catch (error) {
-      console.warn(`[ai-embeddings] embed failed on ${entry.provider}:${entry.modelId}:`, error)
-    }
+  } catch (error) {
+    console.warn(`[ai-embeddings] embed failed on ${modelId}:`, error)
   }
 
   return null
@@ -114,11 +131,14 @@ export async function generateEmbeddings(texts: string[]): Promise<Array<number[
   const results: Array<number[] | null> = new Array(texts.length).fill(null)
   if (texts.length === 0) return results
 
+  const entry = getConfiguredEmbeddingEntry()
+  if (!entry) return results
+  const modelId = `${entry.provider}:${entry.modelId}`
   const uncached: Array<{ index: number; text: string }> = []
 
   await Promise.all(
     texts.map(async (text, index) => {
-      const key = embeddingCacheKey(text)
+      const key = embeddingCacheKey(text, modelId)
       const cached = await cacheGet(key)
       if (cached !== null) {
         try {
@@ -137,29 +157,25 @@ export async function generateEmbeddings(texts: string[]): Promise<Array<number[
 
   if (uncached.length === 0) return results
 
-  for (const entry of EMBEDDING_CHAIN) {
-    const model = getEmbeddingModel(entry)
-    if (!model) continue
+  const model = getEmbeddingModel(entry)
+  if (!model) return results
 
-    const pending = uncached.filter((item) => results[item.index] === null)
-    if (pending.length === 0) break
-
-    for (let offset = 0; offset < pending.length; offset += MAX_BATCH_SIZE) {
-      const batch = pending.slice(offset, offset + MAX_BATCH_SIZE)
-      try {
-        const { embeddings } = await embedMany({
-          model,
-          values: batch.map((item) => item.text),
-          abortSignal: AbortSignal.timeout(20_000),
-        })
-        for (let index = 0; index < batch.length; index += 1) {
-          const normalized = normalizeEmbedding(embeddings[index] ?? [], TARGET_DIMENSIONS)
-          results[batch[index].index] = normalized
-          await cacheSet(embeddingCacheKey(batch[index].text), JSON.stringify(normalized), EMBEDDING_CACHE_TTL)
-        }
-      } catch (error) {
-        console.warn(`[ai-embeddings] batch embed failed on ${entry.provider}:${entry.modelId}:`, error)
+  const pending = uncached.filter((item) => results[item.index] === null)
+  for (let offset = 0; offset < pending.length; offset += MAX_BATCH_SIZE) {
+    const batch = pending.slice(offset, offset + MAX_BATCH_SIZE)
+    try {
+      const { embeddings } = await embedMany({
+        model,
+        values: batch.map((item) => item.text),
+        abortSignal: AbortSignal.timeout(20_000),
+      })
+      for (let index = 0; index < batch.length; index += 1) {
+        const normalized = normalizeEmbedding(embeddings[index] ?? [], TARGET_DIMENSIONS)
+        results[batch[index].index] = normalized
+        await cacheSet(embeddingCacheKey(batch[index].text, modelId), JSON.stringify(normalized), EMBEDDING_CACHE_TTL)
       }
+    } catch (error) {
+      console.warn(`[ai-embeddings] batch embed failed on ${modelId}:`, error)
     }
   }
 
@@ -168,7 +184,10 @@ export async function generateEmbeddings(texts: string[]): Promise<Array<number[
 
 /** Drop cached embeddings for the given texts (after content edits). */
 export async function invalidateEmbeddingCache(texts: string[]): Promise<void> {
-  await Promise.allSettled(texts.map((text) => cacheDelete(embeddingCacheKey(text))))
+  const entry = getConfiguredEmbeddingEntry()
+  if (!entry) return
+  const modelId = `${entry.provider}:${entry.modelId}`
+  await Promise.allSettled(texts.map((text) => cacheDelete(embeddingCacheKey(text, modelId))))
 }
 
 export type RankedItem<T> = { item: T; similarity: number }

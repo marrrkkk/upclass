@@ -9,6 +9,7 @@
  */
 import {
   getConversationSummary,
+  getCompletedMessagesAfter,
   getRecentMessages,
   upsertConversationSummary,
 } from "@/lib/ai/conversations"
@@ -44,24 +45,28 @@ export async function compressConversation(
 ): Promise<CompressedHistory> {
   const stored = await getConversationSummary(conversationId)
   const recent = await getRecentMessages(conversationId, COMPRESS_HISTORY_LIMIT)
+  const summarizedCount = stored?.messageCount ?? 0
+  const unsummarized = await getCompletedMessagesAfter(conversationId, summarizedCount)
+  const totalCount = summarizedCount + unsummarized.length
 
   if (recent.length === 0) {
-    return { summary: stored?.summary ?? "", recent: [], compressed: false, messageCount: 0 }
+    return { summary: stored?.summary ?? "", recent: [], compressed: false, messageCount: summarizedCount }
   }
 
-  if (shouldSummarize(recent.length)) {
-    const result = await summarizeConversation(toSummaryMessages(recent), {
+  if (shouldSummarize(unsummarized.length)) {
+    const result = await summarizeConversation(toSummaryMessages(unsummarized), {
       sensitivity: options.sensitivity,
+      priorSummary: stored?.summary,
     })
     if (result.summary) {
-      await upsertConversationSummary(conversationId, result.summary, result.messageCount)
+      await upsertConversationSummary(conversationId, result.summary, totalCount)
     }
     const window = recent.slice(-COMPRESS_WINDOW)
     return {
       summary: result.summary,
       recent: window,
       compressed: true,
-      messageCount: result.messageCount,
+      messageCount: totalCount,
       summaryUsage: result.usage,
     }
   }
@@ -70,6 +75,6 @@ export async function compressConversation(
     summary: stored?.summary ?? "",
     recent,
     compressed: false,
-    messageCount: recent.length,
+    messageCount: totalCount,
   }
 }

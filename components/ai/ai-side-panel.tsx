@@ -210,10 +210,10 @@ export function AiSidePanel({
     try {
       const params = new URLSearchParams({
         orgSlug,
-        surface: seed ? (seed.surface === "class" ? "class" : "resource") : "dashboard",
+        surface: seed ? seed.surface : "dashboard",
         limit: "50",
       })
-      if (seed) params.set(seed.surface === "class" ? "classId" : "resourceId", seed.entityId)
+      if (seed) params.set(seed.surface === "class" ? "classId" : seed.surface === "resource" ? "resourceId" : "studyId", seed.entityId)
       const response = await fetch(`/api/ai/conversations?${params.toString()}`, {
         cache: "no-store",
       })
@@ -274,8 +274,8 @@ export function AiSidePanel({
     setQueuedMessage(null)
     setShowLauncher(false)
 
-    const surface: AiSurface = seed 
-      ? (seed.surface === "class" ? "class" : "resource")
+    const surface: AiSurface = seed
+      ? seed.surface
       : "dashboard"
     const entityId = seed?.entityId ?? "dashboard"
 
@@ -644,9 +644,7 @@ export function AiSidePanel({
                 conversationId={activeConversationId}
                 surface={
                   seed
-                    ? seed.surface === "class"
-                      ? "class"
-                      : "resource"
+                    ? seed.surface
                     : "dashboard"
                 }
                 entityId={seed ? seed.entityId : "dashboard"}
@@ -658,7 +656,7 @@ export function AiSidePanel({
                 queuedMessage={queuedMessage}
                 onQueueMessage={setQueuedMessage}
                 onQueuedMessageSent={() => setQueuedMessage(null)}
-                contextLabel={seed?.surface === "resource" ? seed.label : undefined}
+                contextLabel={seed ? seed.label : undefined}
               />
             )}
           </div>
@@ -669,7 +667,7 @@ export function AiSidePanel({
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="type-caption font-medium uppercase text-muted-foreground">
-                      {seed.surface === "resource" ? "Asking about resource" : "Asking about class"}
+                      {seed.surface === "resource" ? "Asking about resource" : seed.surface === "study" ? "Asking about study space" : "Asking about class"}
                     </p>
                     <p className="truncate type-small font-semibold">{seed.label}</p>
                   </div>
@@ -691,7 +689,7 @@ export function AiSidePanel({
                     className="flex-1"
                   >
                     <Sparkles className="size-3.5" aria-hidden="true" />
-                    {seed.surface === "resource" ? "Ask about this resource" : "Ask about this class"}
+                    {seed.surface === "resource" ? "Ask about this resource" : seed.surface === "study" ? "Ask about this study space" : "Ask about this class"}
                   </Button>
                   {seed.surface === "class" && (
                     <Button
