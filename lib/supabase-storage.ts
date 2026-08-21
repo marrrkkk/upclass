@@ -8,6 +8,8 @@ import { useState, useCallback } from "react"
 
 export type UploadedFile = {
   url: string
+  /** Storage object path (bucket-relative), used for later removals. */
+  path: string
   name: string
   size: string
   type: string

@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
 
   // 4. Upload to Supabase Storage
   const supabase = getStorageClient()
-  const uploaded: { url: string; name: string; size: string; type: string }[] =
+  const uploaded: { url: string; path: string; name: string; size: string; type: string }[] =
     []
 
   for (const file of files) {
@@ -168,6 +168,7 @@ export async function POST(request: NextRequest) {
 
     uploaded.push({
       url: publicUrl,
+      path,
       name: file.name,
       size: file.size.toString(),
       type: file.type,

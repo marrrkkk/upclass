@@ -416,6 +416,135 @@ export const resources = pgTable(
   ],
 );
 
+export const resourceChunks = pgTable(
+  "resource_chunks",
+  {
+    id: text("id").primaryKey(),
+    resourceId: text("resource_id")
+      .notNull()
+      .references(() => resources.id, { onDelete: "cascade" }),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    chunkIndex: integer("chunk_index").notNull(),
+    content: text("content").notNull(),
+    contentHash: text("content_hash").notNull(),
+    pageNumber: integer("page_number"),
+    sectionTitle: text("section_title"),
+    embedding: jsonb("embedding").$type<number[] | null>(),
+    embeddingModel: text("embedding_model"),
+    embeddingVersion: text("embedding_version"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().$onUpdate(() => new Date()).notNull(),
+  },
+  (table) => [
+    uniqueIndex("resource_chunks_resource_index_unique").on(table.resourceId, table.chunkIndex),
+    index("resource_chunks_resource_idx").on(table.resourceId),
+    index("resource_chunks_org_idx").on(table.orgId),
+  ],
+);
+
+export const studyCollections = pgTable(
+  "study_collections",
+  {
+    id: text("id").primaryKey(),
+    orgId: text("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    studentId: text("student_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    description: text("description"),
+    sourceType: text("source_type"),
+    sourceId: text("source_id"),
+    archived: boolean("archived").default(false).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().$onUpdate(() => new Date()).notNull(),
+  },
+  (table) => [index("study_collections_student_idx").on(table.studentId), index("study_collections_org_idx").on(table.orgId)],
+);
+
+export const studyCards = pgTable(
+  "study_cards",
+  {
+    id: text("id").primaryKey(),
+    collectionId: text("collection_id").notNull().references(() => studyCollections.id, { onDelete: "cascade" }),
+    front: text("front").notNull(),
+    back: text("back").notNull(),
+    hint: text("hint"),
+    explanation: text("explanation"),
+    sourceRefs: jsonb("source_refs").$type<string[]>().default([]).notNull(),
+    dueAt: timestamp("due_at").defaultNow().notNull(),
+    intervalDays: integer("interval_days").default(0).notNull(),
+    ease: integer("ease").default(250).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().$onUpdate(() => new Date()).notNull(),
+  },
+  (table) => [index("study_cards_collection_due_idx").on(table.collectionId, table.dueAt)],
+);
+
+export const studySessions = pgTable(
+  "study_sessions",
+  {
+    id: text("id").primaryKey(),
+    collectionId: text("collection_id").notNull().references(() => studyCollections.id, { onDelete: "cascade" }),
+    studentId: text("student_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    mode: text("mode").notNull(),
+    correct: integer("correct").default(0).notNull(),
+    total: integer("total").default(0).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    completedAt: timestamp("completed_at"),
+  },
+  (table) => [index("study_sessions_student_idx").on(table.studentId, table.createdAt)],
+);
+
+export const studySourceStatus = pgEnum("study_source_status", ["pending", "processing", "ready", "failed"]);
+
+export const studySources = pgTable(
+  "study_sources",
+  {
+    id: text("id").primaryKey(),
+    collectionId: text("collection_id").notNull().references(() => studyCollections.id, { onDelete: "cascade" }),
+    resourceId: text("resource_id").references(() => resources.id, { onDelete: "set null" }),
+    title: text("title").notNull(),
+    status: studySourceStatus("status").default("pending").notNull(),
+    errorMessage: text("error_message"),
+    processingStartedAt: timestamp("processing_started_at"),
+    processedAt: timestamp("processed_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().$onUpdate(() => new Date()).notNull(),
+  },
+  (table) => [index("study_sources_collection_idx").on(table.collectionId), index("study_sources_status_idx").on(table.status)],
+);
+
+export const studyQuizzes = pgTable(
+  "study_quizzes",
+  {
+    id: text("id").primaryKey(),
+    collectionId: text("collection_id").notNull().references(() => studyCollections.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    description: text("description"),
+    position: integer("position").default(0).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().$onUpdate(() => new Date()).notNull(),
+  },
+  (table) => [index("study_quizzes_collection_position_idx").on(table.collectionId, table.position)],
+);
+
+export const studyQuestions = pgTable(
+  "study_questions",
+  {
+    id: text("id").primaryKey(),
+    quizId: text("quiz_id").notNull().references(() => studyQuizzes.id, { onDelete: "cascade" }),
+    prompt: text("prompt").notNull(),
+    options: jsonb("options").$type<string[]>().default([]).notNull(),
+    correctAnswer: text("correct_answer").notNull(),
+    explanation: text("explanation"),
+    sourceRefs: jsonb("source_refs").$type<string[]>().default([]).notNull(),
+    position: integer("position").default(0).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().$onUpdate(() => new Date()).notNull(),
+  },
+  (table) => [index("study_questions_quiz_position_idx").on(table.quizId, table.position)],
+);
+
 export const resourceRelations = relations(resources, ({ one }) => ({
   owner: one(user, {
     fields: [resources.ownerId],
@@ -1337,7 +1466,7 @@ export const whiteboardOperationRelations = relations(whiteboardOperations, ({ o
 // AI assistant
 // ---------------------------------------------------------------------------
 
-export const aiConversationSurface = pgEnum("ai_conversation_surface", ["dashboard", "class", "resource"]);
+export const aiConversationSurface = pgEnum("ai_conversation_surface", ["dashboard", "class", "resource", "study"]);
 export const aiMessageRole = pgEnum("ai_message_role", ["user", "assistant", "system"]);
 export const aiMessageStatus = pgEnum("ai_message_status", [
   "completed",
@@ -1530,6 +1659,8 @@ export const orgMemories = pgTable(
     content: text("content").notNull(),
     position: integer("position").notNull().default(0),
     embedding: jsonb("embedding").$type<number[] | null>(),
+    embeddingModel: text("embedding_model"),
+    embeddingVersion: text("embedding_version"),
     category: orgMemoryCategory("category").notNull().default("teaching_rules"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")

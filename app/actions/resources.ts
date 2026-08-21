@@ -43,6 +43,12 @@ export async function createResource(formData: FormData): Promise<ActionResponse
 
   const { title, description, resourceType, classId, fileUrl, fileName, fileSize, storagePath } = parsed.data
 
+  // Only ever persist storage paths that point into the uploader's own
+  // folder; anything else (foreign objects, URLs, traversal) is dropped so
+  // later cleanup can never remove a file the uploader does not own.
+  const ownerStoragePath =
+    storagePath && storagePath.startsWith(`${session.user.id}/`) ? storagePath : null
+
   // If classId is provided, verify it belongs to this org and user has access
   if (classId) {
     const { classes } = await import("@/db/schema")
@@ -86,11 +92,28 @@ export async function createResource(formData: FormData): Promise<ActionResponse
       fileName,
       fileType: getFileType(fileName),
       fileSize,
-      storagePath: storagePath || null,
+      storagePath: ownerStoragePath,
       ownerId: session.user.id,
       orgId: membership.orgId,
     })
+  } catch (error) {
+    console.error("createResource error", error)
+    // The file is already in storage; without a database row it is an orphan.
+    // Remove it best-effort so failed creations do not leak uploads.
+    if (ownerStoragePath) {
+      try {
+        const { removeStorageObject } = await import("@/lib/storage")
+        await removeStorageObject("resources", ownerStoragePath)
+      } catch (cleanupError) {
+        console.error("createResource storage cleanup failed", cleanupError)
+      }
+    }
+    return { success: false, error: "Failed to create resource" }
+  }
 
+  // Database row persisted; remaining work is best-effort and must not turn
+  // a successful creation into a reported failure.
+  try {
     await revalidateUserOrgs(session.user.id, ["resources", "home", "activity"])
 
     // Build activity description with resource type and optional class context
@@ -103,7 +126,7 @@ export async function createResource(formData: FormData): Promise<ActionResponse
         .from(classes)
         .where(eq(classes.id, classId))
         .limit(1)
-      
+
       if (classInfo) {
         activityDescription += ` · Linked to ${classInfo.title}`
       }
@@ -117,13 +140,11 @@ export async function createResource(formData: FormData): Promise<ActionResponse
       title: `Uploaded resource "${title}"`,
       description: activityDescription,
     })
-
-    return { success: true }
   } catch (error) {
-    console.error("createResource error", error)
-    // TODO: Implement storage cleanup on failure (Task #17)
-    return { success: false, error: "Failed to create resource" }
+    console.error("createResource post-insert work failed", error)
   }
+
+  return { success: true }
 }
 
 export async function updateResource(formData: FormData): Promise<ActionResponse> {
@@ -220,26 +241,17 @@ export async function deleteResource(resourceId: string): Promise<ActionResponse
     // Delete from database first
     await db.delete(resources).where(eq(resources.id, resourceId))
 
-    // Attempt storage cleanup if we have a storage path
-    if (existingResource[0].storagePath) {
+    // Attempt storage cleanup if we have a storage path. Only remove objects
+    // inside the owner's own folder; foreign or legacy truncated paths are
+    // left untouched so cleanup can never delete someone else's file.
+    const storagePath = existingResource[0].storagePath
+    if (storagePath && storagePath.startsWith(`${session.user.id}/`)) {
       try {
-        const { createClient } = await import("@supabase/supabase-js")
-        const supabase = createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.SUPABASE_SERVICE_ROLE_KEY!
-        )
-        
-        const { error: storageError } = await supabase.storage
-          .from("resources")
-          .remove([existingResource[0].storagePath])
-
-        if (storageError) {
-          console.error("Storage cleanup failed:", storageError)
-          // Don't fail the whole operation - database record is already deleted
-        }
+        const { removeStorageObject } = await import("@/lib/storage")
+        await removeStorageObject("resources", storagePath)
       } catch (storageError) {
-        console.error("Storage cleanup error:", storageError)
-        // Don't fail the whole operation
+        console.error("Storage cleanup failed:", storageError)
+        // Don't fail the whole operation - database record is already deleted
       }
     }
 

@@ -127,6 +127,34 @@
       "when": 1787400000000,
       "tag": "0017_structured_class_and_resource",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1787486400000,
+      "tag": "0018_storage_policies",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1787572800000,
+      "tag": "0019_resource_chunks",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1787660000000,
+      "tag": "0020_learn_study",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1787746400000,
+      "tag": "0021_study_spaces",
+      "breakpoints": true
     }
   ]
 }
