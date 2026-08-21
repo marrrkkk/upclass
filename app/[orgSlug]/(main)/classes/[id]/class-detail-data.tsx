@@ -47,6 +47,7 @@ export async function ClassDetailData({
   const resolvedSearchParams = searchParams ? await searchParams : undefined
   const session = await requireSession()
   const userId = session.user.id
+  const currentUser = { id: userId, name: session.user.name ?? "", image: session.user.image ?? null }
 
   const classData = await db
     .select({
@@ -174,6 +175,7 @@ export async function ClassDetailData({
                 activeTab={activeTab}
                 classData={resolvedClassData}
                 classId={id}
+                currentUser={currentUser}
                 userId={userId}
                 userRole={userRole}
                 railData={railData}
@@ -431,6 +433,7 @@ async function ClassDetailContentSection({
   activeTab,
   classData,
   classId,
+  currentUser,
   userId,
   userRole,
   railData,
@@ -440,6 +443,7 @@ async function ClassDetailContentSection({
   activeTab: "stream" | "classwork" | "quizzes" | "gradebook" | "people"
   classData: ClassData
   classId: string
+  currentUser: { id: string; name: string; image: string | null }
   userId: string
   userRole: "teacher" | "student"
   railData: ClassRailData
@@ -676,6 +680,7 @@ async function ClassDetailContentSection({
     <ClassDetailContentClient
       activeTab={activeTab}
       classData={classData}
+      currentUser={currentUser}
       userId={userId}
       userRole={userRole}
       railData={railData}
