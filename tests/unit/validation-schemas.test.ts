@@ -423,13 +423,26 @@ describe("create resource schema", () => {
       fileUrl: "https://example.com/file.pdf",
       fileName: "file.pdf",
       fileType: "pdf",
-      storagePath: "/org/resources/file.pdf",
+      storagePath: "user-123/file.pdf",
     })
 
     expect(result.success).toBe(true)
     if (result.success) {
-      expect(result.data.storagePath).toBe("/org/resources/file.pdf")
+      expect(result.data.storagePath).toBe("user-123/file.pdf")
     }
+  })
+
+  test("rejects storagePath with leading slash", () => {
+    const result = createResourceSchema.safeParse({
+      title: "Chapter 3",
+      resourceType: "slides",
+      fileUrl: "https://example.com/file.pdf",
+      fileName: "file.pdf",
+      fileType: "pdf",
+      storagePath: "/user-123/file.pdf",
+    })
+
+    expect(result.success).toBe(false)
   })
 })
 

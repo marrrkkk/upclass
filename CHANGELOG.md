@@ -7,11 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added private student-owned Study spaces with persistent flashcards, quiz and source records, manual card editing, spaced-review routing, ownership-checked actions, and contextual AI panel seeding.
+
+- Added the student Learn workspace with AI-assisted study-set generation, editable flashcards, practice mode, and spaced-review scheduling.
+
+- **Illustrated landing features grid.** Added a bento-style section on the public homepage with original lo-fi SVG illustrations for the product surfaces that already exist: classwork, whiteboards, the Ask AI assistant, quizzes, and the resource library.
+
+- Added deterministic, overlapping resource chunk ingestion and query-time retrieval for grounded single-file AI chat, with tenant-scoped chunk storage and embedding model/version metadata.
+
+### Fixed
+
+- **Resource upload cleanup and storage-path safety.** If the resource row insert fails after a successful upload, the uploaded object is now removed from Supabase storage instead of being orphaned. Storage paths are validated as bucket-relative object paths before reaching the database, only paths under the uploader's own folder are persisted (others are dropped), and deletion only removes objects inside the owner's folder, using the full stored path instead of the truncated filename segment.
+
+- **Offline queue multi-tab duplicate execution.** A tab no longer executes actions another tab is currently syncing; claims older than 30 seconds are treated as stale and reclaimed, so crashes still recover but duplicate runs are prevented.
+
+- Enforced sensitivity-aware pinned-model and fallback routing, preserved prior conversation summaries during incremental compression, and prevented comparisons across incompatible embedding model spaces.
+
 ### Changed
+
+- **Consolidated the motion system.** All interaction motion now runs on a single duration ramp (`--duration-fast` 150ms / `--duration-base` 200ms / `--duration-slow` 260ms) with a two-easing set (`--ease-out-expo`, `--ease-out-quint`), exposed as shared `motion-*` utilities (`motion-enter`, `motion-fade`, `motion-overlay`, `motion-shimmer`, `motion-feedback`, `motion-interactive`, `motion-icon`, `motion-lift`, `motion-delay-1..3`). Buttons, tabs, toasts, fields, navigation progress, and the AI panel now use the tokens; ad-hoc durations were removed, hover-lift movement is gated to pointer devices, and `prefers-reduced-motion` collapses all non-essential animation. Documented in `components/ui/design-system.md` and `components/ui/QUICK_REFERENCE.md`, with a contract test in `tests/unit/motion-system.test.ts`.
+
+- **Added a performance baseline document.** `docs/performance-baseline.md` defines the measurement method, route coverage, current known state (dynamic-editor loading, image usage, package import optimization), and the perf contract for future optimization work.
+
+- **Teacher-focused public landing page.** Rewrote the homepage around UpClass as a classroom LMS for teachers and schools, removed the legacy feature and getting-started sections, refreshed the remaining product grid and calls to action, and replaced decorative feature artwork with clearer assignment, whiteboard, quiz, resource, and teacher-approved AI interface illustrations.
+
+- **Landing product journey.** Expanded the public homepage with teacher workflow, student experience, teacher-approved AI, school organization, and accessible FAQ sections, using responsive product-interface previews and a consistent blue classroom palette.
+
+- **Optimistic mutations and consistent button loading.** Class creation, class settings, the enrollment code, member removal, study spaces and their flashcards/quizzes, classwork, announcements, resource uploads, resource edits, and notification read state now update the UI instantly through a reusable client hook (`useOptimisticMutation`) with rollback, success reconciliation, error toasts, and offline-queue awareness: pending entities show a "Creating…" / "Uploading…" / "Posting…" badge, dialog stays open only on failure, and failed mutations restore the previous state. All async submit buttons now use the shared `Button isLoading` API (stable label, spinner, disabled state) instead of ad-hoc loading text and icons.
+
+- **Landing closing band and footer.** Replaced the solid-blue end CTA and compact footer with a pale card CTA and a three-column product/legal footer, using existing UpClass routes and the public support email.
+
+- **Quieter application sidebar.** Thinned sidebar type, hid the sidebar scrollbar, added an in-sidebar search control and collapse chevron, and made Recent classes collapsible.
 
 - **Made the Vitest workflow cross-platform.** Removed shell-specific environment assignment from the test scripts so local Windows verification and Vercel/Linux deployment checks use the same commands.
 
-- **Rebuilt the organization workspace hub.** Replaced the launcher composition with a clearer workspace directory, quieter action rail, responsive mobile priority stack, and matching streamed skeleton while preserving workspace routing, roles, member counts, and create/join flows.
+- **Aligned the organization workspace hub with the main app shell.** Rebuilt `/org` chrome around the authenticated canvas (`app-shell-bg`, sticky app header height, skip link, account menu), shared `PageHeading` / `Panel` / `EmptyState` composition for the directory, and dropped the separate entry-theme CSS overrides so workspace selection matches Classes, Learn, and Resources. Create and join stay on the action rail; the header no longer repeats Home, Create, or Join.
+
+- **Aligned organization admin with the workspace hub.** Moved invite into a sticky rail beside People / Classes / Invitations, used the same `PageHeading` / `Panel` rhythm and line tabs, and matched the admin skeleton to the new layout.
+
+- **Aligned Settings with the workspace hub.** Restyled Settings around the same `PageHeading` / line-tab / sticky account-rail composition as Organization admin, with a matching skeleton and stable save-button labels.
 
 - **Complete role-specific dashboard recreation.** Completely replaced the shared dashboard composition with three distinct role-specific LMS home experiences for administrators, teachers, and students. Each role now receives a different information architecture, content priority, primary action, and supporting modules optimized for their workflow. Admin dashboard prioritizes organization operations (members, classes, pending invitations) with an operations rail and admin attention queue. Teacher dashboard features a dominant teaching queue (submissions needing grading, unread student questions, overdue work alerts), teacher pulse metrics with zero-value suppression, upcoming classwork deadlines, students requiring check-in, and teaching-focused activity. Student dashboard centers on a "next learning action" panel showing the most relevant unfinished item or recently graded work, attention queue with due-soon work and messages, learning runway timeline grouped by buckets (today, this week, later, completed), feedback & messages section, and learning-focused activity. Admin role takes absolute priority when the user has organization owner/admin permissions. All dashboards use the established UpClass Classroom Focus visual direction: near-white canvas, white working surfaces, semantic blue for actions, course colors for identity only, Geist typography, restrained elevation, 12px panel radius, no gradients or decorative elements. Each role has a memorable signature "today board": admin operations rail, teacher teaching queue, student next action panel. Dashboard data layer completely refactored with typed role-specific view models (`AdminDashboardViewModel`, `TeacherDashboardViewModel`, `StudentDashboardViewModel`) built server-side with parallel query fetching and proper empty state handling. New role-specific skeletons (`AdminDashboardSkeleton`, `TeacherDashboardSkeleton`, `StudentDashboardSkeleton`) match loaded layout geometry to prevent layout shift. Responsive behavior: mobile uses single-column priority stack with touch-safe actions, desktop uses wider containers with teacher/student primary-rail layouts (dominant queue left, supporting rail right). Created comprehensive dashboard primitive library: `DashboardShell`, `DashboardSection`, `DashboardGrid`, `DashboardHeader`, `DashboardMetricStrip`, `DashboardEmptyState`, `DashboardNextAction`, `DashboardAttentionQueue`, `DashboardDeadlines`, `DashboardClassList`, `DashboardActivity`, `DashboardAiCue`. All components support localized Suspense boundaries, preserve existing authentication/authorization/routing/caching/offline/realtime behavior, and render only stored data (no invented attendance, schedules, rankings, engagement percentages). AI remains contextual and secondary with role-aware briefing prompts. Added comprehensive test suites covering role-specific rendering, empty states, metrics visibility, primary action selection, queue ordering, and formatter utilities. Updated `DESIGN.md` with dashboard architecture documentation, `components/ui/design-system.md` with dashboard composition rules, and `components/ui/QUICK_REFERENCE.md` with role-specific dashboard examples.
 

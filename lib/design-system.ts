@@ -108,25 +108,38 @@ export const responsive = {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Motion presets. Interactions stay under 250ms so the UI feels immediate;
- * entrances are allowed slightly longer. All of them share one easing family
- * so unrelated transitions still look like they belong together.
+ * Motion presets. Durations come from the `--duration-*` ramp
+ * (fast 150ms / base 200ms / slow 260ms) and easings from the approved set
+ * in `app/globals.css`. Interactions stay under 260ms so the UI feels
+ * immediate; shimmer is the only intentionally looping one and only for
+ * loading feedback. Movement uses transform/opacity — never width, height,
+ * top/left, or large shadows. The global `prefers-reduced-motion` override
+ * collapses every non-essential animation to near-instant.
+ *
+ * Prefer these presets (or the `motion-*` CSS utilities) over ad-hoc
+ * `duration-* ease-out` utility classes.
  */
 export const motion = {
   /** Colour/opacity swaps — hover, focus, active. */
-  fast: "transition-[color,background-color,border-color,opacity] duration-[var(--duration-fast)] ease-out-expo",
-  /** Default interaction timing. */
+  fast: "motion-interactive",
+  /** Default interaction timing (colour, border, shadow, transform). */
   base: "transition-[color,background-color,border-color,box-shadow,transform] duration-[var(--duration-base)] ease-out-expo",
   /** Layout-affecting movement — lifts, reveals, expansion. */
   slow: "transition-[opacity,transform] duration-[var(--duration-slow)] ease-out-expo",
   /** Colour-only transition; cheaper than `transition-all`. */
-  colors: "transition-colors duration-150 ease-out-expo",
-  /** Transform-only transition. */
-  transform: "transition-transform duration-200 ease-out-expo",
-  /** Entrance for content that streams in. */
-  enter: "animate-rise",
-  /** Entrance for overlays and popovers. */
-  enterOverlay: "animate-scale-in",
+  colors: "motion-interactive",
+  /** Transform-only transition for icons and small movements. */
+  transform: "motion-icon",
+  /** Entrance for content that streams in (opacity + ≤8px rise). */
+  enter: "motion-enter",
+  /** Entrance for overlays and popovers (opacity + faint scale). */
+  enterOverlay: "motion-overlay",
+  /** Restrained shimmer for loading/skeleton states. */
+  loading: "motion-shimmer",
+  /** State-change feedback: opacity/colour only, never layout. */
+  feedback: "motion-feedback",
+  /** Card/row hover lift — pointer devices only. */
+  lift: "motion-lift",
 } as const
 
 /**

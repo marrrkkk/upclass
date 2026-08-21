@@ -124,7 +124,16 @@ export const createResourceSchema = z.object({
   fileName: requiredTrimmedString("File name"),
   fileType: requiredTrimmedString("File type"),
   fileSize: optionalTrimmedString.nullish(),
-  storagePath: optionalTrimmedString.nullish(),
+  storagePath: optionalTrimmedString
+    .refine(
+      (value) =>
+        !value ||
+        (/^[A-Za-z0-9][A-Za-z0-9._-]*\/[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value) &&
+          !value.includes("..") &&
+          !value.includes("\\")),
+      "Storage path must be a bucket-relative object path",
+    )
+    .nullish(),
 })
 
 export const updateResourceSchema = z.object({

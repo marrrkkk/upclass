@@ -9,6 +9,8 @@ import {
 const createAnnouncementPayloadSchema = z.object({
   classId: z.string().min(1, "Class ID is required"),
   content: z.string().trim().min(1, "Content is required"),
+  /** Client-generated ID of the optimistic announcement for queue reconciliation. */
+  tempId: z.string().optional(),
 })
 
 const createClassworkPayloadSchema = z.object({
@@ -18,6 +20,8 @@ const createClassworkPayloadSchema = z.object({
   type: z.enum(["assignment", "quiz", "material"]).default("assignment"),
   dueDate: z.string().trim().optional(),
   points: z.string().trim().optional(),
+  /** Client-generated ID of the optimistic classwork for queue reconciliation. */
+  tempId: z.string().optional(),
 })
 
 const submitClassworkPayloadSchema = z
@@ -72,6 +76,8 @@ const createQuizPayloadSchema = z.object({
 export const offlineActionPayloadSchemas = {
   "create-class": createClassSchema.extend({
     orgSlug: z.string().trim().min(1, "Organization is required"),
+    /** Client-generated ID of the optimistic class for queue reconciliation. */
+    tempId: z.string().optional(),
   }),
   "join-class": joinClassSchema,
   // Note: "create-resource" is intentionally excluded - resource uploads are online-only
@@ -135,6 +141,13 @@ function retryDelayMs(attemptCount: number) {
   const max = 5 * 60_000
   return Math.min(base * 2 ** Math.max(0, attemptCount - 1), max)
 }
+
+/**
+ * How long a `syncing` claim is considered owned by its tab. Multi-tab sync
+ * must not re-execute an action another tab is already processing, but a tab
+ * that dies mid-sync must not leave the action stuck forever.
+ */
+const SYNC_CLAIM_STALE_MS = 30_000
 
 function isRetryableError(error: string) {
   return !/(unauthorized|required|invalid|not found|already|cannot|only .* can|you are not)/i.test(
@@ -366,6 +379,11 @@ export async function syncOfflineActions() {
 
   for (const action of actions) {
     if (action.status === "failed") continue
+    // Another tab (or a concurrent sync pass) owns fresh claims; only stale
+    // claims from crashed tabs are re-processed.
+    if (action.status === "syncing" && now - action.updatedAt < SYNC_CLAIM_STALE_MS) {
+      continue
+    }
     if (action.nextRetryAt > now) continue
 
     await markSyncing(action)
