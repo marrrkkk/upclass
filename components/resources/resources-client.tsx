@@ -174,7 +174,7 @@ function formatFileSize(size: string | null) {
 
 function ResourceTypePill({ fileType }: { fileType: string }) {
   return (
-    <span className="inline-flex items-center rounded-md border border-hairline/70 bg-surface-raised px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground shadow-2xs">
+    <span className="inline-flex items-center rounded-md border border-hairline/70 bg-surface-raised px-2 py-0.5 text-[11px] font-semibold uppercase text-muted-foreground shadow-2xs">
       {fileType.toUpperCase()}
     </span>
   )
@@ -221,7 +221,7 @@ function ResourceDocumentPreview({
       <div className="relative flex h-24 w-36 flex-col overflow-hidden rounded-t-md rounded-b-sm border border-hairline/80 bg-card p-2 shadow-xs transition-transform duration-200 group-hover:scale-105">
         <div className="flex items-center gap-1.5 border-b border-rose-500/20 pb-1.5">
           <div className="size-2 rounded-full bg-rose-500" />
-          <span className="text-[9px] font-bold tracking-wider text-rose-600 dark:text-rose-400 uppercase">PDF Document</span>
+          <span className="text-[9px] font-bold text-rose-600 uppercase dark:text-rose-400">PDF Document</span>
         </div>
         <div className="mt-2 space-y-1">
           <div className="h-1.5 w-4/5 rounded-xs bg-foreground/25" />

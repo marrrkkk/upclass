@@ -435,7 +435,7 @@ export function TeacherSetupWizard({ resumeOrg, initialState }: TeacherSetupWiza
                     Class code
                   </Text>
                   <div className="flex flex-wrap items-center gap-2">
-                    <code className="type-mono text-lg font-semibold tracking-widest">{wizard.enrollmentCode}</code>
+                    <code className="type-mono text-lg font-semibold">{wizard.enrollmentCode}</code>
                     <CopyButton value={wizard.enrollmentCode} label="Copy class code" showLabel />
                   </div>
                 </div>

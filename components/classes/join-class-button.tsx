@@ -102,7 +102,7 @@ export function JoinClassButton({ iconOnly = false }: JoinClassButtonProps) {
               placeholder="ABC123"
               maxLength={6}
               autoComplete="off"
-              className="type-mono uppercase tracking-widest text-center text-lg font-bold"
+              className="type-mono text-center text-lg font-bold uppercase"
               onChange={(event) => {
                 event.target.value = event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "")
               }}

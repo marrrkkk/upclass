@@ -18,6 +18,16 @@
 
 Prefer composition through shared primitives and semantic tokens. Use course identity only to identify a class. Use semantic tones for status. Use icon-only controls only when the icon is familiar and has a tooltip/accessible label.
 
+### Typography
+
+```tsx
+<Text variant="h2">Section heading</Text>
+<Text variant="body">Compact interface copy</Text>
+<Text variant="read">Long-form reading content</Text>
+```
+
+Shared type variants use normalized tracking and compact line heights. Keep uppercase labels and codes at normal tracking; use `read` only when text benefits from sustained-reading spacing.
+
 
 ## Responsive Components
 

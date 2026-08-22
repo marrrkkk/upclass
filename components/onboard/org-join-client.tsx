@@ -154,7 +154,7 @@ export function OrgJoinClient({
                 maxLength={6}
                 disabled={pending}
                 placeholder="ABC123"
-                className="type-mono h-10 uppercase tracking-widest"
+                className="type-mono h-10 uppercase"
                 onChange={(event) => setClassCode(event.target.value.toUpperCase())}
               />
             </Field>

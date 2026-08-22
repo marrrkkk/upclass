@@ -17,6 +17,8 @@ Use `bg-background`, `bg-card`, `bg-surface`, `bg-surface-subtle`, `bg-surface-a
 
 Use `Text` or `typographyVariants` with the shared `display`, `h1`, `h2`, `h3`, `h4`, `body`, `small`, `caption`, `overline`, and `mono` variants. Use headings for hierarchy, not small gray overlines.
 
+Tracking is normalized across the shared scale. Use `body` for compact interface copy, `bodyLg` for prominent supporting copy, and reserve the more open `read` line height for sustained prose. Do not add wide tracking to uppercase labels or enrollment codes.
+
 ## Controls
 
 Use `Button` for commands, `IconButton` patterns with tooltips for compact symbol actions, `Field` for labeled forms, `StatusBadge` for explicit state, `EntityAvatar` for people, `DataTable` for dense records, and `EmptyState` for truthful empty/error states.
