@@ -68,7 +68,7 @@ The app requires three storage buckets:
 #### Create `media` Bucket:
 - **Name**: `media`
 - **Public bucket**: ✅ Checked
-- **File size limit**: 64 MB
+- **File size limit**: 16 MB
 - **Allowed MIME types**:
   - `image/*`
   - `video/*`
@@ -200,6 +200,8 @@ Make sure your `.env.local` file has these variables:
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+SUPABASE_JWT_SECRET=your_supabase_jwt_secret
+NEXT_PUBLIC_SUPABASE_WHITEBOARD_BUCKET=whiteboards
 ```
 
 ⚠️ **Important**: The `SUPABASE_SERVICE_ROLE_KEY` is required for server-side uploads. You can find it in:
