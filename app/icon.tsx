@@ -7,7 +7,7 @@ export const size = {
 
 export const contentType = 'image/png'
 
-// Classroom Focus brand mark: UpClass blue on a quiet neutral canvas.
+// UpClass brand mark: white arrow on the primary blue app tile.
 export default function Icon() {
   return new ImageResponse(
     (
@@ -18,7 +18,7 @@ export default function Icon() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: '#f7f8fa',
+          background: '#0075de',
           borderRadius: '6px',
         }}
       >
@@ -30,7 +30,7 @@ export default function Icon() {
         >
           <path
             d="M10 22L22 10M22 10H14M22 10V18"
-            stroke="#0075de"
+            stroke="#ffffff"
             strokeWidth="3"
             strokeLinecap="round"
             strokeLinejoin="round"
