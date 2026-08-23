@@ -195,12 +195,13 @@ export function AiSidePanel({
     openedInitialChatRef.current = false
     conversationRequestRef.current += 1
     setConversations([])
+    setActiveConversationId(null)
     setThreadMessages([])
     setThreadReadyFor(null)
     setThreadInput("")
     setQueuedMessage(null)
     setShowLauncher(false)
-  }, [seed?.entityId, seed?.surface])
+  }, [seed, setActiveConversationId])
 
   // Load conversations
   const loadConversations = useCallback(async () => {
@@ -238,7 +239,11 @@ export function AiSidePanel({
       cache: "no-store",
     })
       .then((response) => {
-        if (!response.ok) throw new Error("Failed to load messages")
+        if (!response.ok) {
+          const error = new Error("Failed to load messages")
+          Object.assign(error, { status: response.status })
+          throw error
+        }
         return response.json() as Promise<{
           messages: Array<{
             id: string
@@ -254,15 +259,21 @@ export function AiSidePanel({
         setThreadMessages(page.messages.map(rowToInitialMessage))
         setThreadReadyFor(activeConversationId)
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (cancelled) return
         setThreadMessages([])
+        if (error instanceof Error && (error as Error & { status?: number }).status === 404) {
+          openedInitialChatRef.current = false
+          setThreadReadyFor(null)
+          setActiveConversationId(null)
+          return
+        }
         setThreadReadyFor(activeConversationId)
       })
     return () => {
       cancelled = true
     }
-  }, [activeConversationId])
+  }, [activeConversationId, setActiveConversationId])
 
   const handleNewChat = useCallback(() => {
     const requestId = ++conversationRequestRef.current

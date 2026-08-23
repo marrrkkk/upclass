@@ -57,10 +57,21 @@ type ConversationRow = { id: string; title: string; updatedAt: string | null }
 function mockFetch({
   conversations = [],
   messages = [],
-}: { conversations?: ConversationRow[]; messages?: unknown[] } = {}) {
+  missingConversationId,
+}: {
+  conversations?: ConversationRow[]
+  messages?: unknown[]
+  missingConversationId?: string
+} = {}) {
   return vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
     const url = String(input)
     if (url.includes("/messages?limit=50")) {
+      if (missingConversationId && url.includes(`/conversations/${missingConversationId}/`)) {
+        return new Response(JSON.stringify({ error: "Conversation not found" }), {
+          status: 404,
+          headers: { "Content-Type": "application/json" },
+        })
+      }
       return new Response(
         JSON.stringify({ messages, nextCursor: null, hasMore: false }),
         { status: 200, headers: { "Content-Type": "application/json" } },
@@ -279,6 +290,31 @@ describe("AiSidePanel", () => {
     await user.click(await screen.findByText("Homework help"))
     const expand = await screen.findByRole("link", { name: "Open chat in full page" })
     expect(expand).toHaveAttribute("href", "/acme/chat/c1")
+  })
+
+  test("replaces a stale conversation when its message history is missing", async () => {
+    const user = userEvent.setup()
+    mocks.createEmptyChat
+      .mockResolvedValueOnce({ success: true, conversationId: "initial-1" })
+      .mockResolvedValueOnce({ success: true, conversationId: "recovered-1" })
+    mockFetch({
+      conversations: [{ id: "stale-1", title: "Old thread", updatedAt: null }],
+      missingConversationId: "stale-1",
+    })
+
+    renderPanel()
+    await waitFor(() => expect(mocks.createEmptyChat).toHaveBeenCalledTimes(1))
+    await openHistory()
+    await user.click(await screen.findByText("Old thread"))
+
+    await waitFor(() => expect(mocks.createEmptyChat).toHaveBeenCalledTimes(2))
+    await waitFor(() => {
+      expect(mocks.transport).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          body: expect.objectContaining({ conversationId: "recovered-1" }),
+        }),
+      )
+    })
   })
 
   test("class seed shows context chip, resolves the default conversation, and start fresh resets", async () => {
