@@ -276,6 +276,28 @@ export async function listResourceConversations(
     .limit(clamped)
 }
 
+export async function listStudyConversations(
+  userId: string,
+  orgId: string,
+  entityId: string,
+  limit = 20,
+): Promise<AiConversationRow[]> {
+  const clamped = Math.min(50, Math.max(1, limit))
+  return db
+    .select()
+    .from(aiConversations)
+    .where(
+      and(
+        eq(aiConversations.userId, userId),
+        eq(aiConversations.orgId, orgId),
+        eq(aiConversations.surface, "study"),
+        eq(aiConversations.entityId, entityId),
+      ),
+    )
+    .orderBy(desc(aiConversations.updatedAt))
+    .limit(clamped)
+}
+
 export async function updateConversationTitle(id: string, title: string): Promise<void> {
   await db
     .update(aiConversations)

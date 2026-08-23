@@ -9,6 +9,8 @@ const getOrganizationMembershipMock = vi.fn()
 const resolveAiSurfaceAccessMock = vi.fn()
 const listDashboardMock = vi.fn()
 const listClassMock = vi.fn()
+const listResourceMock = vi.fn()
+const listStudyMock = vi.fn()
 const createConversationMock = vi.fn()
 const getConversationMock = vi.fn()
 const deleteConversationMock = vi.fn()
@@ -32,6 +34,8 @@ vi.mock("@/lib/ai/access", () => ({
 vi.mock("@/lib/ai/conversations", () => ({
   listDashboardConversations: listDashboardMock,
   listClassConversations: listClassMock,
+  listResourceConversations: listResourceMock,
+  listStudyConversations: listStudyMock,
   createConversation: createConversationMock,
   getConversation: getConversationMock,
   deleteConversation: deleteConversationMock,
@@ -103,6 +107,42 @@ describe("GET /api/ai/conversations", () => {
     expect(response.status).toBe(200)
     expect(listClassMock).toHaveBeenCalledWith("user-1", "org-1", "class-1", undefined)
   })
+
+  test("lists resource conversations for a resource entity", async () => {
+    listResourceMock.mockResolvedValue([])
+    const { GET } = await import("@/app/api/ai/conversations/route")
+    const response = await GET(
+      makeRequest("/api/ai/conversations?orgSlug=acme&surface=resource&resourceId=resource-1"),
+    )
+    expect(response.status).toBe(200)
+    expect(resolveAiSurfaceAccessMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      orgId: "org-1",
+      surface: "resource",
+      entityId: "resource-1",
+      orgRole: "member",
+    })
+    expect(listResourceMock).toHaveBeenCalledWith("user-1", "org-1", "resource-1", undefined)
+  })
+
+  test("lists study conversations for a study collection", async () => {
+    listStudyMock.mockResolvedValue([])
+    const { GET } = await import("@/app/api/ai/conversations/route")
+    const response = await GET(
+      makeRequest("/api/ai/conversations?orgSlug=acme&surface=study&studyId=study-1"),
+    )
+    expect(response.status).toBe(200)
+    expect(listStudyMock).toHaveBeenCalledWith("user-1", "org-1", "study-1", undefined)
+  })
+
+  test("requires the entity ID for scoped surfaces", async () => {
+    const { GET } = await import("@/app/api/ai/conversations/route")
+    const response = await GET(
+      makeRequest("/api/ai/conversations?orgSlug=acme&surface=resource"),
+    )
+    expect(response.status).toBe(400)
+    expect(resolveAiSurfaceAccessMock).not.toHaveBeenCalled()
+  })
 })
 
 describe("POST /api/ai/conversations", () => {
@@ -125,6 +165,29 @@ describe("POST /api/ai/conversations", () => {
     expect(response.status).toBe(201)
     const body = (await response.json()) as { conversation: typeof conversation }
     expect(body.conversation.id).toBe("conv-1")
+  })
+
+  test("creates an authorized resource conversation", async () => {
+    createConversationMock.mockResolvedValue({
+      ...conversation,
+      surface: "resource",
+      entityId: "resource-1",
+    })
+    const { POST } = await import("@/app/api/ai/conversations/route")
+    const response = await POST(
+      makeRequest("/api/ai/conversations", {
+        method: "POST",
+        body: JSON.stringify({ orgSlug: "acme", surface: "resource", entityId: "resource-1" }),
+      }),
+    )
+    expect(response.status).toBe(201)
+    expect(resolveAiSurfaceAccessMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      orgId: "org-1",
+      surface: "resource",
+      entityId: "resource-1",
+      orgRole: "member",
+    })
   })
 
   test("rejects an invalid body", async () => {

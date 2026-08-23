@@ -37,13 +37,6 @@ export const metadata: Metadata = {
   category: "education",
   referrer: "origin-when-cross-origin",
   manifest: "/manifest.json",
-  icons: {
-    icon: [
-      { url: "/icon.svg", type: "image/svg+xml" },
-      { url: "/favicon.ico", sizes: "any" },
-    ],
-    apple: [{ url: "/icon.svg", type: "image/svg+xml" }],
-  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
