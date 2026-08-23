@@ -1,0 +1,89 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [5 0 R 7 0 R] /Count 2 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 6 0 R >>
+endobj
+6 0 obj
+<< /Length 2624 >>
+stream
+BT /F2 21 Tf 1 0 0 1 64 690.18 Tm (Linear Equations in One Variable) Tj ET
+BT /F1 12 Tf 1 0 0 1 64 665.14 Tm (Mathematics 8 - First Quarter Lecture Notes) Tj ET
+BT /F1 10 Tf 1 0 0 1 64 638.94 Tm (Prepared by: Mr. Mark Louie) Tj ET
+BT /F1 10 Tf 1 0 0 1 64 622.74 Tm (San Isidro National High School) Tj ET
+BT /F2 13.5 Tf 1 0 0 1 64 583.57 Tm (1. Learning Objectives) Tj ET
+BT /F1 11 Tf 1 0 0 1 64 559.95 Tm (- Define a linear equation in one variable and identify its standard form.) Tj ET
+BT /F1 11 Tf 1 0 0 1 64 540.33 Tm (- Apply the properties of equality to solve equations step by step.) Tj ET
+BT /F1 11 Tf 1 0 0 1 64 520.71 Tm (- Translate word problems into linear equations and solve them.) Tj ET
+BT /F2 13.5 Tf 1 0 0 1 64 481.54 Tm (2. Key Definition) Tj ET
+BT /F1 11 Tf 1 0 0 1 64 457.92 Tm (A linear equation in one variable is an equation that can be written in the form ax + b) Tj ET
+BT /F1 11 Tf 1 0 0 1 64 442.30 Tm (= 0, where a and b are real numbers and a is not equal to zero. The highest power of the) Tj ET
+BT /F1 11 Tf 1 0 0 1 64 426.68 Tm (variable is exactly one, which is why its graph would always be a straight line.) Tj ET
+BT /F1 11 Tf 1 0 0 1 64 403.06 Tm (Examples: 3x + 5 = 20, 7 - 2y = 1, and 5\(x - 2\) = 3x + 9 are all linear equations in one) Tj ET
+BT /F1 11 Tf 1 0 0 1 64 387.44 Tm (variable.) Tj ET
+BT /F2 13.5 Tf 1 0 0 1 64 348.27 Tm (3. Properties of Equality) Tj ET
+BT /F1 11 Tf 1 0 0 1 64 324.65 Tm (- Addition Property: adding the same number to both sides preserves the equality.) Tj ET
+BT /F1 11 Tf 1 0 0 1 64 305.03 Tm (- Subtraction Property: subtracting the same number from both sides preserves the) Tj ET
+BT /F1 11 Tf 1 0 0 1 64 289.41 Tm (equality.) Tj ET
+BT /F1 11 Tf 1 0 0 1 64 269.79 Tm (- Multiplication Property: multiplying both sides by the same nonzero number) Tj ET
+BT /F1 11 Tf 1 0 0 1 64 254.17 Tm (preserves the equality.) Tj ET
+BT /F1 11 Tf 1 0 0 1 64 234.55 Tm (- Division Property: dividing both sides by the same nonzero number preserves the) Tj ET
+BT /F1 11 Tf 1 0 0 1 64 218.93 Tm (equality.) Tj ET
+BT /F2 13.5 Tf 1 0 0 1 64 179.76 Tm (4. Steps for Solving) Tj ET
+BT /F1 11 Tf 1 0 0 1 64 156.14 Tm (- Step 1: Simplify each side of the equation by removing parentheses and combining) Tj ET
+BT /F1 11 Tf 1 0 0 1 64 140.52 Tm (like terms.) Tj ET
+BT /F1 11 Tf 1 0 0 1 64 120.90 Tm (- Step 2: Move all variable terms to one side using inverse operations.) Tj ET
+BT /F1 11 Tf 1 0 0 1 64 101.28 Tm (- Step 3: Move all constant terms to the other side.) Tj ET
+BT /F1 11 Tf 1 0 0 1 64 81.66 Tm (- Step 4: Divide both sides by the coefficient of the variable.) Tj ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 8 0 R >>
+endobj
+8 0 obj
+<< /Length 1421 >>
+stream
+BT /F1 11 Tf 1 0 0 1 64 704.38 Tm (- Step 5: Check the answer by substituting it back into the original equation.) Tj ET
+BT /F2 13.5 Tf 1 0 0 1 64 665.21 Tm (5. Worked Examples) Tj ET
+BT /F1 11 Tf 1 0 0 1 64 641.59 Tm (Example 1. Solve 3x + 5 = 20.) Tj ET
+BT /F1 11 Tf 1 0 0 1 64 617.97 Tm (- Subtract 5 from both sides: 3x = 15.) Tj ET
+BT /F1 11 Tf 1 0 0 1 64 598.35 Tm (- Divide both sides by 3: x = 5.) Tj ET
+BT /F1 11 Tf 1 0 0 1 64 578.73 Tm (- Check: 3\(5\) + 5 = 20, which is true.) Tj ET
+BT /F1 11 Tf 1 0 0 1 64 555.11 Tm (Example 2. Solve 5x - 8 = 2x + 7.) Tj ET
+BT /F1 11 Tf 1 0 0 1 64 531.49 Tm (- Subtract 2x from both sides: 3x - 8 = 7.) Tj ET
+BT /F1 11 Tf 1 0 0 1 64 511.87 Tm (- Add 8 to both sides: 3x = 15.) Tj ET
+BT /F1 11 Tf 1 0 0 1 64 492.25 Tm (- Divide both sides by 3: x = 5.) Tj ET
+BT /F1 11 Tf 1 0 0 1 64 472.63 Tm (- Check: 5\(5\) - 8 = 17 and 2\(5\) + 7 = 17.) Tj ET
+BT /F2 13.5 Tf 1 0 0 1 64 433.46 Tm (6. Common Mistakes to Avoid) Tj ET
+BT /F1 11 Tf 1 0 0 1 64 409.84 Tm (- Forgetting to apply an operation to BOTH sides of the equation.) Tj ET
+BT /F1 11 Tf 1 0 0 1 64 390.22 Tm (- Sign errors when moving terms across the equals sign.) Tj ET
+BT /F1 11 Tf 1 0 0 1 64 370.60 Tm (- Skipping the checking step, which catches most arithmetic slips.) Tj ET
+BT /F1 9.5 Tf 1 0 0 1 64 347.11 Tm (Next meeting: bring Problem Set 3 \(see the Resources tab\). We will check Parts A and B together.) Tj ET
+endstream
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000121 00000 n 
+0000000218 00000 n 
+0000000320 00000 n 
+0000000456 00000 n 
+0000003132 00000 n 
+0000003268 00000 n 
+trailer
+<< /Size 9 /Root 1 0 R >>
+startxref
+4741
+%%EOF

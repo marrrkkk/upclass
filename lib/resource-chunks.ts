@@ -66,30 +66,41 @@ export async function ensureResourceChunks(resource: {
   if (!chunks.length) return
 
   try {
+    const identity = getActiveEmbeddingIdentity()
+    const existing = await db
+      .select({
+        id: resourceChunks.id,
+        contentHash: resourceChunks.contentHash,
+        embedding: resourceChunks.embedding,
+        embeddingModel: resourceChunks.embeddingModel,
+        embeddingVersion: resourceChunks.embeddingVersion,
+      })
+      .from(resourceChunks)
+      .where(eq(resourceChunks.resourceId, resource.id))
+    const sameContent = existing.length === chunks.length &&
+      existing.every((row, index) => row.contentHash === hash(chunks[index]))
+    const embeddingsCurrent = !identity || existing.every((row) =>
+      row.embedding &&
+      row.embeddingModel === identity.modelId &&
+      row.embeddingVersion === identity.version,
+    )
+    if (sameContent && embeddingsCurrent) return
 
-  const existing = await db
-    .select({ id: resourceChunks.id, contentHash: resourceChunks.contentHash })
-    .from(resourceChunks)
-    .where(eq(resourceChunks.resourceId, resource.id))
-  const same = existing.length === chunks.length && existing.every((row, index) => row.contentHash === hash(chunks[index]))
-  if (same) return
-
-  await db.delete(resourceChunks).where(eq(resourceChunks.resourceId, resource.id))
-  const identity = getActiveEmbeddingIdentity()
-  const vectors = await generateEmbeddings(chunks)
-  await db.insert(resourceChunks).values(
-    chunks.map((content, chunkIndex) => ({
-      id: crypto.randomUUID(),
-      resourceId: resource.id,
-      orgId: resource.orgId,
-      chunkIndex,
-      content,
-      contentHash: hash(content),
-      embedding: vectors[chunkIndex],
-      embeddingModel: identity?.modelId ?? null,
-      embeddingVersion: identity?.version ?? EMBEDDING_VERSION,
-    })),
-  )
+    await db.delete(resourceChunks).where(eq(resourceChunks.resourceId, resource.id))
+    const vectors = await generateEmbeddings(chunks)
+    await db.insert(resourceChunks).values(
+      chunks.map((content, chunkIndex) => ({
+        id: crypto.randomUUID(),
+        resourceId: resource.id,
+        orgId: resource.orgId,
+        chunkIndex,
+        content,
+        contentHash: hash(content),
+        embedding: vectors[chunkIndex],
+        embeddingModel: identity?.modelId ?? null,
+        embeddingVersion: identity?.version ?? EMBEDDING_VERSION,
+      })),
+    )
   } catch (error) {
     console.warn("[resource-chunks] ingestion unavailable:", error)
   }

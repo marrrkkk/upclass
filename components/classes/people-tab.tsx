@@ -157,7 +157,7 @@ export function PeopleTab({
             </div>
             {activeCode ? (
               <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-                <code className="type-mono rounded bg-surface-sunken px-2 py-1 text-sm font-semibold tracking-widest">{activeCode}</code>
+                <code className="type-mono rounded bg-surface-sunken px-2 py-1 text-sm font-semibold">{activeCode}</code>
                 <CopyButton value={enrollmentLink || activeCode} label="Copy enrollment link" showLabel />
                 <Button
                   type="button"

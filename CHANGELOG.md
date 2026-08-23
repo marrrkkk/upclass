@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Brand favicon.** Updated browser and application icons to use the UpClass blue tile and white arrow brand mark consistently.
+
+- **Typography rhythm.** Refined the shared type scale with normalized tracking, reduced UI line heights, and a distinct reading variant for cleaner, more cohesive text rhythm.
+
+- **Documentation refresh.** Reconciled the README, Vercel deployment guide, and Supabase Storage guide with the current routes, scripts, environment variables, cron behavior, AI providers, offline/PWA architecture, and enforced 16 MB media bucket limit.
+
 ### Added
 
 - Added private student-owned Study spaces with persistent flashcards, quiz and source records, manual card editing, spaced-review routing, ownership-checked actions, and contextual AI panel seeding.
@@ -19,6 +27,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Resource embedding refresh.** Resource chunks are regenerated when stored embeddings are missing or use an outdated model/version, even when the extracted text itself has not changed.
+
+- **Login button styling.** Removed the auth-specific shadow, hover lift, and color overrides from the Google login button so it uses the standard secondary button treatment.
+
+- **Landing button hover styling.** Removed decorative shadows and hover lift from landing-page actions, including Log in and See how it works, while preserving their color and border feedback.
+
 - **Deploy-gate test runs on Vercel.** The deploy build's `vitest run` now forces `NODE_ENV=test` in the Vitest config. Vercel presets `NODE_ENV=production` for the whole build, which made Vitest resolve React's production bundles (`React.act` missing, breaking all component suites) and browser-shim Node builtins (failing suite collection with `No such built-in module: node:`). All 102 suites / 496 tests now pass under production-mode CI conditions.
 
 - **Resource upload cleanup and storage-path safety.** If the resource row insert fails after a successful upload, the uploaded object is now removed from Supabase storage instead of being orphaned. Storage paths are validated as bucket-relative object paths before reaching the database, only paths under the uploader's own folder are persisted (others are dropped), and deletion only removes objects inside the owner's folder, using the full stored path instead of the truncated filename segment.
@@ -28,6 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enforced sensitivity-aware pinned-model and fallback routing, preserved prior conversation summaries during incremental compression, and prevented comparisons across incompatible embedding model spaces.
 
 ### Changed
+
+- **Rebuilt the demo seeder.** `npm run db:seed` now seeds a single Google-sign-in owner (`marklouie.dev@gmail.com`, no password - Better Auth links the Google account on first sign-in), one organization, seven classes with grade levels/sections/schedules filled with 30 dummy students, and 14 resources covering every resource type (notes, slides, worksheet, reading, reference, template, other). The seeder generates real previewable files into `public/seeded-resources/` (hand-built PDFs including a landscape slide deck, real XLSX workbooks via `xlsx`, and plain-text reviewers) and pre-populates `aiSourceText` so resource AI chat and study generation work instantly. Fully idempotent via deterministic IDs; replaces the old four-class `definitelynotmark13@gmail.com` seeder.
 
 - **Consolidated the motion system.** All interaction motion now runs on a single duration ramp (`--duration-fast` 150ms / `--duration-base` 200ms / `--duration-slow` 260ms) with a two-easing set (`--ease-out-expo`, `--ease-out-quint`), exposed as shared `motion-*` utilities (`motion-enter`, `motion-fade`, `motion-overlay`, `motion-shimmer`, `motion-feedback`, `motion-interactive`, `motion-icon`, `motion-lift`, `motion-delay-1..3`). Buttons, tabs, toasts, fields, navigation progress, and the AI panel now use the tokens; ad-hoc durations were removed, hover-lift movement is gated to pointer devices, and `prefers-reduced-motion` collapses all non-essential animation. Documented in `components/ui/design-system.md` and `components/ui/QUICK_REFERENCE.md`, with a contract test in `tests/unit/motion-system.test.ts`.
 

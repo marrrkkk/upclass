@@ -267,7 +267,7 @@ export function MessagesClient({
                       </span>
                     </div>
                     <div className="mt-1 flex items-center gap-1.5">
-                      <span className="inline-flex items-center gap-1 rounded-md bg-surface px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      <span className="inline-flex items-center gap-1 rounded-md bg-surface px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground">
                         {result.subtitle}
                       </span>
                     </div>

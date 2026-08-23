@@ -1,0 +1,42 @@
+Cell Theory: From Cork Slices to Modern Biology
+
+Introduction
+
+Every living thing you have ever seen - from a single-celled amoeba in pond water to the tallest narra tree - is built from microscopic units called cells. The idea that all living things are made of cells feels obvious today, but it took scientists almost two hundred years of careful observation to establish it. This reading walks through how cell theory developed and why it remains one of the most important ideas in biology.
+
+Robert Hooke and the First Look
+
+In 1665, English scientist Robert Hooke examined a thin slice of cork under a crude compound microscope he had built himself. What he saw surprised him: thousands of tiny, empty boxes arranged like the rooms of a monastery. He called these boxes "cells," from the Latin cella, meaning small room. Hooke was actually looking at the dead cell walls of plant tissue, but his observation opened the door to a new way of studying life.
+
+Anton van Leeuwenhoek, a Dutch tradesman, soon pushed further. Using hand-ground lenses, he observed living single-celled organisms in pond water, which he charmingly called "animalcules." His letters to the Royal Society in London gave the world its first glimpse of bacteria, protists, and sperm cells - proof that an entire invisible world existed all around and inside us.
+
+From Observations to a Theory
+
+For the next century and a half, microscopes improved slowly, and so did understanding. Then, between 1838 and 1855, three German scientists assembled the pieces:
+
+1. Matthias Schleiden, a botanist, concluded in 1838 that all plants are made of cells.
+2. Theodor Schwann, a zoologist, reached the same conclusion about animals in 1839.
+3. Rudolf Virchow, a physician, proposed in 1855 that all cells come from pre-existing cells - challenging the old idea that life could spontaneously appear from nonliving matter.
+
+Together, these principles became known as the cell theory:
+
+- All living organisms are composed of one or more cells.
+- The cell is the basic unit of structure and organization in living things.
+- All cells arise from pre-existing cells through cell division.
+
+Why Cell Theory Still Matters
+
+Modern biology continues to confirm and extend these ideas. DNA replication, cancer research, stem-cell therapy, and even vaccine development all rest on the foundation that cells are the units of life. When scientists culture bacteria in a laboratory or grow replacement tissue for burn victims, they apply Virchow's principle directly: new cells come from existing cells.
+
+Mini-Glossary
+
+- Cell: the smallest structural and functional unit of life.
+- Organelle: a specialized structure inside a cell with a specific job.
+- Spontaneous generation: the disproven belief that living things arise from nonliving matter.
+- Cell division: the process by which one cell becomes two identical daughter cells.
+
+Review Questions
+
+1. Why did Hooke name the structures he saw "cells," and what was he actually observing?
+2. Which part of the cell theory did Virchow contribute, and what earlier belief did it disprove?
+3. Give one modern example showing how cell theory is applied outside the classroom.

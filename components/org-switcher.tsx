@@ -116,7 +116,7 @@ export function OrgSwitcher({ collapsed = false }: { collapsed?: boolean }) {
 
       <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[15rem]">
         <DropdownMenuLabel
-          className={cn(typographyVariants({ variant: "overline", tone: "subtle" }), "px-2.5 py-2 font-bold tracking-wider uppercase text-[10.5px]")}
+          className={cn(typographyVariants({ variant: "overline", tone: "subtle" }), "px-2.5 py-2 text-[10.5px] font-bold uppercase")}
         >
           Organizations
         </DropdownMenuLabel>

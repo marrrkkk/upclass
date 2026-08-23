@@ -154,7 +154,7 @@ export function ClassDetailRail({
             </PanelHeading>
           </PanelHeader>
           <PanelBody className="flex items-center justify-between gap-3 pt-0 pb-4">
-            <div className="flex items-center gap-2 rounded-lg border border-hairline/80 bg-surface-raised/80 px-3 py-1.5 font-mono text-sm font-bold tracking-wider text-foreground">
+            <div className="flex items-center gap-2 rounded-lg border border-hairline/80 bg-surface-raised/80 px-3 py-1.5 font-mono text-sm font-bold text-foreground">
               <Mono className="numeric-tabular">{classCode}</Mono>
             </div>
             <CopyButton value={classCode} label="Join code" size="sm" className="rounded-lg" />

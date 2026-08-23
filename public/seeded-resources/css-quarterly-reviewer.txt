@@ -1,0 +1,47 @@
+COMPUTER SYSTEMS SERVICING 9 - FIRST QUARTER REVIEWER
+
+SCOPE OF THE QUARTER EXAM
+Units covered: (1) Computer Fundamentals, (2) Hardware Components, (3) Operating Systems Basics, (4) Occupational Health and Safety.
+
+UNIT 1: COMPUTER FUNDAMENTALS
+A computer is an electronic device that accepts data (input), processes it according to instructions, produces information (output), and saves results (storage). This is the IPOS cycle: Input - Process - Output - Storage.
+- Data: raw, unorganized facts.
+- Information: processed, meaningful data.
+Hardware refers to physical parts; software refers to programs and instructions. System software (like Windows or Linux) runs the machine; application software (like browsers and editors) does tasks for users.
+
+UNIT 2: HARDWARE COMPONENTS
+Know the function of each part for labeling-type questions:
+- Motherboard: the main circuit board connecting all components.
+- CPU (processor): executes instructions; measured partly by clock speed in GHz.
+- RAM: temporary working memory; contents are lost when power is off (volatile).
+- ROM: permanent startup instructions (non-volatile).
+- Hard Disk Drive (HDD)/Solid State Drive (SSD): long-term storage; SSDs are faster with no moving parts.
+- Power Supply Unit (PSU): converts wall AC power to DC voltages components need.
+- GPU: renders images and video output.
+Common ports: USB, HDMI (video+audio), Ethernet (network), VGA (older video), audio jack.
+
+UNIT 3: OPERATING SYSTEM BASICS
+Functions of an OS: manage memory, schedule CPU tasks, control hardware devices through drivers, manage files and folders, and provide the user interface (GUI or CLI). File extensions to memorize: .exe (program), .txt (plain text), .jpg/.png (images), .mp3 (audio), .mp4 (video), .zip (compressed archive).
+
+UNIT 4: OCCUPATIONAL HEALTH AND SAFETY
+- Electrostatic discharge (ESD) can silently destroy chips; wear an anti-static wrist strap and work on an anti-static mat.
+- Always UNPLUG the unit before opening the case.
+- Hold boards by the edges; never touch gold contacts or chip pins.
+- Keep drinks away from the workbench; secure loose cables to prevent trips.
+- Lift with your legs, not your back, when moving system units.
+
+NUMBER SYSTEMS QUICK REVIEW
+Binary uses only 0 and 1. To convert binary 1011 to decimal: (1x8) + (0x4) + (1x2) + (1x1) = 11. To convert decimal 13 to binary: 13 = 8 + 4 + 1 = 1101.
+
+PRACTICE QUESTIONS
+1. Arrange the IPOS cycle stages in order.
+2. Which component loses its data when power is cut: RAM or SSD?
+3. Give two differences between HDD and SSD.
+4. Why is an anti-static wrist strap used during assembly?
+5. Convert binary 11101 to decimal.
+6. Name the port used to connect a monitor with video and audio in one cable.
+7. What does a device driver allow the operating system to do?
+8. List three safety practices before opening a computer case.
+
+ANSWER KEY (self-check after answering)
+1. Input, Process, Output, Storage. 2. RAM (volatile). 3. SSD has no moving parts and is faster; HDD offers cheaper cost per gigabyte. 4. It safely grounds you to prevent electrostatic discharge damage. 5. 29. 6. HDMI. 7. Communicate with and control a specific hardware device. 8. Unplug the unit, wear an ESD strap, clear the workspace of liquids/cables (any three).

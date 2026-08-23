@@ -147,7 +147,7 @@ export function ClassDetailHero({
         {userRole === "teacher" ? (
           <div className="flex shrink-0 items-center gap-2 self-start">
             <div className="inline-flex items-center gap-2 rounded-lg border border-hairline/80 bg-surface-raised/90 px-3 py-1.5 text-xs font-mono font-bold text-foreground shadow-2xs">
-              <span className="tracking-wider">{displayClass.code}</span>
+              <span>{displayClass.code}</span>
               <CopyButton
                 value={displayClass.code}
                 label="Join code"

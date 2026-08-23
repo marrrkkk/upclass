@@ -44,7 +44,7 @@ export function AuthShell({
             <div className="auth-form-card">
               <div className="auth-form-mark"><GraduationCap /></div>
               <div className="auth-form-heading"><span>ACCOUNT ACCESS</span><h2>{title}</h2><p>{description}</p></div>
-              <SocialButton provider="google" className="auth-google-button w-full">{providerLabel}</SocialButton>
+              <SocialButton provider="google" className="mt-7 w-full">{providerLabel}</SocialButton>
               <div className="auth-divider"><span>or continue with Google</span></div>
               <p className="auth-legal">{legalPrefix} <Link href="/terms">Terms of Service</Link> and <Link href="/privacy">Privacy Policy</Link>.</p>
             </div>

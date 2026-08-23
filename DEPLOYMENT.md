@@ -1,6 +1,6 @@
 # Deployment Guide for Vercel
 
-This guide covers deploying UpClass to Vercel with automatic database migrations and storage setup.
+This guide covers deploying UpClass to Vercel with the repository's gated build, optional database migrations, and Supabase Storage setup. Keep [`env.example`](env.example) as the authoritative variable list.
 
 ## Prerequisites
 
@@ -26,7 +26,7 @@ Before deploying, make sure you have:
 
 Add these environment variables in Vercel:
 
-**Required Variables:**
+**Core Variables:**
 
 ```env
 # Database
@@ -45,6 +45,7 @@ GOOGLE_CLIENT_SECRET=your-google-client-secret
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+SUPABASE_JWT_SECRET=your-supabase-jwt-secret
 
 # AI - Uses Vercel AI SDK with Cerebras via OpenAI-compatible provider
 CEREBRAS_API_KEY=your-cerebras-api-key
@@ -58,6 +59,21 @@ CEREBRAS_MODEL=gpt-oss-120b
 # Email (for transactional emails)
 RESEND_API_KEY=your-resend-api-key
 EMAIL_FROM="UpClass <notifications@your-domain.com>"
+EMAIL_REPLY_TO=support@your-domain.com
+
+# AI fallbacks, embeddings, cache, quotas, and cron protection
+GEMINI_API_KEY=...
+GROQ_API_KEY=...
+MISTRAL_API_KEY=...
+OPENROUTER_API_KEY=...
+OPENAI_COMPATIBLE_API_KEY=...
+OPENAI_COMPATIBLE_BASE_URL=...
+AI_CANARY_SECRET=...
+AI_MONTHLY_CREDIT_LIMIT=500
+CRON_SECRET=...
+UPSTASH_REDIS_REST_URL=...
+UPSTASH_REDIS_REST_TOKEN=...
+NEXT_PUBLIC_SUPABASE_WHITEBOARD_BUCKET=whiteboards
 ```
 
 **How to add variables in Vercel:**
@@ -73,7 +89,7 @@ Vercel should auto-detect these settings, but verify:
 - **Build Command:** `npm run build:vercel` _(already configured in vercel.json)_
 - **Output Directory:** `.next`
 - **Install Command:** `npm install`
-- **Node Version:** 18.x or higher
+- **Node Version:** 20.x or higher
 
 ### 4. Deploy!
 

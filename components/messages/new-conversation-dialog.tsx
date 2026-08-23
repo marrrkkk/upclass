@@ -161,7 +161,7 @@ export function NewConversationDialog({
           <section aria-labelledby="direct-message-heading" className="space-y-2.5">
             <div className="flex items-center gap-1.5 px-0.5">
               <Mail className="size-3.5 text-muted-foreground" />
-              <span id="direct-message-heading" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              <span id="direct-message-heading" className="text-xs font-bold uppercase text-muted-foreground">
                 Direct message
               </span>
             </div>
