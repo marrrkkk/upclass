@@ -16,6 +16,7 @@ import {
   updateClassSchema,
 } from "@/lib/validation/actions"
 import { parseFormData } from "@/lib/validation/form-data"
+import { firstIssue } from "@/lib/validation/errors"
 import { canCreateClass, canTeach, isPrivilegedOrgRole } from "@/lib/org-permissions"
 import {
   CLASS_CODE_JOIN_RATE_LIMIT,
@@ -69,10 +70,11 @@ export async function createClass(formData: FormData): Promise<ClassActionRespon
 
   const parsed = parseFormData(createClassSchema, formData)
   if (!parsed.success) {
-    return { success: false, error: parsed.error.issues[0]?.message || "Invalid class data" }
+    return { success: false, error: firstIssue(parsed.error, "Invalid class data") }
   }
 
-  const { title, gradeLevel, customGrade, section, description, color, schedule } = parsed.data
+  const { title, gradeLevel, customGrade, category, section, description, color, schedule } =
+    parsed.data
 
   const classId = crypto.randomUUID()
 
@@ -100,7 +102,10 @@ export async function createClass(formData: FormData): Promise<ClassActionRespon
         orgId,
         title,
         description,
-        gradeLevel,
+        // `category` is omitted when undefined so the DB default ("General")
+        // applies for the full create form; the wizard supplies it explicitly.
+        category,
+        gradeLevel: gradeLevel ?? null,
         customGrade: gradeLevel === "other" ? customGrade : null,
         section,
         code: classCode,
@@ -175,7 +180,7 @@ export async function joinClass(formData: FormData): Promise<ClassActionResponse
 
   const parsed = parseFormData(joinClassSchema, formData)
   if (!parsed.success) {
-    return { success: false, error: parsed.error.issues[0]?.message || "Invalid class code" }
+    return { success: false, error: firstIssue(parsed.error, "Invalid class code") }
   }
 
   const { code } = parsed.data
@@ -276,7 +281,7 @@ export async function updateClass(classId: string, formData: FormData): Promise<
 
   const parsed = parseFormData(updateClassSchema, formData)
   if (!parsed.success) {
-    return { success: false, error: parsed.error.issues[0]?.message || "Invalid class data" }
+    return { success: false, error: firstIssue(parsed.error, "Invalid class data") }
   }
 
   const { title, gradeLevel, customGrade, section, description, color, schedule } = parsed.data

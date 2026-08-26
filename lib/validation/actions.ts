@@ -57,8 +57,20 @@ export const createClassSchema = z
       (value) => value.length <= 80,
       "Title must be 80 characters or fewer"
     ),
-    gradeLevel: gradeLevelEnum,
+    // Optional: the full create/edit form always supplies a structured grade
+    // level, but the onboarding quick-create captures only a title + free-text
+    // category, so a class may legitimately have no structured grade level
+    // (the DB column is nullable to match).
+    gradeLevel: gradeLevelEnum.optional(),
     customGrade: optionalTrimmedString.optional(),
+    // Legacy free-text subject/grade. The onboarding wizard writes it; the full
+    // form leaves it to the DB default.
+    category: optionalTrimmedString
+      .refine(
+        (value) => value === undefined || value.length <= 80,
+        "Category must be 80 characters or fewer"
+      )
+      .optional(),
     section: optionalTrimmedString
       .refine(
         (value) => value === undefined || value.length <= 40,
