@@ -22,7 +22,7 @@ function SignedOutCta() {
 async function ClosingCtaButton() {
   return (await getIsAuthenticated()) ? (
     <Button size="lg" className="closing-cta-button" asChild>
-      <Link href="/org">Open your workspace</Link>
+      <Link href="/entry">Open your workspace</Link>
     </Button>
   ) : (
     <SignedOutCta />

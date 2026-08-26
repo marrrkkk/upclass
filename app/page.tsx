@@ -74,7 +74,7 @@ function SignedOutActions() {
 async function HeaderActions() {
   return (await getIsAuthenticated()) ? (
     <Button size="sm" asChild>
-      <Link href="/org">
+      <Link href="/entry">
         Open workspace <LayoutDashboard className="size-3.5" />
       </Link>
     </Button>
@@ -87,7 +87,7 @@ async function HeroActions() {
   return (await getIsAuthenticated()) ? (
     <>
       <Button size="lg" asChild>
-        <Link href="/org">
+        <Link href="/entry">
           Open your workspace <ArrowRight className="size-4" />
         </Link>
       </Button>
@@ -216,7 +216,7 @@ export default function LandingPage() {
         </span>
       </div>
       <header className="landing-header">
-        <div className="landing-container flex h-20 items-center justify-between">
+        <div className="landing-container flex h-14 items-center justify-between">
           <Brand />
           <nav className="landing-links" aria-label="Primary">
             <Link href="#features">Features</Link>

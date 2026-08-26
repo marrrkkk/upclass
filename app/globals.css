@@ -507,6 +507,17 @@
   text-wrap: balance;
 }
 
+/* Oversized welcome heading for the org entry hero. One step above
+   `type-display`; only for single-hero surfaces like /org. */
+@utility type-hero {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 1.4rem + 2.6vw, 3.25rem);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
 @utility type-h1 {
   font-family: var(--font-display);
   font-size: clamp(1.35rem, 1.18rem + 0.6vw, 1.55rem);
@@ -1005,6 +1016,7 @@
 .ai-markdown {
   font-size: 0.875rem;
   line-height: 1.6;
+  overflow-wrap: anywhere;
 }
 
 .ai-markdown > * + * {
@@ -1065,6 +1077,7 @@
 
 .ai-markdown pre {
   overflow-x: auto;
+  overflow-wrap: normal;
   border: 1px solid var(--hairline);
   border-radius: var(--radius-md);
   background: var(--surface-sunken);

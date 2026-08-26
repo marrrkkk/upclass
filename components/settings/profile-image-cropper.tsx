@@ -22,9 +22,24 @@ type ImageCropperProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   onComplete: (croppedImage: Blob) => void
+  /** Crop box aspect ratio. Defaults to 1 (square). */
+  aspect?: number
+  /** Crop mask shape. Defaults to `round` for profile pictures. */
+  cropShape?: "rect" | "round"
+  /** Dialog title so shared cropper reads correctly in each context. */
+  title?: string
 }
 
-export function ImageCropper({ imageSrc, open, onOpenChange, onComplete }: ImageCropperProps) {
+export function ImageCropper({
+  imageSrc,
+  open,
+  onOpenChange,
+  onComplete,
+  aspect = 1,
+  cropShape = "round",
+  title = "Crop profile picture",
+}: ImageCropperProps) {
+  const zoomFieldId = React.useId()
   const [crop, setCrop] = React.useState<Point>({ x: 0, y: 0 })
   const [zoom, setZoom] = React.useState(1)
   const [croppedAreaPixels, setCroppedAreaPixels] = React.useState<Area | null>(null)
@@ -43,13 +58,13 @@ export function ImageCropper({ imageSrc, open, onOpenChange, onComplete }: Image
     try {
       const croppedImage = await getCroppedImg(imageSrc, croppedAreaPixels)
       if (!croppedImage) {
-        setError("The profile image could not be processed.")
+        setError("The image could not be processed.")
         return
       }
       onComplete(croppedImage)
       onOpenChange(false)
     } catch {
-      setError("The profile image could not be processed.")
+      setError("The image could not be processed.")
     } finally {
       setLoading(false)
     }
@@ -59,7 +74,7 @@ export function ImageCropper({ imageSrc, open, onOpenChange, onComplete }: Image
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Crop profile picture</DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="relative h-72 w-full overflow-hidden rounded-lg border border-hairline bg-surface-sunken">
@@ -68,21 +83,21 @@ export function ImageCropper({ imageSrc, open, onOpenChange, onComplete }: Image
                 image={imageSrc}
                 crop={crop}
                 zoom={zoom}
-                aspect={1}
+                aspect={aspect}
                 onCropChange={setCrop}
                 onCropComplete={onCropComplete}
                 onZoomChange={setZoom}
-                cropShape="round"
+                cropShape={cropShape}
                 showGrid={false}
               />
             ) : null}
           </div>
           <Field>
-            <FieldLabel htmlFor="avatar-zoom" hint={`${zoom.toFixed(1)}×`}>
+            <FieldLabel htmlFor={zoomFieldId} hint={`${zoom.toFixed(1)}×`}>
               Zoom
             </FieldLabel>
             <input
-              id="avatar-zoom"
+              id={zoomFieldId}
               type="range"
               value={zoom}
               min={1}
