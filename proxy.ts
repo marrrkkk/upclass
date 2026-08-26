@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { auth } from "@/lib/auth"
 import { validateOrgAccess } from "@/lib/org-validation"
+import { LAST_ORG_COOKIE } from "@/lib/organization-path"
 
 // Routes that don't need org validation
 const PUBLIC_ROUTES = [
@@ -11,6 +12,7 @@ const PUBLIC_ROUTES = [
   "/api",
   "/onboard",
   "/org",
+  "/entry",
   "/contact",
   "/terms",
   "/privacy",
@@ -86,7 +88,16 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(orgUrl)
   }
 
-  return NextResponse.next()
+  // The visit passed access validation, so it counts as "opening" this org.
+  // /entry reads this cookie to send the user back to their most recent workspace.
+  const response = NextResponse.next()
+  response.cookies.set(LAST_ORG_COOKIE, orgSlug, {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+  })
+  return response
 }
 
 export const config = {
