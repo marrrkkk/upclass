@@ -107,9 +107,33 @@ describe("create class schema", () => {
     expect(result.success).toBe(false)
   })
 
-  test("requires gradeLevel", () => {
+  test("allows omitting gradeLevel for quick create", () => {
     const result = createClassSchema.safeParse({
       title: "Mathematics",
+    })
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.gradeLevel).toBeUndefined()
+    }
+  })
+
+  test("accepts an optional free-text category", () => {
+    const result = createClassSchema.safeParse({
+      title: "Mathematics",
+      category: "Grade 9 Math",
+    })
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.category).toBe("Grade 9 Math")
+    }
+  })
+
+  test("rejects a category over 80 characters", () => {
+    const result = createClassSchema.safeParse({
+      title: "Mathematics",
+      category: "A".repeat(81),
     })
 
     expect(result.success).toBe(false)

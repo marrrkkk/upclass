@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Onboarding "Create your first class" no longer fails with "Invalid input".** The onboarding quick-create captures a title plus a free-text subject/grade (stored as the class `category`), but the class schema still required a structured `gradeLevel` that the wizard never sends, so valid submissions were rejected with a contextless "Invalid input". Grade level is now optional (the column is nullable and the full create form and edit dialog still supply it), the wizard's category is validated and persisted, and class-action validation errors now name the offending field instead of leaking Zod's default message.
+
 - **AI chat scrolling.** Long unbreakable URLs and inline code no longer force a horizontal scrollbar in the chat thread (page and side panel); the message viewport now clips horizontal overflow, wraps long tokens, and uses the minimal scrollbar treatment for vertical scrolling.
 
 - **Organization branding: logo and cover images.** Organizations can now have a cover image alongside their logo. The create-organization wizard step gains an optional Identity section (cover banner + square icon with crop dialogs), the admin console gains a Settings tab where owners and admins edit name, description, icon, and cover, and `/org` workspace cards render the stored cover as their banner. Images upload through the existing `/api/upload` endpoint (logo → `avatars`, cover → `media`) only when the surrounding form is saved, so abandoned forms never leave orphaned storage objects. Requires migration `0023_org_cover`.
