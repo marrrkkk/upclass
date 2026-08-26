@@ -11,7 +11,7 @@ export default function ClassChannelPage({
 }) {
   return (
     <PageContainer width="wide">
-      <Suspense fallback={<MessagesDetailSkeleton />}>
+      <Suspense fallback={<MessagesDetailSkeleton variant="channel" />}>
         <ClassChannelData params={params} />
       </Suspense>
     </PageContainer>

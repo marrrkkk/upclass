@@ -1,14 +1,29 @@
 import type { Metadata } from "next"
-import { and, desc, eq, sql } from "drizzle-orm"
+import { Suspense } from "react"
 
 import { db } from "@/db"
+import {
+  and,
+  desc,
+  eq,
+  sql,
+} from "drizzle-orm"
 import { organizations, studyCards, studyCollections, studyQuizzes, studySources } from "@/db/schema"
 import { getOptionalSession } from "@/lib/server/auth"
 import { LearnPageClient } from "@/components/learn/learn-page-client"
+import { LearnPageSkeleton } from "@/components/skeletons"
 
 export const metadata: Metadata = { title: "Learn" }
 
-export default async function LearnPage({ params }: { params: Promise<{ orgSlug: string }> }) {
+export default function LearnPage({ params }: { params: Promise<{ orgSlug: string }> }) {
+  return (
+    <Suspense fallback={<LearnPageSkeleton />}>
+      <LearnData params={params} />
+    </Suspense>
+  )
+}
+
+async function LearnData({ params }: { params: Promise<{ orgSlug: string }> }) {
   const [{ orgSlug }, session] = await Promise.all([params, getOptionalSession()])
   if (!session?.user?.id) return null
   const [org] = await db.select({ id: organizations.id }).from(organizations).where(eq(organizations.slug, orgSlug)).limit(1)

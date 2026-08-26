@@ -13,6 +13,14 @@
  *   AI_DISABLE_ACTIONS=1          AI action confirmation/execution
  *   AI_DISABLE_PROVIDERS=groq,openrouter  Exclude providers from routing
  *   AI_DISABLE_ACTION_TYPES=create_quiz,create_announcement  Per-type kill switch
+ *   AI_DISABLE_LEARN_GENERATION=1 Study-space flashcard/quiz generation
+ *   AI_DISABLE_RESOURCE_METADATA=1 AI metadata suggestions on upload
+ *   AI_DISABLE_RESOURCE_SUMMARY=1 AI outline card on resource detail
+ *   AI_DISABLE_SEMANTIC_SEARCH=1  Semantic resource search + related rail
+ *   AI_DISABLE_GRADING_ASSIST=1   Draft feedback assist for teachers
+ *   AI_DISABLE_GRADE_SUGGESTIONS=1 Short-answer grade suggestions
+ *   AI_DISABLE_STUDY_PLAN=1       Weekly study plan generator
+ *   AI_DISABLE_OUTREACH=1         At-risk outreach drafts
  */
 import type { AiIntent, AiRunSurface, AiSensitivity } from "@/lib/ai/types"
 
@@ -112,6 +120,14 @@ export const isPulseEnabled = (): boolean => envEnabled("AI_DISABLE_PULSE")
 export const isResourceChatEnabled = (): boolean => envEnabled("AI_DISABLE_RESOURCE_CHAT")
 export const isQuizGenerationEnabled = (): boolean => envEnabled("AI_DISABLE_QUIZ_GENERATION")
 export const isAiActionsEnabled = (): boolean => envEnabled("AI_DISABLE_ACTIONS")
+export const isLearnGenerationEnabled = (): boolean => envEnabled("AI_DISABLE_LEARN_GENERATION")
+export const isResourceMetadataEnabled = (): boolean => envEnabled("AI_DISABLE_RESOURCE_METADATA")
+export const isResourceSummaryEnabled = (): boolean => envEnabled("AI_DISABLE_RESOURCE_SUMMARY")
+export const isSemanticSearchEnabled = (): boolean => envEnabled("AI_DISABLE_SEMANTIC_SEARCH")
+export const isGradingAssistEnabled = (): boolean => envEnabled("AI_DISABLE_GRADING_ASSIST")
+export const isGradeSuggestionsEnabled = (): boolean => envEnabled("AI_DISABLE_GRADE_SUGGESTIONS")
+export const isStudyPlanEnabled = (): boolean => envEnabled("AI_DISABLE_STUDY_PLAN")
+export const isOutreachEnabled = (): boolean => envEnabled("AI_DISABLE_OUTREACH")
 
 /** Providers excluded by `AI_DISABLE_PROVIDERS` (comma-separated). */
 export function getDisabledProviders(): string[] {

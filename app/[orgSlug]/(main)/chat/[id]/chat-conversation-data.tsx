@@ -48,13 +48,11 @@ export async function ChatConversationData({
   })
 
   return (
-    <div className="-mx-4 h-[calc(100dvh-var(--app-header-height)-1rem-6rem)] sm:-mx-5 md:-mx-6 md:h-[calc(100dvh-var(--app-header-height)-1.25rem-1.75rem)]">
-      <ChatPageView
-        conversationId={conversation.id}
-        surface={conversation.surface}
-        entityId={conversation.entityId}
-        initialMessages={initialMessages}
-      />
-    </div>
+    <ChatPageView
+      conversationId={conversation.id}
+      surface={conversation.surface}
+      entityId={conversation.entityId}
+      initialMessages={initialMessages}
+    />
   )
 }

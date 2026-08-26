@@ -2,9 +2,9 @@
 
 import { useRef, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { FileUp, Upload, X } from "lucide-react"
+import { FileUp, Sparkles, Upload, X } from "lucide-react"
 
-import { createResource } from "@/app/actions/resources"
+import { createResource, deleteOrphanUpload } from "@/app/actions/resources"
 import { Button } from "@/components/ui/button"
 import { Callout } from "@/components/ui/callout"
 import { ResponsiveOverlay } from "@/components/ui/responsive-overlay"
@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { useSupabaseUpload } from "@/lib/supabase-storage"
+import { useSupabaseUpload, type UploadedFile } from "@/lib/supabase-storage"
 import type { ClassCardData } from "@/types/classes"
 import type { OptimisticResourceCard, ResourceListMutate } from "@/components/resources/resources-client"
 import { formatClassIdentity } from "@/lib/classes/class-identity"
@@ -72,26 +72,42 @@ export function CreateResourceButton({
   const [error, setError] = useState<string | null>(null)
   const [, startTransition] = useTransition()
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null)
+  const [suggesting, setSuggesting] = useState(false)
   const [title, setTitle] = useState("")
+  const [description, setDescription] = useState("")
   const [resourceType, setResourceType] = useState<string>("other")
   const [selectedClassId, setSelectedClassId] = useState<string>(NO_CLASS_VALUE)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const formRef = useRef<HTMLFormElement>(null)
+  // Fields the user has explicitly edited keep their values when AI
+  // suggestions arrive.
+  const touchedRef = useRef({ title: false, description: false, resourceType: false })
   const { startUpload, isUploading } = useSupabaseUpload("resources")
 
   // Find the selected class for display
   const selectedClass = userClasses.find((c) => c.id === selectedClassId)
 
+  function cleanupOrphan(file: UploadedFile | null) {
+    if (!file) return
+    void deleteOrphanUpload(file.path).catch(() => {})
+  }
+
   const clearSelectedFile = () => {
+    if (uploadedFile) cleanupOrphan(uploadedFile)
     setSelectedFile(null)
+    setUploadedFile(null)
+    setSuggesting(false)
     if (fileInputRef.current) fileInputRef.current.value = ""
   }
 
   const resetForm = () => {
     clearSelectedFile()
     setTitle("")
+    setDescription("")
     setResourceType("other")
     setSelectedClassId(NO_CLASS_VALUE)
+    touchedRef.current = { title: false, description: false, resourceType: false }
     setError(null)
     formRef.current?.reset()
   }
@@ -99,6 +115,52 @@ export function CreateResourceButton({
   const handleOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen)
     if (!nextOpen && !pending && !isUploading) resetForm()
+  }
+
+  /** Upload eagerly so AI metadata suggestions can run before save. */
+  const eagerUpload = (file: File) => {
+    if (!navigator.onLine) return
+    void (async () => {
+      try {
+        const uploadResult = await startUpload([file])
+        if (!uploadResult?.[0]) return
+        const uploaded = uploadResult[0]
+        setUploadedFile(uploaded)
+
+        // Fire the suggestion pass; failures are silent — this is a
+        // convenience, not a requirement for saving.
+        setSuggesting(true)
+        try {
+          const response = await fetch("/api/ai/resources/suggest-metadata", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ fileUrl: uploaded.url, fileName: uploaded.name || file.name }),
+          })
+          if (response.ok) {
+            const suggestions = (await response.json()) as {
+              title?: string
+              description?: string
+              resourceType?: string
+            }
+            if (!touchedRef.current.title && suggestions.title) setTitle(suggestions.title)
+            if (!touchedRef.current.description && suggestions.description) setDescription(suggestions.description)
+            if (
+              !touchedRef.current.resourceType &&
+              suggestions.resourceType &&
+              RESOURCE_TYPES.some((type) => type.value === suggestions.resourceType)
+            ) {
+              setResourceType(suggestions.resourceType)
+            }
+          }
+        } catch {
+          // Suggestions are optional.
+        } finally {
+          setSuggesting(false)
+        }
+      } catch {
+        // The submit path surfaces upload errors when the user tries to save.
+      }
+    })()
   }
 
   const handleCreate = async (formData: FormData) => {
@@ -118,23 +180,26 @@ export function CreateResourceButton({
 
     startTransition(async () => {
       try {
-        const uploadResult = await startUpload([selectedFile])
-
-        if (!uploadResult || !uploadResult[0]) {
-          setError("Failed to upload file. Please check your connection and try again.")
-          return
+        let uploaded = uploadedFile
+        if (!uploaded) {
+          const uploadResult = await startUpload([selectedFile])
+          if (!uploadResult || !uploadResult[0]) {
+            setError("Failed to upload file. Please check your connection and try again.")
+            return
+          }
+          uploaded = uploadResult[0]
         }
 
-        const uploadedFile = uploadResult[0]
-        const fileName = uploadedFile.name || selectedFile.name
+        const uploadedFileResult = uploaded
+        const fileName = uploadedFileResult.name || selectedFile.name
         const fileExtension = fileName.split(".").pop()?.toLowerCase() || ""
 
-        formData.set("fileUrl", uploadedFile.url || "")
+        formData.set("fileUrl", uploadedFileResult.url || "")
         formData.set("fileName", fileName)
-        formData.set("fileSize", uploadedFile.size || selectedFile.size.toString())
+        formData.set("fileSize", uploadedFileResult.size || selectedFile.size.toString())
         formData.set("fileType", getFileType(fileExtension))
         formData.set("resourceType", resourceType)
-        formData.set("storagePath", uploadedFile.path || fileName)
+        formData.set("storagePath", uploadedFileResult.path || fileName)
         if (selectedClassId !== NO_CLASS_VALUE) formData.set("classId", selectedClassId)
         else formData.delete("classId")
         if (orgSlug) formData.set("orgSlug", orgSlug)
@@ -147,10 +212,10 @@ export function CreateResourceButton({
           title: title.trim() || fileName.replace(/\.[^.]+$/, ""),
           description: String(formData.get("description") || "") || null,
           category: resourceType,
-          fileUrl: uploadedFile.url || "",
+          fileUrl: uploadedFileResult.url || "",
           fileName,
           fileType: getFileType(fileExtension),
-          fileSize: uploadedFile.size || selectedFile.size.toString(),
+          fileSize: uploadedFileResult.size || selectedFile.size.toString(),
           createdAt: new Date().toISOString(),
           authorName: null,
           authorImage: null,
@@ -194,6 +259,7 @@ export function CreateResourceButton({
       setTitle(file.name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " "))
     }
     setError(null)
+    eagerUpload(file)
   }
 
   const handleCancel = () => {
@@ -293,7 +359,8 @@ export function CreateResourceButton({
                         {selectedFile.name}
                       </p>
                       <p className="text-[11px] text-muted-foreground">
-                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB · Ready to upload
+                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB ·{" "}
+                        {isUploading ? "Uploading…" : uploadedFile ? "Uploaded" : "Ready to upload"}
                       </p>
                     </div>
                   </div>
@@ -329,20 +396,35 @@ export function CreateResourceButton({
 
             <div className="grid gap-4 rounded-xl border border-hairline/70 bg-surface-subtle/25 p-4 sm:grid-cols-2">
               <Field>
-                <FieldLabel htmlFor="resource-title">Resource title</FieldLabel>
+                <FieldLabel
+                  htmlFor="resource-title"
+                  hint={suggesting ? "AI suggesting…" : undefined}
+                >
+                  Resource title
+                </FieldLabel>
                 <Input
                   id="resource-title"
                   name="title"
                   required
                   placeholder="e.g. Chapter 3 Lecture Slides"
                   value={title}
-                  onChange={(event) => setTitle(event.target.value)}
+                  onChange={(event) => {
+                    touchedRef.current.title = true
+                    setTitle(event.target.value)
+                  }}
                   className="bg-card"
                 />
               </Field>
               <Field>
                 <FieldLabel htmlFor="resource-type">Type</FieldLabel>
-                <Select value={resourceType} onValueChange={setResourceType} name="resourceType">
+                <Select
+                  value={resourceType}
+                  onValueChange={(value) => {
+                    touchedRef.current.resourceType = true
+                    setResourceType(value)
+                  }}
+                  name="resourceType"
+                >
                   <SelectTrigger id="resource-type" className="w-full bg-card">
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
@@ -392,8 +474,19 @@ export function CreateResourceButton({
                 name="description"
                 placeholder="Summary of what this document covers…"
                 rows={3}
+                value={description}
+                onChange={(event) => {
+                  touchedRef.current.description = true
+                  setDescription(event.target.value)
+                }}
                 className="resize-none"
               />
+              {suggesting ? (
+                <FieldHelp className="flex items-center gap-1.5">
+                  <Sparkles className="size-3 text-primary" aria-hidden="true" />
+                  Reading the file — AI will suggest a title, type, and description.
+                </FieldHelp>
+              ) : null}
             </Field>
           </FieldGroup>
 

@@ -11,7 +11,7 @@ vi.mock("next/navigation", () => ({
 }))
 
 describe("workspace launcher", () => {
-  it("renders a scannable workspace directory with a separate action rail", () => {
+  it("renders a welcome hero over a card grid of organizations", () => {
     const onCreate = vi.fn()
     const onJoin = vi.fn()
 
@@ -25,6 +25,7 @@ describe("workspace launcher", () => {
             slug: "north-academy",
             description: "A busy secondary school workspace",
             logo: null,
+            cover: "https://storage.example/covers/north-academy.jpg",
             role: "owner",
             memberCount: 12,
           },
@@ -34,22 +35,26 @@ describe("workspace launcher", () => {
       />,
     )
 
-    // Personalised directory heading and a distinct action rail.
-    expect(screen.getByRole("heading", { name: /Welcome back, Ada/ })).toBeInTheDocument()
-    expect(screen.getByRole("heading", { name: "Your workspaces" })).toBeInTheDocument()
-    expect(screen.getByRole("complementary")).toHaveAccessibleName("Where are you headed?")
+    // Personalised hero and directory heading.
+    expect(screen.getByRole("heading", { name: /Good to see you, Ada/ })).toBeInTheDocument()
+    expect(screen.getByRole("heading", { name: "Your organizations" })).toBeInTheDocument()
 
-    // A directory row links straight into the workspace dashboard.
+    // A card links straight into the workspace dashboard.
     expect(screen.getByRole("link", { name: /North Academy/ })).toHaveAttribute(
       "href",
       "/north-academy/dashboard",
     )
-
-    // The card now surfaces the description and member count.
-    expect(screen.getByText("A busy secondary school workspace")).toBeInTheDocument()
     expect(screen.getByText(/12 members/)).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole("button", { name: /Create organization/ }))
+    // A stored cover renders as the card banner.
+    const card = screen.getByRole("link", { name: /North Academy/ })
+    const banner = Array.from(card.querySelectorAll<HTMLElement>("[style]")).find((element) =>
+      element.style.backgroundImage.includes("north-academy.jpg"),
+    )
+    expect(banner).toBeDefined()
+
+    // Both create entry points (hero button and card) route onward.
+    fireEvent.click(screen.getAllByRole("button", { name: /Create organization/ })[0])
     fireEvent.click(screen.getByRole("button", { name: /Join with a code/ }))
 
     expect(onCreate).toHaveBeenCalledOnce()
@@ -66,22 +71,22 @@ describe("workspace launcher", () => {
       />,
     )
 
-    expect(screen.getByRole("heading", { name: "Choose a workspace" })).toBeInTheDocument()
+    expect(
+      screen.getByRole("heading", { name: "Good to see you" }),
+    ).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole("button", { name: /Create organization/ }))
+    fireEvent.click(screen.getAllByRole("button", { name: /Create organization/ })[0])
     expect(pushMock).toHaveBeenCalledWith("/org/create")
 
     fireEvent.click(screen.getByRole("button", { name: /Join with a code/ }))
     expect(pushMock).toHaveBeenCalledWith("/org/join")
   })
 
-  it("streams a launcher-shaped fallback on a wide content column", () => {
+  it("streams a hero-shaped fallback on the wide shell column", () => {
     render(<OrgOnboardingSkeleton />)
 
     const main = screen.getByRole("main")
-    const contentColumn = main.querySelector('[data-slot="page-container"]')
-    expect(contentColumn).not.toBeNull()
-    expect(contentColumn?.className).toContain("max-w-[72rem]")
+    expect(main.querySelectorAll(".max-w-\\[88rem\\]").length).toBeGreaterThanOrEqual(2)
     expect(main.querySelector(".max-w-\\[34rem\\]")).toBeNull()
   })
 })

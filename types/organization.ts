@@ -24,6 +24,7 @@ export type OrganizationSummary = {
   slug: string
   description?: string | null
   logo?: string | null
+  cover?: string | null
   role: OrgRole
   memberCount: number
 }

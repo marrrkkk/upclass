@@ -61,7 +61,7 @@ export function AccountSetupForm({ initialName = "", returnTo, onComplete }: Acc
         return
       }
 
-      window.location.href = "/org"
+      window.location.href = "/entry"
     })
   }
 

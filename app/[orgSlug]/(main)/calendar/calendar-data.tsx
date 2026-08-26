@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { CourseSwatch } from "@/components/ui/course-identity"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Panel, PanelBody, PanelDescription, PanelHeader, PanelHeading, PanelTitle } from "@/components/ui/panel"
-import { PageContainer, PageHeading } from "@/components/ui/section"
+import { PageContainer } from "@/components/ui/section"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { Text } from "@/components/ui/typography"
 import { getOptionalSession, getUserRole } from "@/lib/server/auth"
@@ -133,12 +133,6 @@ export async function CalendarData({ params }: { params: Promise<{ orgSlug: stri
 
   return (
     <PageContainer>
-      <PageHeading
-        eyebrow="Class schedule"
-        title="Calendar"
-        description="Deadlines across your classes for the next 30 days, with your class schedule alongside."
-      />
-
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_18rem] lg:gap-6">
         <Panel padding="none" className="overflow-hidden">
           <PanelHeader>

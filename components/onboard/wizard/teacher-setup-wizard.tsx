@@ -178,7 +178,13 @@ export function TeacherSetupWizard({ resumeOrg, initialState }: TeacherSetupWiza
     }
   }
 
-  const handleCreateOrg = (values: { name: string; slug: string; description: string }) => {
+  const handleCreateOrg = (values: {
+    name: string
+    slug: string
+    description: string
+    logo?: string | null
+    cover?: string | null
+  }) => {
     setError(null)
     startTransition(async () => {
       const result = await createOrganization(values)

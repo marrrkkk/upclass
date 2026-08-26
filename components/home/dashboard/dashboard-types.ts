@@ -43,7 +43,6 @@ export type AdminOperationsModel = {
   membersCount: number
   classesCount: number
   pendingInvitationsCount: number
-  statusMessage: string
 }
 
 export type AdminAttentionItem =

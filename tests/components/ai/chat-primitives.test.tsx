@@ -1,11 +1,16 @@
 // @vitest-environment jsdom
 
 import { describe, expect, test, vi } from "vitest"
-import { render, screen, waitFor } from "@testing-library/react"
+import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
 import { ToastProvider } from "@/components/ui/toast"
-import { ActionProposalCard, AiBubble, AiMarkdown } from "@/components/ai/chat-primitives"
+import {
+  ActionProposalCard,
+  AiBubble,
+  AiMarkdown,
+  extractExternalUrls,
+} from "@/components/ai/chat-primitives"
 import type { StructuredCard } from "@/lib/ai/tools/structured-outputs"
 
 function renderWithToast(ui: React.ReactNode) {
@@ -76,6 +81,59 @@ describe("AiBubble", () => {
       />,
     )
     expect(screen.getByText(/Too many requests/)).toBeInTheDocument()
+  })
+})
+
+describe("AiBubble web source badges", () => {
+  test("renders clickable source badges for URLs in completed answers", () => {
+    renderWithToast(
+      <AiBubble
+        role="assistant"
+        content="Check [Khan Academy](https://www.khanacademy.org/math) and https://www.hyperphysics.phy-astr.gsu.edu/hbase/index.html."
+        orgSlug="acme"
+      />,
+    )
+    const sources = within(screen.getByLabelText("Web sources"))
+    const badges = sources.getAllByRole("link")
+    expect(badges).toHaveLength(2)
+    for (const badge of badges) {
+      expect(badge).toHaveAttribute("target", "_blank")
+      expect(badge).toHaveAttribute("rel", "noopener noreferrer")
+    }
+    expect(sources.getByText("khanacademy.org")).toBeInTheDocument()
+    expect(sources.getByText("hyperphysics.phy-astr.gsu.edu")).toBeInTheDocument()
+  })
+
+  test("does not render source badges while generating or without URLs", () => {
+    renderWithToast(
+      <AiBubble
+        role="assistant"
+        content="Draft answer citing https://example.com/guide"
+        status="generating"
+        orgSlug="acme"
+      />,
+    )
+    expect(screen.queryByLabelText("Web sources")).not.toBeInTheDocument()
+
+    renderWithToast(
+      <AiBubble role="assistant" content="No links here." orgSlug="acme" />,
+    )
+    expect(screen.queryByLabelText("Web sources")).not.toBeInTheDocument()
+  })
+})
+
+describe("extractExternalUrls", () => {
+  test("extracts, dedupes, and trims trailing punctuation from URLs", () => {
+    const urls = extractExternalUrls(
+      "See https://example.com/a, https://example.com/a and [docs](https://docs.example.com/guide)!",
+    )
+    expect(urls.map((url) => url.hostname)).toEqual(["example.com", "docs.example.com"])
+    expect(urls[0]?.href).toBe("https://example.com/a")
+    expect(urls[1]?.href).toBe("https://docs.example.com/guide")
+  })
+
+  test("ignores malformed URLs", () => {
+    expect(extractExternalUrls("oops http:// invalid")).toEqual([])
   })
 })
 

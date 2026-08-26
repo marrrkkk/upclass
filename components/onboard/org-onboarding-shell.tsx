@@ -4,10 +4,9 @@ import type { ReactNode } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { HelpCircle, LogOut, Loader2 } from "lucide-react"
+import { HelpCircle, LogOut, Loader2, ChevronDown } from "lucide-react"
 
 import { Logo } from "@/components/logo"
-import { Button } from "@/components/ui/button"
 import { EntityAvatar } from "@/components/ui/entity-avatar"
 import {
   DropdownMenu,
@@ -34,6 +33,11 @@ type OrgOnboardingShellProps = {
   width?: "narrow" | "content" | "wide"
   contentClassName?: string
   wizardMode?: boolean
+  /**
+   * Render children directly in `main` (no PageContainer wrapper). Pages that
+   * need full-bleed sections — like the /org hero — manage their own rhythm.
+   */
+  flush?: boolean
   viewer?: OrgShellViewer | null
   children: ReactNode
 }
@@ -50,6 +54,7 @@ export function OrgOnboardingShell({
   width = "content",
   contentClassName,
   wizardMode = false,
+  flush = false,
   viewer,
   children,
 }: OrgOnboardingShellProps) {
@@ -67,33 +72,12 @@ export function OrgOnboardingShell({
       </a>
 
       <header className="sticky top-0 z-30 shrink-0 border-b border-hairline/70 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85">
-        <div className="mx-auto flex h-[var(--app-header-height)] w-full max-w-[88rem] items-center gap-3 px-3 sm:px-4 md:px-5">
-          <Logo href="/org" size="md" />
+        <div className="mx-auto flex h-[var(--app-header-height)] w-full max-w-[88rem] items-center gap-3 px-4 sm:px-6 md:px-8">
+          <Logo href="/org" size="md" showText />
 
-          {headerActions ? (
-            <div className="min-w-0 flex-1">{headerActions}</div>
-          ) : (
-            <nav
-              className="hidden min-w-0 flex-1 items-center gap-1 md:flex"
-              aria-label="Workspace navigation"
-            >
-              <Button variant="ghost" size="sm" asChild>
-                <Link href="/org">Workspaces</Link>
-              </Button>
-              <Button variant="ghost" size="sm" asChild>
-                <Link href="/contact">Support</Link>
-              </Button>
-            </nav>
-          )}
+          {headerActions ? <div className="min-w-0 flex-1">{headerActions}</div> : null}
 
-          <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
-            {!headerActions ? (
-              <Button variant="ghost" size="icon-sm" className="md:hidden" asChild>
-                <Link href="/contact" aria-label="Support">
-                  <HelpCircle />
-                </Link>
-              </Button>
-            ) : null}
+          <div className={cn("flex shrink-0 items-center gap-1.5 sm:gap-2", !headerActions && "ml-auto")}>
             {viewer ? <OrgAccountMenu viewer={viewer} /> : null}
           </div>
         </div>
@@ -104,19 +88,23 @@ export function OrgOnboardingShell({
         tabIndex={-1}
         className={cn(
           "minimal-scrollbar flex min-w-0 flex-1 flex-col overflow-y-auto",
-          wizardMode ? "justify-start" : "justify-center",
+          flush || wizardMode ? "justify-start" : "justify-center",
         )}
       >
-        <PageContainer
-          width={width}
-          className={cn(
-            "w-full px-4 py-8 sm:px-6 sm:py-10 md:py-12",
-            wizardMode && "pb-24 lg:pb-12",
-            contentClassName,
-          )}
-        >
-          {children}
-        </PageContainer>
+        {flush ? (
+          children
+        ) : (
+          <PageContainer
+            width={width}
+            className={cn(
+              "w-full px-4 py-8 sm:px-6 sm:py-10 md:py-12",
+              wizardMode && "pb-24 lg:pb-12",
+              contentClassName,
+            )}
+          >
+            {children}
+          </PageContainer>
+        )}
       </main>
 
       <footer className="shrink-0 border-t border-hairline/70 bg-background">
@@ -172,7 +160,7 @@ function OrgAccountMenu({ viewer }: { viewer: OrgShellViewer }) {
         <button
           type="button"
           aria-label="Open account menu"
-          className="focus-ring flex items-center gap-2 rounded-lg px-1.5 py-1 transition-colors hover:bg-muted"
+          className="focus-ring flex items-center gap-2 rounded-lg py-1 pl-1 pr-1.5 transition-colors hover:bg-muted sm:pr-2"
         >
           <EntityAvatar
             name={label}
@@ -180,9 +168,10 @@ function OrgAccountMenu({ viewer }: { viewer: OrgShellViewer }) {
             colorKey={viewer.id ?? viewer.email ?? label}
             size="sm"
           />
-          <span className="hidden min-w-0 max-w-[9rem] truncate type-caption font-medium text-muted-foreground sm:inline">
+          <span className="hidden min-w-0 max-w-[9rem] truncate type-small font-medium text-foreground sm:inline">
             {label}
           </span>
+          <ChevronDown aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56" sideOffset={8}>

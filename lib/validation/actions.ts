@@ -1,16 +1,22 @@
 import { z } from "zod"
 
-const optionalTrimmedString = z
-  .union([z.string(), z.null(), z.undefined()])
-  .transform((value) => {
-    if (typeof value !== "string") return undefined
-    const trimmed = value.trim()
-    return trimmed.length > 0 ? trimmed : undefined
+/**
+ * Accepts `string | null | undefined`; any other type fails with a clear,
+ * field-named message instead of Zod's contextless default ("Invalid input").
+ */
+const nullableText = (fieldName: string) =>
+  z.union([z.string(), z.null(), z.undefined()], {
+    error: () => `${fieldName} must be text`,
   })
 
+const optionalTrimmedString = nullableText("This field").transform((value) => {
+  if (typeof value !== "string") return undefined
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : undefined
+})
+
 const requiredTrimmedString = (fieldName: string) =>
-  z
-    .union([z.string(), z.null(), z.undefined()])
+  nullableText(fieldName)
     .transform((value) => (typeof value === "string" ? value.trim() : ""))
     .refine((value) => value.length > 0, `${fieldName} is required`)
 
@@ -322,18 +328,42 @@ export const RESERVED_ORG_SLUGS = new Set([
   "manifest.json",
 ])
 
+/** URL-slug rules shared by the server schema and the client create form. */
+const ORG_SLUG_MIN = 3
+const ORG_SLUG_MAX = 48
+const ORG_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+
+/**
+ * First failing slug rule as a human message, or `null` when the slug is valid.
+ * Single source of truth so the client form and `orgSlugSchema` cannot drift.
+ * Expects an already trimmed, lowercased value.
+ */
+export function getOrgSlugError(slug: string): string | null {
+  if (slug.length < ORG_SLUG_MIN) return "Organization URL must be at least 3 characters"
+  if (slug.length > ORG_SLUG_MAX) return "Organization URL must be 48 characters or fewer"
+  if (!ORG_SLUG_PATTERN.test(slug)) return "Use lowercase letters, numbers and single hyphens only"
+  if (RESERVED_ORG_SLUGS.has(slug)) return "That URL is reserved. Pick a different one"
+  return null
+}
+
 /** Lowercase, hyphen-separated URL segment used as the organization's namespace. */
 export const orgSlugSchema = requiredTrimmedString("Organization URL")
   .transform((value) => value.toLowerCase())
-  .refine((value) => value.length >= 3, "Organization URL must be at least 3 characters")
-  .refine((value) => value.length <= 48, "Organization URL must be 48 characters or fewer")
+  .superRefine((value, ctx) => {
+    const error = getOrgSlugError(value)
+    if (error) ctx.addIssue({ code: "custom", message: error })
+  })
+
+/** Stored media URLs always come from our own storage upload endpoint. */
+const storedImageUrl = nullableText("Image URL")
+  .transform((value) => {
+    if (typeof value !== "string") return undefined
+    const trimmed = value.trim()
+    return trimmed.length > 0 ? trimmed : undefined
+  })
   .refine(
-    (value) => /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value),
-    "Use lowercase letters, numbers and single hyphens only",
-  )
-  .refine(
-    (value) => !RESERVED_ORG_SLUGS.has(value),
-    "That URL is reserved. Pick a different one",
+    (value) => value === undefined || /^https:\/\/[^\s]+$/.test(value),
+    "Image URL must be a secure link",
   )
 
 export const createOrganizationSchema = z.object({
@@ -348,6 +378,24 @@ export const createOrganizationSchema = z.object({
       "Description must be 200 characters or fewer",
     )
     .optional(),
+  logo: storedImageUrl.optional(),
+  cover: storedImageUrl.optional(),
+})
+
+export const updateOrganizationSchema = z.object({
+  orgId: requiredTrimmedString("Organization"),
+  name: requiredTrimmedString("Organization name").refine(
+    (value) => value.length <= 80,
+    "Organization name must be 80 characters or fewer",
+  ),
+  description: optionalTrimmedString
+    .refine(
+      (value) => value === undefined || value.length <= 200,
+      "Description must be 200 characters or fewer",
+    )
+    .optional(),
+  logo: storedImageUrl.optional(),
+  cover: storedImageUrl.optional(),
 })
 
 export const joinOrganizationSchema = z.object({
@@ -390,6 +438,7 @@ export const revokeInvitationSchema = z.object({
 })
 
 export type CreateOrganizationInput = z.infer<typeof createOrganizationSchema>
+export type UpdateOrganizationInput = z.infer<typeof updateOrganizationSchema>
 export type JoinOrganizationInput = z.infer<typeof joinOrganizationSchema>
 export type CreateInvitationInput = z.infer<typeof createInvitationSchema>
 export type UpdateMemberRoleInput = z.infer<typeof updateMemberRoleSchema>

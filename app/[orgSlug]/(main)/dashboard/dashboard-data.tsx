@@ -27,7 +27,7 @@ import { isPulseEnabled } from "@/lib/ai/policy"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Panel } from "@/components/ui/panel"
-import { DashboardOverviewSkeleton } from "@/components/skeletons"
+import { AdminDashboardSkeleton, DashboardOverviewSkeleton, StudentDashboardSkeleton, TeacherDashboardSkeleton } from "@/components/skeletons"
 import {
   DashboardAdmin,
   DashboardTeacher,
@@ -97,9 +97,20 @@ export async function DashboardData({ params }: { params: Promise<{ orgSlug: str
 
   const userName = session.user.name ?? ""
 
+  // The role resolves before this boundary, so the fallback can match the
+  // exact role-specific dashboard composition that will replace it.
+  const dashboardFallback =
+    userRole === "admin" ? (
+      <AdminDashboardSkeleton />
+    ) : userRole === "teacher" ? (
+      <TeacherDashboardSkeleton />
+    ) : (
+      <StudentDashboardSkeleton />
+    )
+
   return (
     <div>
-      <Suspense fallback={<DashboardOverviewSkeleton />}>
+      <Suspense fallback={dashboardFallback}>
         <DashboardOverviewSection
           userId={userId}
           userName={userName}
@@ -195,14 +206,6 @@ async function buildAdminViewModel(
   const classesCount = Number(classCountResult[0]?.count ?? 0)
   const pendingInvitationsCount = Number(invitationCountResult[0]?.count ?? 0)
 
-  // Build status message
-  let statusMessage = "Everything is current."
-  if (pendingInvitationsCount > 0) {
-    statusMessage = `${pendingInvitationsCount} ${pendingInvitationsCount === 1 ? "invitation needs" : "invitations need"} attention.`
-  } else if (classesCount === 0 && membersCount === 0) {
-    statusMessage = "Organization is empty. Invite people or create classes to get started."
-  }
-
   // Build attention items
   const attention: AdminAttentionItem[] = [
     ...recentInvitations.map((inv) => ({
@@ -226,7 +229,7 @@ async function buildAdminViewModel(
     role: "admin",
     header: {
       title: `${greeting}`,
-      subtitle: "Here is the current state of your organization.",
+      subtitle: "Here's what's happening in your organization.",
       dateLabel,
       primaryAction: {
         label: pendingInvitationsCount > 0 ? "Review invitations" : "Open administration",
@@ -237,7 +240,6 @@ async function buildAdminViewModel(
       membersCount,
       classesCount,
       pendingInvitationsCount,
-      statusMessage,
     },
     attention,
     workspace: {

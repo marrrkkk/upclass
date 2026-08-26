@@ -14,6 +14,7 @@ import {
   Presentation,
   Search,
   SlidersHorizontal,
+  Sparkles,
   X,
   type LucideIcon,
 } from "lucide-react"
@@ -39,6 +40,7 @@ import { BackgroundCache } from "@/lib/background-cache"
 import { BackgroundSync } from "@/lib/background-sync"
 import { useCacheData, useOfflineCollectionCache } from "@/lib/cache-hooks"
 import type { Tone } from "@/lib/design-system"
+import { resolveResourceFileSrc } from "@/lib/resource-file"
 import { cn } from "@/lib/utils"
 import type { ClassCardData } from "@/types/classes"
 
@@ -191,10 +193,12 @@ function isImageFile(type: string, url: string) {
 function ResourceDocumentPreview({
   fileType,
   fileUrl,
+  resourceId,
   title,
 }: {
   fileType: string
   fileUrl: string
+  resourceId: string
   title: string
 }) {
   const [imageError, setImageError] = useState(false)
@@ -206,7 +210,7 @@ function ResourceDocumentPreview({
       <div className="relative h-full w-full overflow-hidden bg-surface-sunken">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={fileUrl}
+          src={resolveResourceFileSrc({ id: resourceId, fileUrl })}
           alt={title}
           onError={() => setImageError(true)}
           className="h-full w-full object-cover transition-transform duration-[var(--duration-base)] group-hover:scale-105"
@@ -329,14 +333,16 @@ export function ResourcesClient({
   const [sortBy, setSortBy] = useState<"newest" | "title" | "size">("newest")
   const [isOffline, setIsOffline] = useState(false)
   const [resultCount, setResultCount] = useState<number | undefined>(undefined)
+  const [semanticResults, setSemanticResults] = useState<ResourceCardData[] | null>(null)
+  const [semanticActive, setSemanticActive] = useState(false)
   const [optimisticResources, setOptimisticResources] = useState<OptimisticResourceCard[]>([])
   const { mutate, pending } = useOptimisticMutation<OptimisticResourceCard[]>(
     optimisticResources,
     setOptimisticResources,
   )
 
-  // Resolve user classes if promise provided
-  const userClasses = userClassesPromise ? use(userClassesPromise) : []
+  // The upload action resolves the user-classes promise below its own
+  // boundary so the shell and toolbar paint before it suspends.
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -353,6 +359,35 @@ export function ResourcesClient({
     }
   }, [])
 
+  // Debounced semantic search: once the query is long enough, ask the server
+  // for embedding-ranked results. Falls back to local filtering on failure.
+  useEffect(() => {
+    const query = searchQuery.trim()
+    if (query.length < 3 || isOffline) {
+      setSemanticResults(null)
+      setSemanticActive(false)
+      return
+    }
+    const controller = new AbortController()
+    const timer = setTimeout(() => {
+      void fetch(`/api/resources/search?orgSlug=${encodeURIComponent(orgSlug)}&q=${encodeURIComponent(query)}`, {
+        signal: controller.signal,
+      })
+        .then(async (response) => (response.ok ? ((await response.json()) as { results?: ResourceCardData[]; semantic?: boolean }) : null))
+        .then((data) => {
+          if (data?.results) {
+            setSemanticResults(data.results)
+            setSemanticActive(Boolean(data.semantic))
+          }
+        })
+        .catch(() => {})
+    }, 350)
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+    }
+  }, [searchQuery, orgSlug, isOffline])
+
   const hasActiveFilters = Boolean(searchQuery.trim()) || selectedFilter !== "all"
   const resultSummary =
     resultCount != null
@@ -363,14 +398,14 @@ export function ResourcesClient({
     <ResourcesPageShell
       actions={
         isAuthenticated ? (
-          <CreateResourceButton
-            orgSlug={orgSlug}
-            userClasses={userClasses}
-            label="Upload"
-            mutate={mutate}
-            pending={pending}
-            className="h-9 rounded-lg px-3.5 gap-1.5 text-xs font-semibold shadow-2xs"
-          />
+          <Suspense fallback={null}>
+            <UploadAction
+              userClassesPromise={userClassesPromise}
+              orgSlug={orgSlug}
+              mutate={mutate}
+              pending={pending}
+            />
+          </Suspense>
         ) : null
       }
       filters={
@@ -471,6 +506,8 @@ export function ResourcesClient({
           isOffline={isOffline}
           hasActiveFilters={hasActiveFilters}
           orgSlug={orgSlug}
+          semanticResults={semanticResults}
+          semanticActive={semanticActive}
           onCountChange={setResultCount}
         />
       </Suspense>
@@ -488,6 +525,8 @@ function ResourcesGridResolved({
   isOffline,
   hasActiveFilters,
   orgSlug,
+  semanticResults,
+  semanticActive,
   onCountChange,
 }: {
   resourcesPromise?: Promise<ResourceCardData[]>
@@ -499,6 +538,8 @@ function ResourcesGridResolved({
   isOffline: boolean
   hasActiveFilters: boolean
   orgSlug: string
+  semanticResults: ResourceCardData[] | null
+  semanticActive: boolean
   onCountChange: (count: number) => void
 }) {
   const [cachedResources, setCachedResources] = useState<ResourceCardData[]>([])
@@ -535,7 +576,18 @@ function ResourcesGridResolved({
   }, [displayResources])
 
   const filteredResources = useMemo(() => {
-    let filtered = displayResources
+    // Semantic results arrive server-ranked and already match the query; only
+    // the file-type filter still applies locally. When absent (short query,
+    // offline, or search API unavailable) fall back to local filtering.
+    let filtered: OptimisticResourceCard[] =
+      semanticResults && searchQuery.trim().length >= 3
+        ? [
+            ...optimisticResources,
+            ...semanticResults.filter(
+              (result) => !optimisticResources.some((optimistic) => optimistic.id === result.id),
+            ),
+          ]
+        : displayResources
 
     if (selectedFilter !== "all") {
       filtered = filtered.filter((resource) => {
@@ -552,7 +604,7 @@ function ResourcesGridResolved({
       })
     }
 
-    if (searchQuery.trim()) {
+    if (!(semanticResults && searchQuery.trim().length >= 3) && searchQuery.trim()) {
       const queryWords = searchQuery.toLowerCase().trim().split(/\s+/)
 
       filtered = filtered.filter((resource) => {
@@ -620,6 +672,12 @@ function ResourcesGridResolved({
       aria-label="Resources"
       className="grid gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3"
     >
+      {semanticActive && searchQuery.trim().length >= 3 ? (
+        <p className="col-span-full flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+          <Sparkles className="size-3.5 text-primary" aria-hidden="true" />
+          Smart results — ranked by meaning across file contents
+        </p>
+      ) : null}
       {filteredResources.map((resource) => (
         <ResourceCard key={resource.id} data={resource} orgSlug={orgSlug} />
       ))}
@@ -637,6 +695,7 @@ const ResourceCard = memo(function ResourceCard({
   const { prefetchOnHover, cancelPrefetch } = usePrefetch()
   const resourceHref = `/${orgSlug}/resources/${data.id}`
   const fileInfo = getFileTypeInfo(data.fileType)
+  const fileSrc = resolveResourceFileSrc({ id: data.id, fileUrl: data.fileUrl })
   const createdDate = data.createdAt
     ? new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(new Date(data.createdAt))
     : ""
@@ -670,6 +729,7 @@ const ResourceCard = memo(function ResourceCard({
           <ResourceDocumentPreview
             fileType={data.fileType}
             fileUrl={data.fileUrl}
+            resourceId={data.id}
             title={data.title}
           />
 
@@ -752,7 +812,7 @@ const ResourceCard = memo(function ResourceCard({
 
           <Button asChild variant="ghost" size="icon-xs" className="size-7 rounded-lg text-muted-foreground hover:bg-surface-hover hover:text-foreground">
             <a
-              href={data.fileUrl}
+              href={fileSrc}
               target="_blank"
               rel="noopener noreferrer"
               aria-label={`Download ${data.title}`}
@@ -766,3 +826,32 @@ const ResourceCard = memo(function ResourceCard({
     </div>
   )
 })
+
+/**
+ * Upload trigger that consumes the user-classes promise. Isolated so its
+ * suspension never blocks the page shell, toolbar, or grid boundary.
+ */
+function UploadAction({
+  userClassesPromise,
+  orgSlug,
+  mutate,
+  pending,
+}: {
+  userClassesPromise?: Promise<ClassCardData[]>
+  orgSlug: string
+  mutate: ResourceListMutate
+  pending: boolean
+}) {
+  const userClasses = userClassesPromise ? use(userClassesPromise) : []
+
+  return (
+    <CreateResourceButton
+      orgSlug={orgSlug}
+      userClasses={userClasses}
+      label="Upload"
+      mutate={mutate}
+      pending={pending}
+      className="h-9 rounded-lg px-3.5 gap-1.5 text-xs font-semibold shadow-2xs"
+    />
+  )
+}

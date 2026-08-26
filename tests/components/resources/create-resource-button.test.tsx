@@ -6,12 +6,14 @@ import { resourceTypeEnum } from "@/lib/validation/actions"
 
 const mocks = vi.hoisted(() => ({
   createResource: vi.fn(),
+  deleteOrphanUpload: vi.fn(),
   startUpload: vi.fn(),
   mutate: vi.fn(),
 }))
 
 vi.mock("@/app/actions/resources", () => ({
   createResource: mocks.createResource,
+  deleteOrphanUpload: mocks.deleteOrphanUpload,
 }))
 
 vi.mock("@/lib/supabase-storage", () => ({

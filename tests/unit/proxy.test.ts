@@ -57,4 +57,23 @@ describe("tenant proxy routing", () => {
     expect(response.headers.get("x-middleware-next")).toBe("1")
     expect(mocks.validateOrgAccess).toHaveBeenCalledWith("user-1", "academy")
   })
+
+  it("records the opened organization for entry redirects", async () => {
+    mocks.getSession.mockResolvedValue({ user: { id: "user-1" } })
+    mocks.validateOrgAccess.mockResolvedValue({ valid: true })
+
+    const response = await proxy(new NextRequest("http://localhost/academy/home"))
+
+    expect(response.cookies.get("upclass-last-org")?.value).toBe("academy")
+  })
+
+  it("does not record an organization when access validation fails", async () => {
+    mocks.getSession.mockResolvedValue({ user: { id: "user-1" } })
+    mocks.validateOrgAccess.mockResolvedValue({ valid: false, reason: "not_a_member" })
+
+    const response = await proxy(new NextRequest("http://localhost/academy/home"))
+
+    expect(response.headers.get("location")).toBe("http://localhost/org?error=You+are+not+a+member+of+this+organization")
+    expect(response.cookies.get("upclass-last-org")).toBeUndefined()
+  })
 })

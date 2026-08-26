@@ -122,7 +122,7 @@ export function OnboardClient({ initialData }: OnboardClientProps) {
         return
       }
 
-      router.push("/org")
+      router.push("/entry")
       router.refresh()
     })
   }

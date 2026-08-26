@@ -23,7 +23,7 @@ import { useOrganizationPath } from "@/hooks/use-organization-path"
 import { cn } from "@/lib/utils"
 
 const destinations = [
-  { label: "Dashboard", detail: "What matters now", path: "/dashboard", icon: LayoutDashboard },
+  { label: "Home", detail: "What matters now", path: "/dashboard", icon: LayoutDashboard },
   { label: "Classes", detail: "Your course spaces", path: "/classes", icon: GraduationCap },
   { label: "Messages", detail: "Conversations and class channels", path: "/messages", icon: MessageSquare },
   { label: "Resources", detail: "Files and learning materials", path: "/resources", icon: FolderOpen },
@@ -38,7 +38,7 @@ const quickActions = [
 ] as const
 
 const shortcutHints = [
-  { keys: "g d", label: "Dashboard" },
+  { keys: "g d", label: "Home" },
   { keys: "g c", label: "Classes" },
   { keys: "g m", label: "Messages" },
   { keys: "g r", label: "Resources" },

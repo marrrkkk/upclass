@@ -59,7 +59,7 @@ describe("tenant sidebar", () => {
       name: "Main navigation",
     });
     expect(mainNavigation).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Home" })).toHaveAttribute(
       "href",
       "/academy/dashboard",
     );

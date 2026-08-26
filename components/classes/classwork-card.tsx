@@ -22,6 +22,7 @@ import {
 
 import { ClassworkCardSkeleton } from "@/components/skeletons"
 import { ClassworkGradingDialog } from "@/components/classes/classwork-grading-dialog"
+import { StudySetBridgeButton } from "@/components/classes/study-set-bridge-button"
 import { Button } from "@/components/ui/button"
 import { Callout } from "@/components/ui/callout"
 import { ResponsiveOverlay } from "@/components/ui/responsive-overlay"
@@ -258,6 +259,8 @@ export function ClassworkCard({
                 Start work
               </Button>
             )}
+
+            <StudySetBridgeButton classworkId={item.id} classworkTitle={item.title} />
 
             <ResponsiveOverlay
               open={submitOpen}

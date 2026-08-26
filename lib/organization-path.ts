@@ -1,3 +1,6 @@
+/** Cookie the proxy updates on every validated org visit so `/entry` can resolve the most recent workspace. */
+export const LAST_ORG_COOKIE = "upclass-last-org"
+
 /** Normalizes a destination and keeps it inside the selected organization. */
 export function organizationPath(
   orgSlug: string | null | undefined,

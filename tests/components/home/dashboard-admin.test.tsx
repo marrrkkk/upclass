@@ -20,7 +20,6 @@ describe("DashboardAdmin", () => {
       membersCount: 45,
       classesCount: 12,
       pendingInvitationsCount: 3,
-      statusMessage: "3 invitations need attention.",
     },
     attention: [
       {
@@ -53,7 +52,7 @@ describe("DashboardAdmin", () => {
     orgSlug: "test-org",
   }
 
-  it("renders admin dashboard with organization overview", () => {
+  it("renders admin dashboard with greeting header", () => {
     render(<DashboardAdmin viewModel={mockViewModel} userName="John Admin" />)
 
     expect(screen.getByText("Good morning, John")).toBeInTheDocument()
@@ -70,16 +69,20 @@ describe("DashboardAdmin", () => {
     expect(screen.getByText("12")).toBeInTheDocument()
     expect(screen.getByText("Pending invites")).toBeInTheDocument()
     expect(screen.getByText("3")).toBeInTheDocument()
-    expect(screen.getByText("3 invitations need attention.")).toBeInTheDocument()
   })
 
   it("renders admin attention queue with pending invitations and recent classes", () => {
     render(<DashboardAdmin viewModel={mockViewModel} userName="John Admin" />)
 
+    expect(screen.getByText("Organization attention")).toBeInTheDocument()
     expect(screen.getByText("Pending invitation")).toBeInTheDocument()
-    expect(screen.getByText("teacher@school.edu · teacher")).toBeInTheDocument()
+    expect(screen.getByText("teacher@school.edu")).toBeInTheDocument()
     expect(screen.getByText("AP Biology")).toBeInTheDocument()
     expect(screen.getByText("New class · 24 members")).toBeInTheDocument()
+    expect(screen.getByRole("link", { name: /View all \(2\)/i })).toHaveAttribute(
+      "href",
+      "/test-org/admin/classes"
+    )
   })
 
   it("displays workspace shortcuts", () => {
@@ -121,20 +124,5 @@ describe("DashboardAdmin", () => {
 
     // Attention queue section should not render when empty
     expect(screen.queryByText("Organization attention")).not.toBeInTheDocument()
-  })
-
-  it("displays healthy status message when everything is current", () => {
-    const healthyViewModel = {
-      ...mockViewModel,
-      operations: {
-        ...mockViewModel.operations,
-        pendingInvitationsCount: 0,
-        statusMessage: "Everything is current.",
-      },
-    }
-
-    render(<DashboardAdmin viewModel={healthyViewModel} userName="John Admin" />)
-
-    expect(screen.getByText("Everything is current.")).toBeInTheDocument()
   })
 })

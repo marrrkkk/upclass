@@ -20,7 +20,7 @@ type DashboardAiCueProps = {
 export function DashboardAiCue({ role, orgSlug, queueCount = 0, classCount = 0 }: DashboardAiCueProps) {
   const prompts = {
     admin: [
-      "Summarize organization health",
+      "Summarize organization",
       "Review pending invitations",
       "Brief me on recent changes",
     ],

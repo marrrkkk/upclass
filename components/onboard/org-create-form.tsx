@@ -5,6 +5,7 @@ import { ArrowLeft, ArrowRight, Building2 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { typographyVariants } from "@/lib/design-system"
+import { getOrgSlugError } from "@/lib/validation/actions"
 import { Button } from "@/components/ui/button"
 import { Callout } from "@/components/ui/callout"
 import { EntityAvatar } from "@/components/ui/entity-avatar"
@@ -21,6 +22,12 @@ import { IconBadge } from "@/components/ui/icon-badge"
 import { Input } from "@/components/ui/input"
 import { Panel, PanelBody, PanelFooter, PanelHeader, PanelHeading, PanelTitle, PanelDescription } from "@/components/ui/panel"
 import { Textarea } from "@/components/ui/textarea"
+import {
+  EMPTY_ORG_IDENTITY,
+  OrgIdentityFields,
+  persistOrgIdentity,
+  type OrgIdentityValue,
+} from "@/components/organization/org-identity-fields"
 
 const SLUG_MAX = 48
 const NAME_MAX = 80
@@ -39,7 +46,13 @@ type OrgCreateFormProps = {
   pending: boolean
   error: string | null
   onBack: () => void
-  onSubmit: (values: { name: string; slug: string; description: string }) => void
+  onSubmit: (values: {
+    name: string
+    slug: string
+    description: string
+    logo?: string | null
+    cover?: string | null
+  }) => void
 }
 
 /**
@@ -53,15 +66,49 @@ export function OrgCreateForm({ pending, error, onBack, onSubmit }: OrgCreateFor
   const [slug, setSlug] = React.useState("")
   const [slugTouched, setSlugTouched] = React.useState(false)
   const [description, setDescription] = React.useState("")
+  const [identity, setIdentity] = React.useState<OrgIdentityValue>(EMPTY_ORG_IDENTITY)
+  const [uploadingIdentity, setUploadingIdentity] = React.useState(false)
+  const [identityError, setIdentityError] = React.useState<string | null>(null)
 
   const effectiveSlug = slugTouched ? slug : slugify(name)
-  const slugTooShort = effectiveSlug.length > 0 && effectiveSlug.length < 3
-  const canSubmit = name.trim().length > 0 && effectiveSlug.length >= 3 && !pending
+  // Mirror every server slug rule (length, format, reserved words) so the reason
+  // shows inline instead of arriving as a post-submit error from the action.
+  const slugError = effectiveSlug.length > 0 ? getOrgSlugError(effectiveSlug) : null
+  const canSubmit = name.trim().length > 0 && effectiveSlug.length >= 3 && !slugError && !pending
 
-  const submit = (event: React.FormEvent) => {
+  const submit = async (event: React.FormEvent) => {
     event.preventDefault()
-    if (!canSubmit) return
-    onSubmit({ name: name.trim(), slug: effectiveSlug, description: description.trim() })
+    if (!canSubmit || uploadingIdentity) return
+
+    setIdentityError(null)
+    if (identity.logoFile || identity.coverFile) {
+      setUploadingIdentity(true)
+      try {
+        const persisted = await persistOrgIdentity(identity)
+        onSubmit({
+          name: name.trim(),
+          slug: effectiveSlug,
+          description: description.trim(),
+          logo: persisted.logo,
+          cover: persisted.cover,
+        })
+      } catch (uploadError) {
+        setIdentityError(
+          uploadError instanceof Error ? uploadError.message : "Failed to upload images",
+        )
+      } finally {
+        setUploadingIdentity(false)
+      }
+      return
+    }
+
+    onSubmit({
+      name: name.trim(),
+      slug: effectiveSlug,
+      description: description.trim(),
+      logo: identity.logoPreview,
+      cover: identity.coverPreview,
+    })
   }
 
   return (
@@ -108,7 +155,7 @@ export function OrgCreateForm({ pending, error, onBack, onSubmit }: OrgCreateFor
               <FieldLabel htmlFor="org-slug" hint="Cannot be changed later">
                 Workspace URL
               </FieldLabel>
-              <InputAffix prefix="upclass.app/" invalid={slugTooShort}>
+              <InputAffix prefix="upclass.app/" invalid={Boolean(slugError)}>
                 <Input
                   id="org-slug"
                   value={effectiveSlug}
@@ -119,8 +166,8 @@ export function OrgCreateForm({ pending, error, onBack, onSubmit }: OrgCreateFor
                   required
                   placeholder="springfield-high"
                   disabled={pending}
-                  aria-invalid={slugTooShort || undefined}
-                  aria-describedby={slugTooShort ? "org-slug-error" : "org-slug-help"}
+                  aria-invalid={slugError ? true : undefined}
+                  aria-describedby={slugError ? "org-slug-error" : "org-slug-help"}
                   className={cn(affixInputClassName, "type-mono")}
                   onChange={(event) => {
                     setSlugTouched(true)
@@ -128,8 +175,8 @@ export function OrgCreateForm({ pending, error, onBack, onSubmit }: OrgCreateFor
                   }}
                 />
               </InputAffix>
-              {slugTooShort ? (
-                <FieldError id="org-slug-error">Use at least 3 characters.</FieldError>
+              {slugError ? (
+                <FieldError id="org-slug-error">{slugError}</FieldError>
               ) : (
                 <FieldHelp id="org-slug-help">
                   Lowercase letters, numbers and hyphens. Derived from the name unless you edit it.
@@ -157,10 +204,22 @@ export function OrgCreateForm({ pending, error, onBack, onSubmit }: OrgCreateFor
             </Field>
           </FieldGroup>
 
+          <div className="space-y-2">
+            <p className={typographyVariants({ variant: "h4" })}>Identity</p>
+            <OrgIdentityFields
+              value={identity}
+              onChange={setIdentity}
+              name={name}
+              disabled={pending || uploadingIdentity}
+              onError={setIdentityError}
+            />
+          </div>
+
           {/* Live preview: shows exactly how the workspace will appear in the switcher. */}
           <div className="panel-sunken flex items-center gap-3 p-4">
             <EntityAvatar
               name={name || "New organization"}
+              image={identity.logoPreview}
               colorKey={effectiveSlug || "new"}
               shape="square"
               size="md"
@@ -175,6 +234,12 @@ export function OrgCreateForm({ pending, error, onBack, onSubmit }: OrgCreateFor
             </div>
             <span className={typographyVariants({ variant: "overline", tone: "subtle" })}>Preview</span>
           </div>
+
+          {identityError ? (
+            <Callout tone="danger" role="alert">
+              {identityError}
+            </Callout>
+          ) : null}
 
           {error ? (
             <Callout tone="danger" role="alert">
@@ -194,9 +259,14 @@ export function OrgCreateForm({ pending, error, onBack, onSubmit }: OrgCreateFor
             >
               Cancel
             </Button>
-            <Button type="submit" isLoading={pending} disabled={!canSubmit} className="flex-1 sm:flex-none">
+            <Button
+              type="submit"
+              isLoading={pending || uploadingIdentity}
+              disabled={!canSubmit}
+              className="flex-1 sm:flex-none"
+            >
               Create organization
-              {!pending ? <ArrowRight aria-hidden="true" /> : null}
+              {!pending && !uploadingIdentity ? <ArrowRight aria-hidden="true" /> : null}
             </Button>
           </div>
         </PanelFooter>

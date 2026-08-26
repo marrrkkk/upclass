@@ -47,7 +47,7 @@ const RECENTS_STORAGE_KEY = "upclass:sidebar-recents-open";
 
 const workspaceItems = [
   {
-    label: "Dashboard",
+    label: "Home",
     path: "/dashboard",
     icon: LayoutDashboard,
     exact: true,

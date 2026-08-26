@@ -213,8 +213,27 @@ export async function updateResource(formData: FormData): Promise<ActionResponse
   }
 }
 
-export async function deleteResource(resourceId: string): Promise<ActionResponse> {
-  const session = await auth.api.getSession({
+/**
+ * Best-effort cleanup for an eager upload the user abandoned before saving.
+ * Only paths inside the caller's own folder are ever removed.
+ */
+export async function deleteOrphanUpload(storagePath: string): Promise<ActionResponse> {
+  const session = await auth.api.getSession({ headers: await headers() })
+  if (!session?.user?.id) return { success: false, error: "Unauthorized" }
+  if (!storagePath.startsWith(`${session.user.id}/`)) {
+    return { success: false, error: "Invalid storage path" }
+  }
+  try {
+    const { removeStorageObject } = await import("@/lib/storage")
+    await removeStorageObject("resources", storagePath)
+    return { success: true }
+  } catch (error) {
+    console.error("deleteOrphanUpload failed", error)
+    return { success: false, error: "Cleanup failed" }
+  }
+}
+
+export async function deleteResource(resourceId: string): Promise<ActionResponse> {  const session = await auth.api.getSession({
     headers: await headers(),
   })
 

@@ -1,6 +1,5 @@
 import Link from "next/link"
-import { AlertCircle, ArrowRight, CheckCircle2, FileText, Mail, MessageCircle, User } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { ArrowRight, CheckCircle2, ChevronRight, FileText, Mail, MessageCircle, User } from "lucide-react"
 import { CourseSwatch } from "@/components/ui/course-identity"
 import { IconBadge } from "@/components/ui/icon-badge"
 import { Panel, PanelActions, PanelBody, PanelHeader, PanelHeading, PanelTitle } from "@/components/ui/panel"
@@ -16,18 +15,21 @@ type DashboardAttentionQueueProps =
       items: TeacherQueueItem[]
       orgSlug: string
       limit?: number
+      viewAllHref?: string
     }
   | {
       role: "student"
       items: StudentAttentionItem[]
       orgSlug: string
       limit?: number
+      viewAllHref?: string
     }
   | {
       role: "admin"
       items: AdminAttentionItem[]
       orgSlug: string
       limit?: number
+      viewAllHref?: string
     }
 
 /**
@@ -37,7 +39,7 @@ type DashboardAttentionQueueProps =
  * Admin: pending invitations, recent classes, recent memberships.
  */
 export function DashboardAttentionQueue(props: DashboardAttentionQueueProps) {
-  const { role, items, orgSlug, limit = 8 } = props
+  const { role, items, orgSlug, limit = 8, viewAllHref } = props
   const visible = items.slice(0, limit)
 
   const title = role === "teacher" 
@@ -66,9 +68,18 @@ export function DashboardAttentionQueue(props: DashboardAttentionQueueProps) {
         </PanelHeading>
         {visible.length > 0 && (
           <PanelActions>
-            <span className="type-caption font-medium text-foreground-muted">
-              {items.length} {items.length === 1 ? "item" : "items"}
-            </span>
+            {viewAllHref ? (
+              <Link
+                href={viewAllHref}
+                className="type-caption font-medium text-primary-text transition-colors hover:opacity-80"
+              >
+                View all ({items.length})
+              </Link>
+            ) : (
+              <span className="type-caption font-medium text-foreground-muted">
+                {items.length} {items.length === 1 ? "item" : "items"}
+              </span>
+            )}
           </PanelActions>
         )}
       </PanelHeader>
@@ -291,22 +302,24 @@ function AdminAttentionRow({ item, orgSlug }: { item: AdminAttentionItem; orgSlu
             <Mail className="size-4" />
           </IconBadge>
           <span className="min-w-0 flex-1 space-y-0.5">
-            <div className="flex items-center gap-2">
+            <span className="flex min-w-0 items-center gap-2">
               <Text as="span" variant="h4" truncate className="block font-semibold group-hover:text-primary-text">
                 Pending invitation
               </Text>
               <StatusBadge tone="warning" size="sm">
                 {item.role}
               </StatusBadge>
-            </div>
+            </span>
             <Text as="span" variant="small" tone="muted" truncate className="block">
-              {item.email} · {item.role}
-            </Text>
-            <Text as="span" variant="caption" tone="muted">
-              Invited {formatRelativeTime(item.invitedAt)}
+              {item.email}
             </Text>
           </span>
-          <ArrowRight aria-hidden="true" className="size-4 shrink-0 text-foreground-muted transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-foreground" />
+          <span className="flex shrink-0 items-center gap-1.5">
+            <Text as="span" variant="caption" tone="muted" className="hidden sm:block">
+              Invited {formatRelativeTime(item.invitedAt)}
+            </Text>
+            <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-foreground-muted transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-foreground" />
+          </span>
         </Link>
       </li>
     )
@@ -319,7 +332,7 @@ function AdminAttentionRow({ item, orgSlug }: { item: AdminAttentionItem; orgSlu
           href={`/${orgSlug}/classes/${item.id}`}
           className="touch-target focus-ring group flex min-w-0 items-center gap-3.5 px-4 py-3.5 transition-colors duration-150 hover:bg-surface-subtle/70 sm:px-5"
         >
-          <CourseSwatch value={item.color} courseKey={item.id} size="md" />
+          <CourseSwatch value={item.color} courseKey={item.id} size="md" className="rounded-full" />
           <span className="min-w-0 flex-1 space-y-0.5">
             <Text as="span" variant="h4" truncate className="block font-semibold group-hover:text-primary-text">
               {item.title}
@@ -327,11 +340,13 @@ function AdminAttentionRow({ item, orgSlug }: { item: AdminAttentionItem; orgSlu
             <Text as="span" variant="small" tone="muted" truncate className="block">
               New class · {item.memberCount} {item.memberCount === 1 ? "member" : "members"}
             </Text>
-            <Text as="span" variant="caption" tone="muted">
+          </span>
+          <span className="flex shrink-0 items-center gap-1.5">
+            <Text as="span" variant="caption" tone="muted" className="hidden sm:block">
               Created {formatRelativeTime(item.createdAt)}
             </Text>
+            <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-foreground-muted transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-foreground" />
           </span>
-          <ArrowRight aria-hidden="true" className="size-4 shrink-0 text-foreground-muted transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-foreground" />
         </Link>
       </li>
     )
@@ -353,11 +368,13 @@ function AdminAttentionRow({ item, orgSlug }: { item: AdminAttentionItem; orgSlu
           <Text as="span" variant="small" tone="muted" truncate className="block">
             {item.classTitle} · {item.role}
           </Text>
-          <Text as="span" variant="caption" tone="muted">
+        </span>
+        <span className="flex shrink-0 items-center gap-1.5">
+          <Text as="span" variant="caption" tone="muted" className="hidden sm:block">
             {formatRelativeTime(item.joinedAt)}
           </Text>
+          <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-foreground-muted transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-foreground" />
         </span>
-        <ArrowRight aria-hidden="true" className="size-4 shrink-0 text-foreground-muted transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-foreground" />
       </Link>
     </li>
   )

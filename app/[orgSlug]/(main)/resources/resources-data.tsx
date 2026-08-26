@@ -82,6 +82,7 @@ function loadUserClasses(userId: string, orgSlug: string): Promise<ClassCardData
       .innerJoin(organizations, eq(classes.orgId, organizations.id))
       .where(eq(organizations.slug, orgSlug))
       .orderBy(classes.title)
+      .limit(100)
 
     // Filter to only classes the user is teaching or enrolled in
     // For simplicity, return all classes in the org - production might add membership filter

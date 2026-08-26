@@ -164,9 +164,9 @@ describe("sidebar collapse", () => {
     expect(screen.queryByText("UpClass")).not.toBeInTheDocument();
 
     // Section headings are only in aria-labels; nav rows keep their accessible names.
-    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Home" })).toHaveAttribute(
       "title",
-      "Dashboard",
+      "Home",
     );
     expect(
       screen.getByRole("link", { name: "Administration" }),
@@ -201,7 +201,7 @@ describe("sidebar collapse", () => {
       screen.getByRole("heading", { name: "Recent classes" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Biology 101")).toBeInTheDocument();
-    expect(screen.getByText("Dashboard")).toBeInTheDocument();
+    expect(screen.getByText("Home")).toBeInTheDocument();
   });
 
   it("collapses recent classes from the section heading", async () => {

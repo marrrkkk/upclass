@@ -30,7 +30,7 @@ export function SetupStepper({
     steps.length <= 1 ? 100 : Math.round(((currentIndex + 1) / steps.length) * 100)
 
   return (
-    <nav aria-label="Setup progress" className={cn("space-y-3", className)}>
+    <nav aria-label="Setup progress" className={cn("flex flex-col justify-center", className)}>
       <div className="hidden items-center gap-2 sm:flex">
         {steps.map((step, index) => {
           const isComplete = completedStepIds.includes(step.id)
