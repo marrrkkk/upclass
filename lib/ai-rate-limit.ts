@@ -11,6 +11,10 @@ const DAILY_LIMITS: Record<string, number> = {
   chat: 200,
   quiz: 20,
   learn: 20,
+  metadata: 40,
+  grading: 60,
+  plan: 4,
+  outreach: 20,
 }
 
 type BurstBucket = { windowStart: number; count: number }
