@@ -128,6 +128,7 @@ export const organizations = pgTable(
     slug: text("slug").notNull().unique(),
     description: text("description"),
     logo: text("logo"),
+    cover: text("cover"),
     settings: jsonb("settings").$type<Record<string, unknown>>().default({}).notNull(),
     createdBy: text("created_by")
       .notNull()
@@ -506,6 +507,7 @@ export const studySources = pgTable(
     title: text("title").notNull(),
     status: studySourceStatus("status").default("pending").notNull(),
     errorMessage: text("error_message"),
+    aiSourceText: text("ai_source_text"),
     processingStartedAt: timestamp("processing_started_at"),
     processedAt: timestamp("processed_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
