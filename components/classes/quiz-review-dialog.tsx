@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState, useTransition } from "react"
-import { ClipboardCheck } from "lucide-react"
+import { ClipboardCheck, Sparkles } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Callout } from "@/components/ui/callout"
@@ -85,6 +85,9 @@ export function QuizReviewDialog({
 
   const [selectedAttemptId, setSelectedAttemptId] = useState<string | null>(null)
   const [reviewGrades, setReviewGrades] = useState<Record<string, string>>({})
+  const [rationales, setRationales] = useState<Record<string, string>>({})
+  const [suggestPending, setSuggestPending] = useState(false)
+  const [suggestError, setSuggestError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
@@ -93,7 +96,9 @@ export function QuizReviewDialog({
     const initial = requested ?? sortedAttempts[0] ?? null
     setSelectedAttemptId(initial?.id ?? null)
     setReviewGrades(buildGrades(quiz, initial?.id ?? null))
+    setRationales({})
     setError(null)
+    setSuggestError(null)
   }, [quiz.id, initialAttemptId, sortedAttempts, quiz])
 
   const selectedAttempt =
@@ -106,7 +111,40 @@ export function QuizReviewDialog({
   const handleSelectAttempt = (attempt: QuizAttemptRecord) => {
     setSelectedAttemptId(attempt.id)
     setReviewGrades(buildGrades(quiz, attempt.id))
+    setRationales({})
     setError(null)
+    setSuggestError(null)
+  }
+
+  /** AI proposes points per short answer; the teacher edits and saves. */
+  const handleSuggestGrades = async () => {
+    if (!selectedAttempt || suggestPending) return
+    setSuggestError(null)
+    setSuggestPending(true)
+    try {
+      const response = await fetch("/api/ai/quiz-grade-suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ attemptId: selectedAttempt.id }),
+      })
+      const data = (await response.json().catch(() => null)) as
+        | { suggestions?: Array<{ answerId: string; pointsAwarded: number; rationale?: string }>; error?: string }
+        | null
+      if (!response.ok || !data?.suggestions) {
+        setSuggestError(data?.error ?? "Suggestions could not be generated.")
+        return
+      }
+      for (const suggestion of data.suggestions) {
+        setReviewGrades((previous) => ({ ...previous, [suggestion.answerId]: String(suggestion.pointsAwarded) }))
+        if (suggestion.rationale) {
+          setRationales((previous) => ({ ...previous, [suggestion.answerId]: suggestion.rationale! }))
+        }
+      }
+    } catch {
+      setSuggestError("You appear to be offline.")
+    } finally {
+      setSuggestPending(false)
+    }
   }
 
   const handleSave = () => {
@@ -261,6 +299,12 @@ export function QuizReviewDialog({
                                   Enter 0–{question.points}. Running total: {previewTotal} / {quiz.totalPoints ?? "0"}
                                 </Text>
                               </div>
+                              {answer && rationales[answer.id] ? (
+                                <Text variant="caption" tone="muted" className="flex items-start gap-1.5">
+                                  <Sparkles className="mt-0.5 size-3 shrink-0 text-primary" aria-hidden="true" />
+                                  {rationales[answer.id]}
+                                </Text>
+                              ) : null}
                             </>
                           ) : (
                             <>
@@ -291,6 +335,7 @@ export function QuizReviewDialog({
                     )
                   })}
 
+                  {suggestError ? <Callout tone="danger" role="alert" className="text-xs">{suggestError}</Callout> : null}
                   {error ? <Callout tone="danger" role="alert">{error}</Callout> : null}
                 </div>
 
@@ -298,6 +343,18 @@ export function QuizReviewDialog({
                   <Text variant="caption" tone="muted">Save grading to finalize the result.</Text>
                   <div className="flex gap-2">
                     <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Close</Button>
+                    {quizHasShortAnswer && selectedAttempt.status === "pending_review" ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleSuggestGrades}
+                        isLoading={suggestPending}
+                        disabled={suggestPending || pending}
+                      >
+                        {!suggestPending ? <Sparkles data-icon="inline-start" /> : null}
+                        Suggest grades
+                      </Button>
+                    ) : null}
                     {quizHasShortAnswer ? (
                       <Button type="button" isLoading={pending} disabled={pending} onClick={handleSave}>
                         Save grade

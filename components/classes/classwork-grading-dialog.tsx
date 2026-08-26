@@ -1,6 +1,7 @@
 "use client"
 
-import { File } from "lucide-react"
+import { useState } from "react"
+import { File, Sparkles } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Callout } from "@/components/ui/callout"
@@ -46,6 +47,39 @@ export function ClassworkGradingDialog({
   pending,
   onGrade,
 }: ClassworkGradingDialogProps) {
+  // Controlled so the AI assist can fill drafts the teacher edits before
+  // saving; the form still posts grade/feedback through FormData. The parent
+  // unmounts this dialog between opens, so lazy initializers are fresh.
+  const [grade, setGrade] = useState(submission.grade ?? "")
+  const [feedback, setFeedback] = useState(submission.feedback ?? "")
+  const [assistPending, setAssistPending] = useState(false)
+  const [assistError, setAssistError] = useState<string | null>(null)
+
+  async function draftWithAi() {
+    setAssistError(null)
+    setAssistPending(true)
+    try {
+      const response = await fetch("/api/ai/grading/assist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ submissionId: submission.id }),
+      })
+      const data = (await response.json().catch(() => null)) as
+        | { grade?: number; feedback?: string; error?: string }
+        | null
+      if (!response.ok || !data) {
+        setAssistError(data?.error ?? "The draft could not be generated.")
+        return
+      }
+      if (typeof data.grade === "number") setGrade(String(data.grade))
+      if (data.feedback) setFeedback(data.feedback)
+    } catch {
+      setAssistError("You appear to be offline.")
+    } finally {
+      setAssistPending(false)
+    }
+  }
+
   return (
     <ResponsiveOverlay
       open={open}
@@ -124,6 +158,23 @@ export function ClassworkGradingDialog({
         ) : null}
 
         <form id="grading-form" action={(formData) => onGrade(submission.id, formData)} className="space-y-5">
+          <div className="flex items-center justify-between gap-2">
+            <Text variant="caption" tone="muted">Draft feedback with AI, then edit and save — nothing is sent without you.</Text>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={draftWithAi}
+              isLoading={assistPending}
+              disabled={assistPending}
+            >
+              {!assistPending ? <Sparkles data-icon="inline-start" /> : null}
+              Draft with AI
+            </Button>
+          </div>
+          {assistError ? (
+            <Callout tone="danger" role="alert" className="text-xs">{assistError}</Callout>
+          ) : null}
           <FieldRow className="sm:grid-cols-3">
             <Field>
               <FieldLabel>Grade</FieldLabel>
@@ -132,7 +183,8 @@ export function ClassworkGradingDialog({
                   name="grade"
                   required
                   type="number"
-                  defaultValue={submission.grade || ""}
+                  value={grade}
+                  onChange={(event) => setGrade(event.target.value)}
                   placeholder="0"
                   className="pr-12"
                 />
@@ -145,7 +197,8 @@ export function ClassworkGradingDialog({
               <FieldLabel optional>Feedback</FieldLabel>
               <Textarea
                 name="feedback"
-                defaultValue={submission.feedback || ""}
+                value={feedback}
+                onChange={(event) => setFeedback(event.target.value)}
                 placeholder="Write feedback for the student"
                 rows={3}
                 className="resize-none"
