@@ -11,11 +11,11 @@ import remarkBreaks from "remark-breaks"
 import remarkGfm from "remark-gfm"
 import {
   ArrowRight,
-  BookOpen,
   CheckCircle2,
   CircleAlert,
   CornerDownRight,
   FileText,
+  Globe,
   Send,
   ThumbsDown,
   ThumbsUp,
@@ -102,7 +102,56 @@ export function AiMarkdown({ content }: { content: string }) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Message bubble & Rich Result Cards                                         */
+/* Web source badges (ChatGPT-style citations for URLs in the answer)          */
+/* -------------------------------------------------------------------------- */
+
+const EXTERNAL_URL_REGEX = /https?:\/\/[^\s<>()\[\]{}"'`]+/gi
+const MAX_SOURCE_BADGES = 6
+
+export function extractExternalUrls(content: string): URL[] {
+  const seen = new Set<string>()
+  const urls: URL[] = []
+  for (const match of content.matchAll(EXTERNAL_URL_REGEX)) {
+    const raw = match[0].replace(/[.,;:!?)\]}'"]+$/, "")
+    try {
+      const url = new URL(raw)
+      if (url.protocol !== "http:" && url.protocol !== "https:") continue
+      const key = url.href.replace(/\/$/, "")
+      if (seen.has(key)) continue
+      seen.add(key)
+      urls.push(url)
+    } catch {
+      // Skip malformed URLs
+    }
+  }
+  return urls
+}
+
+function SourceBadges({ urls }: { urls: URL[] }) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5" aria-label="Web sources">
+      {urls.slice(0, MAX_SOURCE_BADGES).map((url) => {
+        const label = url.hostname.replace(/^www\./, "")
+        return (
+          <a
+            key={url.href}
+            href={url.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={url.href}
+            className="inline-flex max-w-56 items-center gap-1.5 rounded-full border border-hairline bg-card py-1 pl-2 pr-2.5 text-xs font-medium text-muted-foreground shadow-e1 transition-colors hover:bg-surface hover:text-foreground"
+          >
+            <Globe className="size-3.5 shrink-0 text-sky-500" aria-hidden="true" />
+            <span className="truncate">{label}</span>
+          </a>
+        )
+      })}
+    </div>
+  )
+}
+
+/* -------------------------------------------------------------------------- */
+/* Message bubble & Rich Result Cards                                          */
 /* -------------------------------------------------------------------------- */
 
 export type AiBubbleProps = {
@@ -379,10 +428,15 @@ export function AiBubble({
     }
   }, [status, errorReason])
 
+  const sourceUrls = useMemo(
+    () => (!isUser && status === "completed" ? extractExternalUrls(content) : []),
+    [content, isUser, status],
+  )
+
   if (isUser) {
     return (
       <div className="flex w-full justify-end">
-        <div className="max-w-[85%] rounded-2xl rounded-tr-xs bg-[#0070f3] px-4 py-2.5 text-sm font-medium text-white shadow-sm">
+        <div className="max-w-[85%] rounded-2xl rounded-tr-xs bg-[#0070f3] px-4 py-2.5 text-sm font-medium break-words text-white shadow-sm">
           {content}
         </div>
       </div>
@@ -416,6 +470,9 @@ export function AiBubble({
       {content.trim() ? (
         <AiMarkdown content={content} />
       ) : null}
+
+      {/* Web source badges for URLs referenced in the answer */}
+      {sourceUrls.length > 0 ? <SourceBadges urls={sourceUrls} /> : null}
 
       {/* Live generating state with 3x3 dot matrix animation */}
       {status === "generating" && (

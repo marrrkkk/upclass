@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { Suspense } from "react"
 
-import { GenericPageSkeleton } from "@/components/skeletons"
+import { AiChatThreadSkeleton } from "@/components/skeletons"
 import { ChatConversationData } from "./chat-conversation-data"
 
 export const metadata: Metadata = {
@@ -15,7 +15,7 @@ export default function ChatConversationPage({
 }) {
   return (
     <div className="-mx-4 h-[calc(100dvh-var(--app-header-height)-1rem-6rem)] sm:-mx-5 md:-mx-6 md:h-[calc(100dvh-var(--app-header-height)-1.25rem-1.75rem)]">
-      <Suspense fallback={<GenericPageSkeleton />}>
+      <Suspense fallback={<AiChatThreadSkeleton />}>
         <ChatConversationData params={params} />
       </Suspense>
     </div>
