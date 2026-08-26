@@ -102,6 +102,7 @@ Open <http://localhost:3000>. To load the demo dataset, run `npm run db:seed` af
 | `npm run test:coverage` | Run Vitest with coverage |
 | `npm run db:migrate` | Apply Drizzle migrations |
 | `npm run db:seed` | Seed development data |
+| `npm run db:repair-resource-urls` | Audit and repair resource rows whose stored file URL points at an app route |
 | `npm run deploy:setup` | Create Storage buckets and attempt RLS setup |
 | `npm run storage:setup` | Create missing Storage buckets |
 | `npm run storage:policies` | Generate/apply Storage policy SQL |

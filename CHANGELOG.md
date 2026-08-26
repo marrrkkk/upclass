@@ -7,7 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Web source badges in AI chat.** Assistant answers that reference URLs now end with a row of ChatGPT-style clickable source badges (globe icon + hostname) that open in a new tab; URLs are deduplicated and capped per message.
+
+### Fixed
+
+- **AI chat scrolling.** Long unbreakable URLs and inline code no longer force a horizontal scrollbar in the chat thread (page and side panel); the message viewport now clips horizontal overflow, wraps long tokens, and uses the minimal scrollbar treatment for vertical scrolling.
+
+- **Organization branding: logo and cover images.** Organizations can now have a cover image alongside their logo. The create-organization wizard step gains an optional Identity section (cover banner + square icon with crop dialogs), the admin console gains a Settings tab where owners and admins edit name, description, icon, and cover, and `/org` workspace cards render the stored cover as their banner. Images upload through the existing `/api/upload` endpoint (logo → `avatars`, cover → `media`) only when the surrounding form is saved, so abandoned forms never leave orphaned storage objects. Requires migration `0023_org_cover`.
+
+- **AI-native study loop (Tier 1): study generation is now wired end-to-end.** The previously orphaned `/api/ai/learn/generate` endpoint is reachable from the study space UI: a new "Generate with AI" flow on the Flashcards and Practice quizzes tabs picks a grounded source (processed sources or pasted notes), configures topic/count/difficulty, previews the cited draft, and persists cards (`saveGeneratedCards`) or a full multiple-choice quiz (`saveGeneratedQuiz`) through ownership-checked server actions. Generation now also supports `study_source` grounding and returns real MCQ questions for quiz mode; all runs share the "learn" daily rate budget and honor the new `AI_DISABLE_LEARN_GENERATION` kill switch.
+
+- **Study Sources ingestion path.** The Sources tab is no longer read-only: students can paste notes (ready immediately) or link an accessible org resource, which is text-extracted server-side following the existing resource pipeline and moved through the `pending → processing → ready → failed` status machine with per-source error messages and removal. A new `ai_source_text` column on `study_sources` (migration `0022_study_source_text`) stores extracted/pasted material so generation can ground on it.
+
+- **One-tap document Q&A on resources.** Resource detail gained an explicit "Ask AI" button that opens the assistant panel seeded to the resource surface, where the one-tap quick prompts ("Summarize…", "Key takeaways…", etc.) already render — folding the orphaned AI chat dialog's discoverability into the single assistant surface instead of maintaining two chat systems.
+
+- **AI metadata suggestions on upload.** Selecting a file in the upload dialog uploads eagerly, then an extract-and-suggest pass drafts title, description, type, and tags from the file's contents while the form is open. Fields the teacher has already touched are never overwritten, suggestions fail silently, and abandoned eager uploads are cleaned from the uploader's own storage folder via a guarded `deleteOrphanUpload` action. Gated by `AI_DISABLE_RESOURCE_METADATA`.
+
+- **AI outline card for non-previewable files.** ppt/doc/xls resources now show a cached AI summary card (headline, key points, key terms) generated from extracted text in place of "Preview unavailable", with a quiet fallback when generation is unavailable. Summaries are cached per resource version for 7 days. Gated by `AI_DISABLE_RESOURCE_SUMMARY`.
+
+- **Class-content → study-space bridge.** "Make study set" buttons on resource detail and on classwork cards let students generate a private flashcard collection grounded in that content in one click; collections are linked back via `sourceType`/`sourceId`. Runs under the same learn rate budget and kill switch.
+
+- **Semantic search & related resources.** The resources page search now upgrades to embedding-ranked results across file contents (debounced, with lexical fallback when embeddings are unavailable), and the resource detail page renders a semantic "Related resources" rail computed from mean chunk similarity within the org. Ranking helpers are pure and unit-tested; gated by `AI_DISABLE_SEMANTIC_SEARCH`.
+
+- **Teacher grading assist.** The submission grading dialog has a "Draft with AI" action that fills editable grade + feedback fields from the submission, instructions, and prior grading rounds. Draft-only: saving still flows exclusively through the human-confirmed `gradeSubmission` action. Highly-sensitive routing, `grading` rate budget, `AI_DISABLE_GRADING_ASSIST` kill switch.
+
+- **Short-answer grade suggestions.** Quiz review dialogs for pending attempts gain a "Suggest grades" action that proposes clamped points plus a per-answer rationale for every short answer; teachers edit and save via the existing confirm-only grading action. Gated by `AI_DISABLE_GRADE_SUGGESTIONS`.
+
+- **Weekly study plan.** The Learn workspace offers a role-aware 7-day plan generated from privacy-safe aggregates of the student's own data (due-card counts, 14-day review accuracy, upcoming deadlines), cached half-daily per user and validated against a strict schema. Facts/prompt building is unit-tested. Gated by `AI_DISABLE_STUDY_PLAN`.
+
+- **At-risk outreach drafts.** The teacher dashboard's "Students to check in with" section adds a per-student "Draft" action producing a warm, copy-ready check-in message from activity recency and submission stats. Draft-only by design — sending stays with the teacher. Gated by `AI_DISABLE_OUTREACH`.
+
 ### Changed
+
+- **Smart workspace entry.** Signing in (and every "Open workspace" CTA on the landing page) now routes through `/entry`, which drops users straight into their workspace: one organization opens directly, multiple organizations open the most recently opened one, and only users with nothing to open land on `/org`. The proxy records the last opened organization in an `upclass-last-org` cookie on every validated org visit; stale or missing cookies fall back to the workspace list, and incomplete accounts still go through account setup.
+
+- **Home dashboard redesign and rename.** The dashboard is now "Home" across the sidebar, mobile navigation, command menu, breadcrumbs, and page titles (route unchanged). The admin Home drops the "Organization overview" header and status banner in favor of a compact horizontal stat row (People / Classes / Pending invites with icon, value, and hint), the "Organization attention" panel gains a "View all (N)" link and tighter two-line rows with right-aligned timestamps and chevrons, quick actions run four-across on desktop, and the Organization activity panel gains a "View all" link. Loading skeletons were updated to match.
+
+- **Accurate loading skeletons across the tenant app.** Every Suspense fallback was rebuilt against the committed UI it stands in for: class detail now includes the 20rem rail column and a horizontal tab strip instead of an invented vertical nav; classwork/quizzes tabs show real card stacks on the `Panel` anatomy instead of phantom page titles and dashed empty-state boxes; notifications render one divided timeline panel with its header actions instead of five loose cards; message threads are bottom-anchored `max-w-3xl` columns with avatar gutters and a channel variant (square avatar + channel badge) for class threads; quiz taking uses the true 72rem three-panel layout; the whiteboard drops its fake Excalidraw toolbar for the real panel header with save-status and presence slots; gradebook, people, admin, settings, calendar, profile, and resource skeletons all match their live counterparts (grids, toolbars, stat counts, cover heights). Removed ~10 dead skeleton exports that no route referenced.
+
+- **Static-first streaming for sidebar pages.** `/calendar` and `/learn` (plus study spaces and review) no longer block their whole route on data: the page heading/container paints instantly and only the data-dependent body streams behind a localized boundary. `/classes` and `/resources` fall back to body-only skeletons (filter bar + grid) so the header chrome never flashes twice, and the resources upload button resolves below its own boundary instead of suspending the entire client — fixing the case where signed-in users never saw the toolbar before the grid loaded. Dashboard loads now dispatch role-specific skeleton compositions (admin/teacher/student) instead of one generic layout.
+
+- **Dedicated AI chat thread skeleton.** The assistant conversation route (`/[org]/chat/[id]`) shows a chat-shaped loading state — centered max-w-2xl bottom-anchored column with the "Ask me anything" hero, suggestion rows, and the composer card — replacing the generic dashboard stack that shared zero structure with the page.
+
+- **Redesigned organization entry page (`/org`).** The workspace directory now opens with a full-bleed welcome hero — oversized "Good to see you" greeting, "Pick up where you left off." subtitle, and a primary "Create organization" button over a soft gradient arc — followed by a "Your organizations" card grid. Each organization renders as a card with a blue gradient banner, white monogram tile, member count, and a quiet open affordance, alongside a matching "Create organization" card and a "Join with a code" action. The pre-tenant shell header is simplified to logo plus account menu (now with a chevron), and the loading skeleton mirrors the new hero + card layout.
+
+- **Faster organization shell loads and honest reload skeletons.** The tenant shell now resolves params and session together and runs the membership and recent-classes queries in parallel (recent classes join on the org slug directly instead of waiting on the membership lookup), `getOrganizationMembership` is request-deduplicated, and org access validation in the proxy is a single joined query instead of two sequential roundtrips. During authenticated reloads the streaming fallback now renders the real sidebar and header skeleton instead of flashing the signed-out "Welcome to UpClass" state - "Sign in" / "Get started" only appear in the confirmed unauthenticated shell.
+
+- **Resource card previews use validated sources.** Resource list thumbnails and download links now resolve through the same canonical helper as the detail page, so legacy rows whose stored URL points at an app route open the file endpoint rather than embedding an UpClass page.
+
+### Fixed
+
+- **AI chat full-bleed wrapper applied twice.** The conversation route's negative-margin height wrapper was rendered both by the page and again inside `ChatConversationData`, nesting duplicate `dvh` calculations and margins once the stream committed. The wrapper now lives only in the route so the fallback and committed states share one geometry.
+
+- **Resource previews no longer render an UpClass route.** A new canonical helper (`lib/resource-file.ts`) classifies stored `fileUrl` values (seeded `/seeded-resources/*`, external storage URLs, or legacy app routes) and only embeds validated direct sources in the resource detail iframe and download action. Legacy or malformed rows are served through a new access-checked `GET /api/resources/[id]/file` endpoint that resolves the database row, repairs what it can from `storagePath`/`fileName`, streams seeded files inline with the correct content type and `Content-Disposition`, and redirects to storage URLs. Unsupported types stay on the existing "Preview unavailable" path. Run `npm run db:repair-resource-urls` to audit and backfill legacy rows.
 
 - **Brand favicon.** Updated browser and application icons to use the UpClass blue tile and white arrow brand mark consistently.
 

@@ -37,6 +37,67 @@ Findings from the initial audit:
 - No bundle analyzer is wired up; add one (`@next/bundle-analyzer`) only if a
   baseline run shows a bottleneck worth visualizing.
 
+### Shell / server-data pass (Aug 2026)
+
+Changes made after the initial audit, all verified by `npm run lint`,
+`npm run type-check`, `npm run test` (105 suites / 530 tests), and
+`npm run build`:
+
+- The tenant layout (`app/[orgSlug]/(main)/layout.tsx`) awaited params, the
+  session, membership, and recent classes strictly sequentially. It now
+  resolves params + session together and runs membership and recent classes in
+  parallel; recent classes join on the org slug so they no longer wait on the
+  membership's org id. One serial roundtrip removed from every tenant page.
+- `validateOrgAccess` (runs in the proxy on every request) issued two
+  sequential queries (org exists, then membership). It is now a single joined
+  query preserving both `org_not_found` and `not_a_member` reasons.
+- `getOrganizationMembership` is React-request-cached so layout and page-level
+  callers dedupe within a request.
+- The resources creation dialog loaded every class in the org without a cap;
+  it now caps at 100 rows.
+- Authenticated org reloads previously streamed a fallback that rendered the
+  signed-out header ("Welcome to UpClass" + Sign in / Get started). The
+  `HomeShell` fallback now renders the real sidebar structure plus a header
+  skeleton with no auth CTAs; those CTAs appear only in the confirmed
+  unauthenticated shell.
+
+### Resource preview fix (Aug 2026)
+
+- Resource detail iframes embedded raw stored `fileUrl` values; legacy rows
+  whose URL pointed at an app route rendered an UpClass page inside the frame.
+  A canonical helper (`lib/resource-file.ts`) now classifies stored URLs
+  (seeded `/seeded-resources/*`, external storage URLs, legacy app routes) and
+  only validated direct sources are embedded in the detail iframe, list-card
+  thumbnails, and download links.
+- New access-checked endpoint `GET /api/resources/[id]/file` serves anything
+  not safely servable directly: it streams seeded files inline with correct
+  content type/disposition and redirects to storage URLs, repairing from
+  `storagePath`/`fileName` where possible. `npm run db:repair-resource-urls`
+  audits and backfills legacy rows.
+- Seeded resources remain served from `public/seeded-resources` and uploaded
+  resources remain served from the storage bucket; the proxy only handles rows
+  whose stored URL cannot be trusted.
+
+### Build output caveat
+
+Next.js 16 with `cacheComponents` (PPR) no longer prints per-route First Load
+JS in `next build` output. Record route-level JavaScript from the generated
+chunks instead. Largest production chunks at this baseline (`.next/static/chunks`,
+gzip-agnostic on-disk sizes): ~1.77 MB shared framework/vendor chunk, then
+~634 KB, ~485 KB, ~429 KB, ~420 KB, ~396 KB, ~258 KB, and ~219 KB chunks,
+~10.3 MB total across all chunks. Web Vitals numbers still require the manual
+browser method described above.
+
+### E2E coverage note
+
+The repository has no dedicated e2e harness yet. The
+reload-skeleton and seeded-PDF-preview flows from the plan are covered at the
+component and route-handler level instead: `tests/components/layouts/
+home-shell.test.tsx` asserts the pending shell keeps the sidebar visible with
+no auth CTAs, and `tests/server/resource-file-route.test.ts` asserts the file
+endpoint streams PDF bytes/content-type inline rather than an HTML page. Wire
+these into Playwright when an e2e harness lands.
+
 ## Perf Contract
 
 - Motion durations stay within the `--duration-fast|base|slow` ramp
