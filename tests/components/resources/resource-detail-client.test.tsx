@@ -19,12 +19,16 @@ vi.mock("@/app/actions/resources", () => ({
   updateResource: mocks.updateResource,
 }))
 
+vi.mock("@/app/actions/learn", () => ({
+  createStudyCollectionFromResource: vi.fn(),
+}))
+
 vi.mock("@/stores/page-header-store", () => ({
   usePageHeaderStore: () => mocks.setPageTitle,
 }))
 
 vi.mock("@/components/ai/ai-panel-provider", () => ({
-  useAiPanel: () => ({ setContext: vi.fn(), clearSeed: vi.fn() }),
+  useAiPanel: () => ({ setContext: vi.fn(), clearSeed: vi.fn(), openFor: vi.fn() }),
 }))
 
 const resource = {
@@ -87,7 +91,10 @@ describe("ResourceDetailClient", () => {
     openSpy.mockRestore()
   })
 
-  it("keeps one canonical download action and hides mutation controls from non-owners", () => {
+  it("keeps one canonical download action, shows the AI outline fallback, and hides mutation controls from non-owners", async () => {
+    // Summary generation unavailable → card degrades to the plain fallback.
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("offline"))
+
     render(
       <ToastProvider>
         <ResourceDetailClient
@@ -103,11 +110,44 @@ describe("ResourceDetailClient", () => {
       </ToastProvider>,
     )
 
-    expect(screen.getByText("Preview unavailable")).toBeInTheDocument()
+    expect(await screen.findByText(/cannot be previewed directly/i)).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Ask AI/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Make study set/i })).toBeInTheDocument()
     expect(screen.getAllByRole("button", { name: /Download/i })).toHaveLength(1)
     expect(screen.queryByRole("button", { name: "Download file" })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Delete Calculus reference" })).not.toBeInTheDocument()
+
+    fetchSpy.mockRestore()
+  })
+
+it("serves legacy app-route file URLs through the canonical file endpoint", () => {
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null)
+
+    render(
+      <ToastProvider>
+        <ResourceDetailClient
+          resource={{
+            ...resource,
+            id: "legacy-1",
+            fileUrl: "/academy/resources/legacy-1",
+          }}
+          isOwner={false}
+          orgSlug="academy"
+        />
+      </ToastProvider>,
+    )
+
+    expect(screen.getByTitle("calculus-reference.pdf")).toHaveAttribute(
+      "src",
+      "/api/resources/legacy-1/file",
+    )
+
+    const download = screen.getByRole("button", { name: /Download/i })
+    download.click()
+    expect(openSpy).toHaveBeenCalledWith("/api/resources/legacy-1/file", "_blank")
+
+    openSpy.mockRestore()
   })
 
 it("keeps edit action errors visible in the dialog", async () => {

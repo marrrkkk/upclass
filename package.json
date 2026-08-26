@@ -6,6 +6,7 @@
     "dev": "next dev",
     "db:migrate": "drizzle-kit migrate --config drizzle.config.ts",
     "db:seed": "tsx scripts/seed.ts",
+    "db:repair-resource-urls": "tsx scripts/repair-resource-urls.ts",
     "deploy:setup": "tsx scripts/deploy-setup.ts",
     "build": "next build --webpack",
     "build:vercel": "npm run lint && npm run type-check && npm run test && npm run db:migrate && npm run deploy:setup && next build --webpack",

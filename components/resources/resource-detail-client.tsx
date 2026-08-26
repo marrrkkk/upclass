@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import {
+  Bot,
   Calendar,
   Download,
   Edit,
@@ -12,14 +13,19 @@ import {
   FileText,
   FileType,
   HardDrive,
+  Layers3,
   MoreHorizontal,
   Presentation,
+  Sparkles,
   Trash2,
   type LucideIcon,
 } from "lucide-react"
 
 import { deleteResource, updateResource } from "@/app/actions/resources"
+import { createStudyCollectionFromResource } from "@/app/actions/learn"
 import { RESOURCE_TYPES } from "@/components/resources/create-resource-button"
+import { ResourceAiSummary } from "@/components/resources/resource-ai-summary"
+import { resolveResourceFileSrc } from "@/lib/resource-file"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,6 +38,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Callout } from "@/components/ui/callout"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ResponsiveOverlay } from "@/components/ui/responsive-overlay"
 import {
   DropdownMenu,
@@ -93,6 +100,8 @@ type ResourceDetailClientProps = {
   resource: ResourceData
   isOwner: boolean
   orgSlug: string
+  viewerAuthenticated?: boolean
+  relatedResources?: Array<{ id: string; title: string; fileName: string; fileType: string }>
 }
 
 type FileTypeInfo = {
@@ -172,16 +181,21 @@ export function ResourceDetailClient({
   resource,
   isOwner,
   orgSlug,
+  viewerAuthenticated = true,
+  relatedResources = [],
 }: ResourceDetailClientProps) {
   const router = useRouter()
   const toast = useToast()
   const resourcesPath = `/${orgSlug}/resources`
   const ownerPath = `/${orgSlug}/user/${resource.owner.id}`
   const setPageTitle = usePageHeaderStore((state) => state.setPageTitle)
-  const { setContext, clearSeed } = useAiPanel()
+  const { setContext, clearSeed, openFor } = useAiPanel()
   const [displayResource, setDisplayResource] = useState(resource)
   const [editOpen, setEditOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [studySetOpen, setStudySetOpen] = useState(false)
+  const [studySetPending, setStudySetPending] = useState(false)
+  const [studySetError, setStudySetError] = useState<string | null>(null)
   const [title, setTitle] = useState(resource.title)
   const [description, setDescription] = useState(resource.description || "")
   const [resourceType, setResourceType] = useState(resource.resourceType || "other")
@@ -189,6 +203,10 @@ export function ResourceDetailClient({
   const [error, setError] = useState<string | null>(null)
   const fileInfo = getFileTypeInfo(displayResource.fileType)
   const FileTypeIcon = fileInfo.icon
+  const fileSrc = resolveResourceFileSrc({
+    id: displayResource.id,
+    fileUrl: displayResource.fileUrl,
+  })
   const resourceTypeLabel =
     RESOURCE_TYPES.find((rt) => rt.value === displayResource.resourceType)?.label ||
     displayResource.category ||
@@ -257,7 +275,7 @@ export function ResourceDetailClient({
   }
 
   const handleDownload = () => {
-    window.open(displayResource.fileUrl, "_blank")
+    window.open(fileSrc, "_blank")
   }
 
   const handleDelete = async () => {
@@ -273,6 +291,25 @@ export function ResourceDetailClient({
     router.refresh()
   }
 
+  const handleCreateStudySet = async () => {
+    setStudySetError(null)
+    setStudySetPending(true)
+    try {
+      const result = await createStudyCollectionFromResource({
+        orgSlug,
+        resourceId: displayResource.id,
+      })
+      if (!result.success) {
+        setStudySetError(result.error)
+        return
+      }
+      setStudySetOpen(false)
+      router.push(`/${orgSlug}/learn/spaces/${result.collectionId}`)
+    } finally {
+      setStudySetPending(false)
+    }
+  }
+
   return (
     <PageContainer width="wide" className="space-y-0 pb-safe-bottom pb-10 sm:space-y-0 sm:pb-10">
 
@@ -280,6 +317,30 @@ export function ResourceDetailClient({
       <div className="mb-5 flex justify-end py-1 sm:mb-7">
         {/* Actions */}
         <div className="flex items-center gap-2 shrink-0">
+          {viewerAuthenticated ? (
+            <>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => openFor({ surface: "resource", entityId: displayResource.id, label: displayResource.title })}
+                className="gap-1.5 rounded-md font-semibold shadow-2xs"
+              >
+                <Bot className="size-4" />
+                Ask AI
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setStudySetOpen(true)}
+                className="gap-1.5 rounded-md font-semibold shadow-2xs"
+              >
+                <Layers3 className="size-4" />
+                Make study set
+              </Button>
+            </>
+          ) : null}
           <Button
             type="button"
             size="sm"
@@ -409,22 +470,60 @@ export function ResourceDetailClient({
         {/* Preview body */}
         {canPreview(displayResource.fileType) ? (
           <iframe
-            src={displayResource.fileUrl}
+            src={fileSrc}
             className="w-full border-0 bg-surface-sunken"
             style={{ minHeight: "calc(100dvh - 20rem)", height: "70vh" }}
             title={displayResource.fileName}
           />
         ) : (
-          <div className="flex min-h-[20rem] flex-col items-center justify-center p-6 sm:min-h-[28rem] sm:p-8">
-            <EmptyState
-              icon={<FileTypeIcon className="size-8" />}
-              tone={fileInfo.tone}
-              title="Preview unavailable"
-              description={`${fileInfo.label} files cannot be previewed directly in the browser.`}
-            />
+          <div className="p-4 sm:p-5">
+            {viewerAuthenticated ? (
+              <ResourceAiSummary
+                resourceId={displayResource.id}
+                onAsk={() => openFor({ surface: "resource", entityId: displayResource.id, label: displayResource.title })}
+              />
+            ) : (
+              <EmptyState
+                icon={<FileTypeIcon className="size-8" />}
+                tone={fileInfo.tone}
+                title="Preview unavailable"
+                description={`${fileInfo.label} files cannot be previewed directly in the browser.`}
+              />
+            )}
           </div>
         )}
       </div>
+
+      {/* ── Related resources (semantic) ─────────────────────────────── */}
+      {relatedResources.length > 0 ? (
+        <section className="mt-6">
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
+            <Sparkles className="size-4 text-primary" aria-hidden="true" />
+            Related resources
+          </h2>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {relatedResources.map((related) => {
+              const relatedInfo = getFileTypeInfo(related.fileType)
+              const RelatedIcon = relatedInfo.icon
+              return (
+                <Link
+                  key={related.id}
+                  href={`/${orgSlug}/resources/${related.id}`}
+                  className="focus-ring group flex min-w-0 items-center gap-3 rounded-xl border border-hairline/80 bg-card p-3 transition-all duration-150 hover:-translate-y-0.5 hover:bg-surface-subtle/60 hover:shadow-e1"
+                >
+                  <IconBadge tone={relatedInfo.tone} size="sm" className="shrink-0">
+                    <RelatedIcon />
+                  </IconBadge>
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium group-hover:text-primary-text">{related.title}</span>
+                    <span className="block truncate type-caption text-muted-foreground">{related.fileName}</span>
+                  </span>
+                </Link>
+              )
+            })}
+          </div>
+        </section>
+      ) : null}
 
       {/* ── Edit Overlay ─────────────────────────────────────────────── */}
       <ResponsiveOverlay
@@ -510,6 +609,29 @@ export function ResourceDetailClient({
             </Field>
           </FieldGroup>
       </ResponsiveOverlay>
+
+      {/* ── Make study set Dialog ────────────────────────────────────── */}
+      <Dialog open={studySetOpen} onOpenChange={(nextOpen) => { setStudySetOpen(nextOpen); if (nextOpen) setStudySetError(null) }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Make a study set</DialogTitle>
+            <DialogDescription>
+              AI drafts flashcards from this resource into a new private study space. You keep and edit everything.
+            </DialogDescription>
+          </DialogHeader>
+          {studySetError ? (
+            <Callout tone="danger" role="alert" className="text-xs">{studySetError}</Callout>
+          ) : null}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStudySetOpen(false)} disabled={studySetPending}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateStudySet} isLoading={studySetPending} disabled={studySetPending}>
+              Generate study set
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Delete Dialog ─────────────────────────────────────────────── */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
