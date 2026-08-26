@@ -26,6 +26,7 @@ export async function AdminData({ params }: { params: Promise<{ orgSlug: string 
       name: organizations.name,
       description: organizations.description,
       logo: organizations.logo,
+      cover: organizations.cover,
     })
     .from(organizations)
     .where(eq(organizations.id, membership.orgId))

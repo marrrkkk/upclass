@@ -10,6 +10,7 @@ import {
   type OrgShellViewer,
 } from "@/components/onboard/org-onboarding-shell"
 import { OrgWorkspaceList } from "@/components/onboard/org-workspace-list"
+import { PageContainer } from "@/components/ui/section"
 import type { OrganizationSummary } from "@/types/organization"
 
 export type OrgOnboardingMode = "select" | "create" | "join"
@@ -89,7 +90,7 @@ export function OrgSelectionClient({
   )
 
   return (
-    <OrgOnboardingShell width="content" viewer={initialData}>
+    <OrgOnboardingShell flush viewer={initialData}>
       {mode === "select" ? (
         <OrgWorkspaceList
           organizations={userOrganizations}
@@ -100,25 +101,27 @@ export function OrgSelectionClient({
       ) : null}
 
       {mode === "join" ? (
-        <div className="grid items-start gap-6 lg:grid-cols-[1fr_minmax(0,30rem)] lg:gap-10">
-          <OrgOnboardingAside
-            className="hidden lg:block"
-            eyebrow="Join a workspace"
-            title="Pick up where your class left off"
-            description="Enter the invite code you were sent to join an existing workspace. Everything for your classes is waiting inside."
-            showHighlights={false}
-          />
-          <div className="w-full">
-            <OrgJoinForm
-              pending={pending}
-              error={error}
-              initialCode={initialInviteCode}
-              viewerEmail={initialData?.email ?? null}
-              onBack={goToSelect}
-              onSubmit={handleJoin}
+        <PageContainer width="content" className="w-full px-4 py-10 sm:px-6 sm:py-14">
+          <div className="grid items-start gap-6 lg:grid-cols-[1fr_minmax(0,30rem)] lg:gap-10">
+            <OrgOnboardingAside
+              className="hidden lg:block"
+              eyebrow="Join a workspace"
+              title="Pick up where your class left off"
+              description="Enter the invite code you were sent to join an existing workspace. Everything for your classes is waiting inside."
+              showHighlights={false}
             />
+            <div className="w-full">
+              <OrgJoinForm
+                pending={pending}
+                error={error}
+                initialCode={initialInviteCode}
+                viewerEmail={initialData?.email ?? null}
+                onBack={goToSelect}
+                onSubmit={handleJoin}
+              />
+            </div>
           </div>
-        </div>
+        </PageContainer>
       ) : null}
     </OrgOnboardingShell>
   )

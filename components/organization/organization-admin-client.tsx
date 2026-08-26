@@ -2,15 +2,17 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { GraduationCap, MailPlus, Search, Users, X } from "lucide-react"
+import { GraduationCap, MailPlus, Search, Settings2, Users, X } from "lucide-react"
 
 import {
   createInvitation,
   removeMember,
   revokeInvitation,
   updateMemberRole,
+  updateOrganization,
 } from "@/app/actions/organization"
 import { OrgClassesTable } from "@/components/organization/org-classes-table"
+import { OrgIdentityFields, persistOrgIdentity, type OrgIdentityValue } from "@/components/organization/org-identity-fields"
 import { OrgInvitationsTable } from "@/components/organization/org-invitations-table"
 import { OrgInviteForm } from "@/components/organization/org-invite-form"
 import { OrgMembersTable } from "@/components/organization/org-members-table"
@@ -29,11 +31,13 @@ import { Callout } from "@/components/ui/callout"
 import { CopyButton } from "@/components/ui/copy-button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { EntityAvatar } from "@/components/ui/entity-avatar"
+import { Field, FieldGroup, FieldHelp, FieldLabel } from "@/components/ui/field"
 import { FilterToolbar } from "@/components/ui/filter-toolbar"
 import { Input } from "@/components/ui/input"
 import {
   Panel,
   PanelBody,
+  PanelFooter,
   PanelHeader,
   PanelHeading,
   PanelTitle,
@@ -44,6 +48,7 @@ import { StatGroup, StatTile } from "@/components/ui/stat-tile"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Text } from "@/components/ui/typography"
+import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import { typographyVariants } from "@/lib/design-system"
 import {
@@ -70,6 +75,7 @@ type OrganizationAdminClientProps = {
     slug: string
     description: string | null
     logo: string | null
+    cover: string | null
   }
   currentRole: Extract<OrgRole, "owner" | "admin">
   currentUserId: string
@@ -95,6 +101,71 @@ export function OrganizationAdminClient({
   const [peopleQuery, setPeopleQuery] = React.useState("")
   const [classQuery, setClassQuery] = React.useState("")
   const [invitationQuery, setInvitationQuery] = React.useState("")
+
+  // Branding editor state, re-synced when the server sends fresh org data.
+  const [syncedOrg, setSyncedOrg] = React.useState(organization)
+  const [brandingName, setBrandingName] = React.useState(organization.name)
+  const [brandingDescription, setBrandingDescription] = React.useState(
+    organization.description ?? "",
+  )
+  const [identity, setIdentity] = React.useState<OrgIdentityValue>(() => ({
+    logoPreview: organization.logo,
+    coverPreview: organization.cover,
+    logoFile: null,
+    coverFile: null,
+  }))
+
+  if (organization !== syncedOrg) {
+    setSyncedOrg(organization)
+    setBrandingName(organization.name)
+    setBrandingDescription(organization.description ?? "")
+    setIdentity({
+      logoPreview: organization.logo,
+      coverPreview: organization.cover,
+      logoFile: null,
+      coverFile: null,
+    })
+  }
+
+  const handleSaveBranding = React.useCallback(() => {
+    setFeedback(null)
+    if (!brandingName.trim()) {
+      setFeedback({ tone: "danger", message: "Organization name is required" })
+      return
+    }
+
+    startTransition(async () => {
+      let persisted = { logo: identity.logoPreview, cover: identity.coverPreview }
+      if (identity.logoFile || identity.coverFile) {
+        try {
+          persisted = await persistOrgIdentity(identity)
+        } catch (uploadError) {
+          setFeedback({
+            tone: "danger",
+            message:
+              uploadError instanceof Error ? uploadError.message : "Failed to upload images",
+          })
+          return
+        }
+      }
+
+      const result = await updateOrganization({
+        orgId: organization.id,
+        name: brandingName.trim(),
+        description: brandingDescription.trim(),
+        logo: persisted.logo,
+        cover: persisted.cover,
+      })
+
+      if (!result.success) {
+        setFeedback({ tone: "danger", message: result.error })
+        return
+      }
+
+      setFeedback({ tone: "success", message: "Organization branding updated." })
+      router.refresh()
+    })
+  }, [brandingDescription, brandingName, identity, organization.id, router])
 
   const teacherCount = React.useMemo(
     () => members.filter((member) => member.role === "admin").length,
@@ -305,6 +376,10 @@ export function OrganizationAdminClient({
                 Invitations
                 <TabCount value={invitations.length} />
               </TabsTrigger>
+              <TabsTrigger value="settings">
+                <Settings2 />
+                Settings
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="people" className="flex flex-col gap-3">
@@ -383,6 +458,74 @@ export function OrganizationAdminClient({
                     onRevoke={(invitation) => setConfirm({ kind: "revoke-invite", invitation })}
                   />
                 )}
+              </Panel>
+            </TabsContent>
+
+            <TabsContent value="settings">
+              <Panel padding="none">
+                <PanelHeader>
+                  <PanelHeading>
+                    <PanelTitle>Organization profile</PanelTitle>
+                    <PanelDescription>
+                      Name, description, and the images members see across UpClass.
+                    </PanelDescription>
+                  </PanelHeading>
+                </PanelHeader>
+                <PanelBody className="flex flex-col gap-6">
+                  <OrgIdentityFields
+                    value={identity}
+                    onChange={setIdentity}
+                    name={brandingName}
+                    disabled={pending}
+                    onError={(message) => setFeedback({ tone: "danger", message })}
+                  />
+
+                  <FieldGroup>
+                    <Field>
+                      <FieldLabel htmlFor="org-settings-name">Organization name</FieldLabel>
+                      <Input
+                        id="org-settings-name"
+                        value={brandingName}
+                        maxLength={80}
+                        required
+                        disabled={pending}
+                        onChange={(event) => setBrandingName(event.target.value)}
+                      />
+                    </Field>
+                    <Field>
+                      <FieldLabel
+                        htmlFor="org-settings-description"
+                        optional
+                        hint={`${brandingDescription.length}/200`}
+                      >
+                        Description
+                      </FieldLabel>
+                      <Textarea
+                        id="org-settings-description"
+                        value={brandingDescription}
+                        maxLength={200}
+                        rows={3}
+                        disabled={pending}
+                        onChange={(event) => setBrandingDescription(event.target.value)}
+                      />
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="org-settings-url">Workspace URL</FieldLabel>
+                      <Input id="org-settings-url" value={`/${organization.slug}`} disabled readOnly />
+                      <FieldHelp>The workspace URL cannot be changed.</FieldHelp>
+                    </Field>
+                  </FieldGroup>
+                </PanelBody>
+                <PanelFooter className="sm:justify-end">
+                  <Button
+                    type="button"
+                    onClick={handleSaveBranding}
+                    isLoading={pending}
+                    disabled={!brandingName.trim()}
+                  >
+                    Save changes
+                  </Button>
+                </PanelFooter>
               </Panel>
             </TabsContent>
           </Tabs>

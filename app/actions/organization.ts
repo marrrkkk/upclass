@@ -14,6 +14,7 @@ import {
   removeMemberSchema,
   revokeInvitationSchema,
   updateMemberRoleSchema,
+  updateOrganizationSchema,
 } from "@/lib/validation/actions"
 import type { OrgRole } from "@/types/organization"
 import { canManageOrganization } from "@/lib/org-permissions"
@@ -22,9 +23,40 @@ type ActionResponse<T = void> =
   | { success: true; data?: T }
   | { success: false; error: string }
 
-/** First validation message from a Zod issue list, or a safe fallback. */
-function firstIssue(error: { issues: Array<{ message: string }> }, fallback: string) {
-  return error.issues[0]?.message ?? fallback
+/** Turn a segmented Zod issue path into a readable field label ("orgName" → "Org name"). */
+function humanizeField(path: ReadonlyArray<PropertyKey>): string | null {
+  const key = path.find((segment) => typeof segment === "string") as string | undefined
+  if (!key) return null
+  const spaced = key.replace(/[_-]+/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2")
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1)
+}
+
+/**
+ * First validation message from a Zod issue list, or a safe fallback.
+ * Guards against Zod's contextless defaults (a bare "Invalid input" from a
+ * failed union, or raw invalid_type text) leaking to users: when the first
+ * issue is one of those, we name the offending field instead.
+ */
+function firstIssue(
+  error: {
+    issues: Array<{ message: string; path?: ReadonlyArray<PropertyKey>; code?: string }>
+  },
+  fallback: string,
+) {
+  const issue = error.issues[0]
+  if (!issue) return fallback
+
+  // Only override Zod's contextless defaults — a bare "Invalid input" (failed
+  // union) or "Invalid input: expected …" (invalid_type). Custom messages,
+  // including our own field-named ones on union/type failures, are already
+  // clear and are kept as-is.
+  const contextless = /^invalid input\b/i.test(issue.message)
+  if (contextless) {
+    const field = humanizeField(issue.path ?? [])
+    return field ? `${field} is invalid. Please check it and try again.` : fallback
+  }
+
+  return issue.message ?? fallback
 }
 
 async function requireUserId(): Promise<string | null> {
@@ -66,16 +98,19 @@ export async function createOrganization(data: {
   name: string
   slug: string
   description?: string
+  logo?: string | null
+  cover?: string | null
 }): Promise<ActionResponse<{ orgId: string; slug: string }>> {
   const userId = await requireUserId()
   if (!userId) return { success: false, error: "Unauthorized" }
 
   const parsed = createOrganizationSchema.safeParse(data)
   if (!parsed.success) {
+    console.error("createOrganization validation failed", parsed.error.issues)
     return { success: false, error: firstIssue(parsed.error, "Invalid organization details") }
   }
 
-  const { name, slug, description } = parsed.data
+  const { name, slug, description, logo, cover } = parsed.data
 
   try {
     const existingOrg = await db
@@ -95,6 +130,8 @@ export async function createOrganization(data: {
       name,
       slug,
       description: description ?? null,
+      logo: logo ?? null,
+      cover: cover ?? null,
       createdBy: userId,
       settings: {},
     })
@@ -113,6 +150,64 @@ export async function createOrganization(data: {
   } catch (error) {
     console.error("createOrganization error", error)
     return { success: false, error: "Failed to create organization" }
+  }
+}
+
+/**
+ * Update organization identity: name, description, logo and cover.
+ * Owners and admins only; slug is intentionally immutable.
+ */
+export async function updateOrganization(data: {
+  orgId: string
+  name: string
+  description?: string
+  logo?: string | null
+  cover?: string | null
+}): Promise<ActionResponse<{ slug: string }>> {
+  const userId = await requireUserId()
+  if (!userId) return { success: false, error: "Unauthorized" }
+
+  const parsed = updateOrganizationSchema.safeParse(data)
+  if (!parsed.success) {
+    return { success: false, error: firstIssue(parsed.error, "Invalid organization details") }
+  }
+
+  const { orgId, name, description, logo, cover } = parsed.data
+
+  try {
+    const membership = await getActorMembership(orgId, userId)
+    if (!membership || !canManageOrganization(membership.role as OrgRole)) {
+      return { success: false, error: "You don't have permission to update this organization" }
+    }
+
+    const [organization] = await db
+      .select({ slug: organizations.slug })
+      .from(organizations)
+      .where(eq(organizations.id, orgId))
+      .limit(1)
+
+    if (!organization) {
+      return { success: false, error: "This organization no longer exists" }
+    }
+
+    await db
+      .update(organizations)
+      .set({
+        name,
+        description: description ?? null,
+        logo: logo ?? null,
+        cover: cover ?? null,
+      })
+      .where(eq(organizations.id, orgId))
+
+    revalidatePath("/org")
+    revalidatePath(`/${organization.slug}/admin`)
+    revalidatePath(`/${organization.slug}/dashboard`)
+
+    return { success: true, data: { slug: organization.slug } }
+  } catch (error) {
+    console.error("updateOrganization error", error)
+    return { success: false, error: "Failed to update organization" }
   }
 }
 
@@ -198,6 +293,7 @@ export async function listUserOrganizations(): Promise<
       slug: string
       description: string | null
       logo: string | null
+      cover: string | null
       role: OrgRole
       memberCount: number
     }>
@@ -214,6 +310,7 @@ export async function listUserOrganizations(): Promise<
         slug: organizations.slug,
         description: organizations.description,
         logo: organizations.logo,
+        cover: organizations.cover,
         role: orgMembership.role,
       })
       .from(orgMembership)

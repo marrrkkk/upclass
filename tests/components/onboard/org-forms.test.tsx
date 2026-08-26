@@ -25,7 +25,31 @@ describe("organization onboarding forms", () => {
 
     expect(slug).toHaveAttribute("aria-invalid", "true")
     expect(slug).toHaveAttribute("aria-describedby", "org-slug-error")
-    expect(slug).toHaveAccessibleDescription("Use at least 3 characters.")
+    expect(slug).toHaveAccessibleDescription("Organization URL must be at least 3 characters")
+
+    // Reserved slugs are caught inline, mirroring the server rules, instead of
+    // failing only after submit with a contextless error.
+    fireEvent.change(slug, { target: { value: "admin" } })
+
+    expect(slug).toHaveAttribute("aria-invalid", "true")
+    expect(slug).toHaveAccessibleDescription("That URL is reserved. Pick a different one")
+  })
+
+  it("offers optional logo and cover uploads alongside the identity fields", () => {
+    render(
+      <OrgCreateForm
+        pending={false}
+        error={null}
+        onBack={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText("Organization icon")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /upload cover/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /^upload$/i })).toBeInTheDocument()
+    expect(screen.getByLabelText("Upload organization logo")).toBeInTheDocument()
+    expect(screen.getByLabelText("Upload organization cover")).toBeInTheDocument()
   })
 
   it("marks the invite code as required and links its help text", () => {

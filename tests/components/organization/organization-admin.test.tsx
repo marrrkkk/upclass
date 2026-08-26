@@ -12,6 +12,7 @@ const actionMocks = vi.hoisted(() => ({
   removeMember: vi.fn(),
   revokeInvitation: vi.fn(),
   updateMemberRole: vi.fn(),
+  updateOrganization: vi.fn(),
 }))
 
 vi.mock("@/app/actions/organization", () => actionMocks)
@@ -72,6 +73,7 @@ beforeEach(() => {
   actionMocks.removeMember.mockResolvedValue({ success: true })
   actionMocks.revokeInvitation.mockResolvedValue({ success: true })
   actionMocks.updateMemberRole.mockResolvedValue({ success: true })
+  actionMocks.updateOrganization.mockResolvedValue({ success: true, data: { slug: "acme" } })
 })
 
 describe("organization admin rows", () => {
@@ -197,6 +199,7 @@ describe("OrganizationAdminClient", () => {
     slug: "acme",
     description: null,
     logo: null,
+    cover: null,
   }
 
   it("creates an invitation, copies its link, and preserves the selected role", async () => {
@@ -263,5 +266,46 @@ describe("OrganizationAdminClient", () => {
       }),
     )
     expect(screen.getByText("The invitation for learner@example.com was revoked.")).toBeInTheDocument()
+  })
+
+  it("saves organization identity changes from the settings tab", async () => {
+    const actor = userEvent.setup()
+    render(
+      <OrganizationAdminClient
+        organization={{ ...organization, description: "Old description" }}
+        currentRole="owner"
+        currentUserId="owner-1"
+        members={members}
+        classes={[]}
+        invitations={[]}
+        inviteOrigin="https://upclass.example"
+      />,
+    )
+
+    await actor.click(screen.getByRole("tab", { name: /settings/i }))
+
+    const nameInput = screen.getByLabelText("Organization name")
+    expect(nameInput).toHaveValue("Acme Academy")
+    expect(screen.getByLabelText(/^Description/)).toHaveValue("Old description")
+    expect(
+      screen.queryByRole("img", { name: "Organization logo preview" }),
+    ).not.toBeInTheDocument()
+
+    await actor.clear(nameInput)
+    await actor.type(nameInput, "Acme Academy West")
+    await actor.click(screen.getByRole("button", { name: "Save changes" }))
+
+    await waitFor(() =>
+      expect(actionMocks.updateOrganization).toHaveBeenCalledWith({
+        orgId: "org-1",
+        name: "Acme Academy West",
+        description: "Old description",
+        logo: null,
+        cover: null,
+      }),
+    )
+    expect(
+      await screen.findByText("Organization branding updated."),
+    ).toBeInTheDocument()
   })
 })
