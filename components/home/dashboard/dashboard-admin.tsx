@@ -1,13 +1,10 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowRight, Building2, CheckCircle2, Mail, Settings, ShieldAlert, Users } from "lucide-react"
-import { CourseSwatch } from "@/components/ui/course-identity"
+import { ArrowRight, Building2, Mail, Settings, Users } from "lucide-react"
 import { IconBadge } from "@/components/ui/icon-badge"
-import { Panel, PanelBody } from "@/components/ui/panel"
 import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/typography"
-import { statusDotVariants } from "@/lib/design-system"
 import type { AdminDashboardViewModel } from "./dashboard-types"
 import { DashboardShell, DashboardSection, DashboardGrid } from "./dashboard-shell"
 import { DashboardHeader } from "./dashboard-header"
@@ -22,8 +19,8 @@ type DashboardAdminProps = {
 
 /**
  * Admin-specific dashboard composition.
- * Features an operational overview cluster, a 2-column responsive Bento grid
- * with work queue & quick actions on the left, and AI assistant + activity stream on the right rail.
+ * Greeting header, operational stat cluster, a 2-column responsive grid
+ * with attention queue & quick actions on the left, and AI assistant + activity on the right rail.
  */
 export function DashboardAdmin({ viewModel, userName }: DashboardAdminProps) {
   return (
@@ -36,7 +33,7 @@ export function DashboardAdmin({ viewModel, userName }: DashboardAdminProps) {
         orgSlug={viewModel.orgSlug}
       />
 
-      {/* 2-column Bento Grid: primary work column + rail */}
+      {/* 2-column grid: primary work column + rail */}
       <DashboardGrid variant="primary-rail">
         {/* Primary work column */}
         <div className="space-y-6 sm:space-y-8">
@@ -46,6 +43,7 @@ export function DashboardAdmin({ viewModel, userName }: DashboardAdminProps) {
               role="admin"
               items={viewModel.attention}
               orgSlug={viewModel.orgSlug}
+              viewAllHref={`/${viewModel.orgSlug}/admin/classes`}
             />
           )}
 
@@ -83,7 +81,7 @@ type AdminOperationsRailProps = {
 }
 
 /**
- * Elevated operational stat cluster with interactive cards and health status indicator.
+ * Operational stat cards with icon, label, value, and hint.
  */
 function AdminOperationsRail({ operations, orgSlug }: AdminOperationsRailProps) {
   const statCards = [
@@ -93,7 +91,6 @@ function AdminOperationsRail({ operations, orgSlug }: AdminOperationsRailProps) 
       hint: "Active members",
       href: `/${orgSlug}/admin/people`,
       icon: Users,
-      tone: "primary" as const,
     },
     {
       label: "Classes",
@@ -101,7 +98,6 @@ function AdminOperationsRail({ operations, orgSlug }: AdminOperationsRailProps) 
       hint: "Active workspaces",
       href: `/${orgSlug}/classes`,
       icon: Building2,
-      tone: "info" as const,
     },
     {
       label: "Pending invites",
@@ -109,19 +105,11 @@ function AdminOperationsRail({ operations, orgSlug }: AdminOperationsRailProps) 
       hint: operations.pendingInvitationsCount > 0 ? "Awaiting response" : "All accepted",
       href: `/${orgSlug}/admin/people?tab=invitations`,
       icon: Mail,
-      tone: operations.pendingInvitationsCount > 0 ? ("warning" as const) : ("neutral" as const),
     },
   ]
 
-  const hasIssues = operations.pendingInvitationsCount > 0
-
   return (
     <DashboardSection>
-      <SectionHeader
-        title="Organization overview"
-        description="Current operational state and health."
-      />
-
       <div className="grid gap-3 sm:grid-cols-3">
         {statCards.map((stat) => {
           const Icon = stat.icon
@@ -129,41 +117,25 @@ function AdminOperationsRail({ operations, orgSlug }: AdminOperationsRailProps) 
             <Link
               key={stat.label}
               href={stat.href}
-              className="touch-target focus-ring group relative flex flex-col justify-between overflow-hidden rounded-[var(--radius-container)] border border-hairline bg-card p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-hairline/80 hover:bg-surface-subtle/50 hover:shadow-e1 sm:p-5"
+              className="touch-target focus-ring group flex min-w-0 items-center gap-4 rounded-[var(--radius-container)] border border-hairline bg-card p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-hairline/80 hover:bg-surface-subtle/50 hover:shadow-e1 sm:p-5"
             >
-              <div className="flex items-center justify-between gap-2">
-                <IconBadge tone={stat.tone} size="md" variant="soft">
-                  <Icon className="size-4" />
-                </IconBadge>
-                <ArrowRight
-                  aria-hidden="true"
-                  className="size-4 text-foreground-muted opacity-0 transition-all duration-200 group-hover:translate-x-0.5 group-hover:opacity-100"
-                />
-              </div>
-
-              <div className="mt-3 space-y-0.5">
-                <span className="type-caption font-medium text-foreground-muted">{stat.label}</span>
-                <div className="type-h1 numeric-tabular tracking-tight text-foreground">{stat.value}</div>
-                <span className="type-caption text-foreground-secondary">{stat.hint}</span>
+              <IconBadge tone="primary" size="lg" variant="soft">
+                <Icon className="size-5" />
+              </IconBadge>
+              <div className="min-w-0 space-y-0.5">
+                <span className="type-caption block truncate font-medium text-foreground-muted">
+                  {stat.label}
+                </span>
+                <div className="type-h1 numeric-tabular leading-tight tracking-tight text-foreground">
+                  {stat.value}
+                </div>
+                <span className="type-caption block truncate text-foreground-secondary">
+                  {stat.hint}
+                </span>
               </div>
             </Link>
           )
         })}
-      </div>
-
-      {/* Operational status banner */}
-      <div className="flex items-center gap-2.5 rounded-[var(--radius-container)] border border-hairline bg-surface-subtle/40 px-4 py-2.5 sm:px-5">
-        <span
-          className={statusDotVariants({
-            tone: hasIssues ? "warning" : "success",
-            size: "sm",
-            ring: true,
-          })}
-          aria-hidden="true"
-        />
-        <Text variant="small" tone="muted" className="flex-1">
-          {operations.statusMessage}
-        </Text>
       </div>
     </DashboardSection>
   )
@@ -191,7 +163,7 @@ function AdminWorkspaceShortcuts({ workspace }: AdminWorkspaceShortcutsProps) {
   return (
     <DashboardSection>
       <SectionHeader title="Quick actions" description="Common administrative tasks." />
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {workspace.shortcuts.map((shortcut) => {
           const config = iconConfig[shortcut.icon] || { icon: Building2, tone: "primary" as const, description: "Manage workspace" }
           const Icon = config.icon
@@ -228,4 +200,3 @@ function AdminWorkspaceShortcuts({ workspace }: AdminWorkspaceShortcutsProps) {
     </DashboardSection>
   )
 }
-

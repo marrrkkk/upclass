@@ -1,7 +1,5 @@
 import Link from "next/link"
-import { ArrowRight } from "lucide-react"
 import { ActivityLogList } from "@/components/activity/activity-log-list"
-import { Button } from "@/components/ui/button"
 import { Panel, PanelBody } from "@/components/ui/panel"
 import { SectionHeader } from "@/components/ui/section"
 import type { ActivityLogPreview } from "./dashboard-types"
@@ -29,13 +27,12 @@ export function DashboardActivity({ activity, orgSlug, role }: DashboardActivity
         title={title}
         description={description}
         actions={
-          role !== "admin" ? (
-            <Button variant="ghost" size="sm" asChild>
-              <Link href={`/${orgSlug}/activity`}>
-                View all <ArrowRight aria-hidden="true" />
-              </Link>
-            </Button>
-          ) : undefined
+          <Link
+            href={`/${orgSlug}/activity`}
+            className="type-small font-medium text-primary-text transition-opacity hover:opacity-80"
+          >
+            View all
+          </Link>
         }
       />
       <Panel padding="none">

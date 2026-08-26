@@ -6,7 +6,7 @@ import { PageContainer } from "@/components/ui/section"
 import { DashboardData } from "./dashboard-data"
 
 export const metadata: Metadata = {
-  title: "Dashboard",
+  title: "Home",
 }
 
 export default function DashboardPage({ params }: { params: Promise<{ orgSlug: string }> }) {
