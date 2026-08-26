@@ -16,8 +16,8 @@ import { UserAvatarMenu } from "@/components/user-avatar-menu"
 import { usePageHeaderStore } from "@/stores/page-header-store"
 
 const routeTitles: Record<string, string> = {
-  home: "Dashboard",
-  dashboard: "Dashboard",
+  home: "Home",
+  dashboard: "Home",
   calendar: "Calendar",
   activity: "Activity",
   classes: "Classes",

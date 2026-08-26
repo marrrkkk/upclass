@@ -20,6 +20,11 @@ import type { OrgRole } from "@/types/organization";
 type HomeShellProps = {
   children: React.ReactNode;
   isAuthenticated: boolean;
+  /**
+   * True while the shell's server data is still streaming (Suspense fallback).
+   * Renders the sidebar and header structure without any authentication CTAs.
+   */
+  pending?: boolean;
   recentClasses?: Array<{ id: string; title: string; color: string | null }>;
   userInfo?: {
     name: string | null;
@@ -34,6 +39,7 @@ type HomeShellProps = {
 export function HomeShell({
   children,
   isAuthenticated,
+  pending = false,
   recentClasses,
   userInfo,
   userId,
@@ -61,7 +67,7 @@ export function HomeShell({
           defaultOpen={defaultSidebarOpen}
           className="h-full min-h-0"
         >
-          {isAuthenticated ? (
+          {isAuthenticated || pending ? (
             <Sidebar
               recentClasses={recentClasses}
               userId={userId}
@@ -75,11 +81,21 @@ export function HomeShell({
               <div className="flex h-[var(--app-header-height)] items-center gap-2 px-3 sm:px-4 md:px-5">
                 <HomeShellSidebarToggle />
                 <SidebarCollapseToggle />
-                {isAuthenticated && userInfo ? (
+                {pending ? (
+                  <div
+                    data-slot="home-shell-header-skeleton"
+                    className="ml-auto flex w-full items-center justify-end"
+                  >
+                    <div
+                      aria-hidden="true"
+                      className="h-7 w-full max-w-56 animate-pulse rounded-lg bg-muted/70"
+                    />
+                  </div>
+                ) : isAuthenticated && userInfo ? (
                   <>
                     <PageHeader user={userInfo} userId={userId} />
                   </>
-                ) : (
+                ) : !isAuthenticated ? (
                   <div className="flex w-full items-center justify-between gap-3">
                     <span className="type-small text-muted-foreground">
                       Welcome to UpClass
@@ -93,7 +109,7 @@ export function HomeShell({
                       </Button>
                     </div>
                   </div>
-                )}
+                ) : null}
                 {isAuthenticated ? (
                   <div className="hidden" aria-hidden="true">
                     <AppCommandMenu />

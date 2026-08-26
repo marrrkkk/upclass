@@ -8,7 +8,7 @@ import { MainLayoutClient } from "@/components/main-layout-client";
 import { HomeShell } from "@/components/layouts/home-shell";
 import { RootClientShell } from "@/components/root-client-shell";
 import { db } from "@/db";
-import { classes, classMembership } from "@/db/schema";
+import { classes, classMembership, organizations } from "@/db/schema";
 import { getOrganizationMembership } from "@/lib/org-validation";
 import { getMainShellState } from "@/lib/server/auth";
 import type { OrgRole } from "@/types/organization";
@@ -26,6 +26,30 @@ export const metadata: Metadata = {
   },
 };
 
+function loadRecentClasses(
+  userId: string,
+  orgSlug: string,
+): Promise<Array<{ id: string; title: string; color: string | null }>> {
+  return db
+    .select({
+      id: classes.id,
+      title: classes.title,
+      color: classes.color,
+    })
+    .from(classes)
+    .innerJoin(organizations, eq(classes.orgId, organizations.id))
+    .leftJoin(classMembership, eq(classMembership.classId, classes.id))
+    .where(
+      and(
+        eq(organizations.slug, orgSlug),
+        or(eq(classes.ownerId, userId), eq(classMembership.userId, userId)),
+      ),
+    )
+    .groupBy(classes.id)
+    .orderBy(desc(classes.updatedAt))
+    .limit(5);
+}
+
 async function ResolvedMainLayout({
   children,
   params,
@@ -36,6 +60,7 @@ async function ResolvedMainLayout({
   const cookieStore = await cookies();
   const defaultSidebarOpen =
     cookieStore.get("sidebar_state")?.value !== "false";
+
   let hasOrganization = false;
   let isAuthenticated = false;
   let userId: string | undefined;
@@ -46,56 +71,40 @@ async function ResolvedMainLayout({
   } | null = null;
   let organizationId: string | null = null;
   let organizationRole: OrgRole | null = null;
-
-  try {
-    const shellState = await getMainShellState();
-    hasOrganization = shellState.hasOrganization;
-    isAuthenticated = shellState.isAuthenticated;
-    userId = shellState.userId;
-    userInfo = shellState.userInfo;
-
-    const { orgSlug } = await params;
-    if (shellState.userId) {
-      const membership = await getOrganizationMembership(
-        shellState.userId,
-        orgSlug,
-      );
-      organizationId = membership?.orgId ?? null;
-      organizationRole = membership?.role ?? null;
-    }
-  } catch (error) {
-    unstable_rethrow(error);
-    console.error("Error in getMainShellState:", error);
-  }
-
   let recentClasses: Array<{
     id: string;
     title: string;
     color: string | null;
   }> = [];
 
-  if (userId && organizationId) {
-    try {
-      recentClasses = await db
-        .select({
-          id: classes.id,
-          title: classes.title,
-          color: classes.color,
-        })
-        .from(classes)
-        .leftJoin(classMembership, eq(classMembership.classId, classes.id))
-        .where(
-          and(
-            eq(classes.orgId, organizationId),
-            or(eq(classes.ownerId, userId), eq(classMembership.userId, userId)),
-          ),
-        )
-        .groupBy(classes.id)
-        .orderBy(desc(classes.updatedAt))
-        .limit(5);
-    } catch (error) {
-      console.error("Failed to fetch recent classes:", error);
+  try {
+    const [{ orgSlug }, shellState] = await Promise.all([
+      params,
+      getMainShellState(),
+    ]);
+    hasOrganization = shellState.hasOrganization;
+    isAuthenticated = shellState.isAuthenticated;
+    userId = shellState.userId;
+    userInfo = shellState.userInfo;
+
+    if (shellState.userId) {
+      // Membership and recent classes are independent once the session is
+      // known; resolving them together avoids a serial waterfall (the
+      // classes query joins on the org slug directly instead of waiting
+      // for the membership's org id).
+      const [membership, loadedRecentClasses] = await Promise.all([
+        getOrganizationMembership(shellState.userId, orgSlug).catch(
+          () => null,
+        ),
+        loadRecentClasses(shellState.userId, orgSlug).catch(() => []),
+      ]);
+      organizationId = membership?.orgId ?? null;
+      organizationRole = membership?.role ?? null;
+      recentClasses = loadedRecentClasses;
     }
+  } catch (error) {
+    unstable_rethrow(error);
+    console.error("Error in getMainShellState:", error);
   }
 
   return (
@@ -118,7 +127,11 @@ async function ResolvedMainLayout({
 }
 
 function MainLayoutFallback({ children }: { children: React.ReactNode }) {
-  return <HomeShell isAuthenticated={false}>{children}</HomeShell>;
+  return (
+    <HomeShell isAuthenticated={false} pending>
+      {children}
+    </HomeShell>
+  );
 }
 
 export default function MainLayout({

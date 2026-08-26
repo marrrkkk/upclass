@@ -17,7 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 
 const destinations = [
-  { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
+  { label: "Home", path: "/dashboard", icon: LayoutDashboard },
   { label: "Classes", path: "/classes", icon: GraduationCap },
   { label: "Messages", path: "/messages", icon: MessageSquare },
 ] as const;

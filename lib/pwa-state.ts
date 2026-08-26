@@ -137,7 +137,7 @@ function detectInstallPlatform(): PWAInstallPlatform {
 function getRouteLabel(pathname: string) {
   const normalized = normalizePathname(pathname)
 
-  if (normalized === "/" || normalized === "/home" || normalized === "/dashboard") return "Dashboard"
+  if (normalized === "/" || normalized === "/home" || normalized === "/dashboard") return "Home"
   if (normalized.startsWith("/classes")) return "Classes"
   if (normalized.startsWith("/resources")) return "Resources"
   if (normalized.startsWith("/messages")) return "Messages"
