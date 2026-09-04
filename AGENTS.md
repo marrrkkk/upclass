@@ -61,3 +61,7 @@ PRs should explain user-visible changes, note schema or env updates, mention tes
 Required secrets include `DATABASE_URL`, Better Auth settings, Google OAuth credentials, Supabase realtime keys, `SUPABASE_SERVICE_ROLE_KEY` for storage uploads, the Cerebras API key (used via Vercel AI SDK), and Resend mail settings (`RESEND_API_KEY`, `EMAIL_FROM`) when transactional email is enabled. Never hardcode secrets or bypass session and role checks in server actions or API routes.
 
 Deploy builds on Vercel use `npm run build:vercel`, which now gates deploys on `lint`, `type-check`, and `test` before migrations and the production build. Ensure database changes, migration files in `db/migrations/`, and environment requirements stay consistent. When changing uploads, realtime, offline, or whiteboard flows, verify that auth checks and server-dependent constraints still hold.
+
+## Troubleshooting Storage Issues
+
+Resource uploads rely on Supabase Storage with RLS policies. In production, PDF preview 404 errors typically indicate missing public read policies. Run `npm run storage:verify` to diagnose the full setup, or see `docs/fix-pdf-preview-404.md` and `docs/troubleshooting-storage.md` for detailed repair steps. The diagnostic script `npm run db:diagnose-storage` checks whether database resource records match actual Storage files.
