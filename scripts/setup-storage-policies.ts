@@ -13,11 +13,35 @@ dotenv.config({ path: resolve(process.cwd(), ".env") })
 
 const POLICIES_SQL = `
 -- ============================================
+-- Drop existing policies first (if they exist)
+-- ============================================
+
+-- Avatars policies
+DROP POLICY IF EXISTS "Users can upload their own avatar" ON storage.objects;
+DROP POLICY IF EXISTS "Users can update their own avatar" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete their own avatar" ON storage.objects;
+DROP POLICY IF EXISTS "Avatars are publicly accessible" ON storage.objects;
+
+-- Resources policies
+DROP POLICY IF EXISTS "Users can upload resources" ON storage.objects;
+DROP POLICY IF EXISTS "Users can update their resources" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete their resources" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can view resources" ON storage.objects;
+DROP POLICY IF EXISTS "Public read access to resources" ON storage.objects;
+
+-- Media policies
+DROP POLICY IF EXISTS "Users can upload media" ON storage.objects;
+DROP POLICY IF EXISTS "Users can update their media" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete their media" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can view media" ON storage.objects;
+DROP POLICY IF EXISTS "Public read access to media" ON storage.objects;
+
+-- ============================================
 -- Avatars Bucket Policies
 -- ============================================
 
 -- Allow authenticated users to upload their own avatars
-CREATE POLICY IF NOT EXISTS "Users can upload their own avatar"
+CREATE POLICY "Users can upload their own avatar"
 ON storage.objects FOR INSERT
 TO authenticated
 WITH CHECK (
@@ -26,7 +50,7 @@ WITH CHECK (
 );
 
 -- Allow authenticated users to update their own avatars
-CREATE POLICY IF NOT EXISTS "Users can update their own avatar"
+CREATE POLICY "Users can update their own avatar"
 ON storage.objects FOR UPDATE
 TO authenticated
 USING (
@@ -35,7 +59,7 @@ USING (
 );
 
 -- Allow authenticated users to delete their own avatars
-CREATE POLICY IF NOT EXISTS "Users can delete their own avatar"
+CREATE POLICY "Users can delete their own avatar"
 ON storage.objects FOR DELETE
 TO authenticated
 USING (
@@ -44,7 +68,7 @@ USING (
 );
 
 -- Allow everyone to view avatars (public bucket)
-CREATE POLICY IF NOT EXISTS "Avatars are publicly accessible"
+CREATE POLICY "Avatars are publicly accessible"
 ON storage.objects FOR SELECT
 TO public
 USING (bucket_id = 'avatars');
@@ -54,7 +78,7 @@ USING (bucket_id = 'avatars');
 -- ============================================
 
 -- Allow authenticated users to upload resources
-CREATE POLICY IF NOT EXISTS "Users can upload resources"
+CREATE POLICY "Users can upload resources"
 ON storage.objects FOR INSERT
 TO authenticated
 WITH CHECK (
@@ -63,7 +87,7 @@ WITH CHECK (
 );
 
 -- Allow authenticated users to update their resources
-CREATE POLICY IF NOT EXISTS "Users can update their resources"
+CREATE POLICY "Users can update their resources"
 ON storage.objects FOR UPDATE
 TO authenticated
 USING (
@@ -72,7 +96,7 @@ USING (
 );
 
 -- Allow authenticated users to delete their resources
-CREATE POLICY IF NOT EXISTS "Users can delete their resources"
+CREATE POLICY "Users can delete their resources"
 ON storage.objects FOR DELETE
 TO authenticated
 USING (
@@ -82,7 +106,7 @@ USING (
 
 -- Allow public access to view resources (required for iframe previews)
 -- Note: Authorization is checked at the application layer via resource ownership
-CREATE POLICY IF NOT EXISTS "Public read access to resources"
+CREATE POLICY "Public read access to resources"
 ON storage.objects FOR SELECT
 TO public
 USING (bucket_id = 'resources');
@@ -92,7 +116,7 @@ USING (bucket_id = 'resources');
 -- ============================================
 
 -- Allow authenticated users to upload media
-CREATE POLICY IF NOT EXISTS "Users can upload media"
+CREATE POLICY "Users can upload media"
 ON storage.objects FOR INSERT
 TO authenticated
 WITH CHECK (
@@ -101,7 +125,7 @@ WITH CHECK (
 );
 
 -- Allow authenticated users to update their media
-CREATE POLICY IF NOT EXISTS "Users can update their media"
+CREATE POLICY "Users can update their media"
 ON storage.objects FOR UPDATE
 TO authenticated
 USING (
@@ -110,7 +134,7 @@ USING (
 );
 
 -- Allow authenticated users to delete their media
-CREATE POLICY IF NOT EXISTS "Users can delete their media"
+CREATE POLICY "Users can delete their media"
 ON storage.objects FOR DELETE
 TO authenticated
 USING (
@@ -120,7 +144,7 @@ USING (
 
 -- Allow public access to view media (required for iframe/image previews)
 -- Note: Authorization is checked at the application layer
-CREATE POLICY IF NOT EXISTS "Public read access to media"
+CREATE POLICY "Public read access to media"
 ON storage.objects FOR SELECT
 TO public
 USING (bucket_id = 'media');
