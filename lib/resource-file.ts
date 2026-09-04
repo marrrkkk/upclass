@@ -125,6 +125,9 @@ export function suggestRepairedResourceUrl({
  * download a resource file. Validated seeded paths and external storage URLs
  * are used directly; anything else (legacy rows pointing at app routes,
  * malformed values) is served through the access-checked file endpoint.
+ * 
+ * For external URLs that may be broken, we route through the API endpoint
+ * which has fallback logic to repair URLs using storagePath.
  */
 export function resolveResourceFileSrc(resource: { id: string; fileUrl: string }): string {
   const location = classifyResourceFileUrl(resource.fileUrl)
@@ -132,6 +135,11 @@ export function resolveResourceFileSrc(resource: { id: string; fileUrl: string }
     case "seeded":
       return seededResourceUrl(location.fileName)
     case "external":
+      // External Supabase Storage URLs may be outdated or broken.
+      // Use the API route which has repair logic via storagePath.
+      if (resource.fileUrl.includes("/storage/v1/object/public/")) {
+        return `${RESOURCE_FILE_ROUTE}/${encodeURIComponent(resource.id)}/file`
+      }
       return location.url
     case "app-route":
       return `${RESOURCE_FILE_ROUTE}/${encodeURIComponent(resource.id)}/file`
