@@ -88,6 +88,16 @@ npm run dev
 
 Open <http://localhost:3000>. To load the demo dataset, run `npm run db:seed` after migrations. The seed command is intended for development only.
 
+### Portfolio screenshots
+
+After configuring the local environment and loading the demo dataset, generate the curated portfolio set with:
+
+```bash
+npm run screenshots
+```
+
+The command starts the development server when it is not already running, creates a short-lived Better Auth session for the seeded owner, captures fixed 1440x900 desktop and 390x844 mobile views, removes the temporary session, and writes the PNG files to `screenshots/`. Use `SCREENSHOT_BASE_URL`, `SCREENSHOT_OUTPUT_DIR`, or `SCREENSHOT_OWNER_EMAIL` to override the defaults.
+
 ## Scripts
 
 | Command | Purpose |
@@ -100,13 +110,16 @@ Open <http://localhost:3000>. To load the demo dataset, run `npm run db:seed` af
 | `npm run test` | Run Vitest once |
 | `npm run test:watch` | Run Vitest in watch mode |
 | `npm run test:coverage` | Run Vitest with coverage |
+| `npm run screenshots` | Capture the curated desktop and mobile portfolio screenshots |
 | `npm run db:migrate` | Apply Drizzle migrations |
 | `npm run db:seed` | Seed development data |
 | `npm run db:repair-resource-urls` | Audit and repair resource rows whose stored file URL points at an app route |
+| `npm run db:diagnose-storage` | Diagnose Storage file existence issues for all resources |
 | `npm run deploy:setup` | Create Storage buckets and attempt RLS setup |
 | `npm run storage:setup` | Create missing Storage buckets |
 | `npm run storage:policies` | Generate/apply Storage policy SQL |
 | `npm run storage:check` | Verify required buckets |
+| `npm run storage:verify` | Comprehensive Storage configuration check |
 | `npm run build:vercel` | Run lint, type-check, tests, migrations, deploy setup, and build |
 
 ## Deployment

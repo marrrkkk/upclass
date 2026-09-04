@@ -80,10 +80,11 @@ USING (
   AND (storage.foldername(name))[1] = auth.uid()::text
 );
 
--- Allow authenticated users to view all resources
-CREATE POLICY IF NOT EXISTS "Authenticated users can view resources"
+-- Allow public access to view resources (required for iframe previews)
+-- Note: Authorization is checked at the application layer via resource ownership
+CREATE POLICY IF NOT EXISTS "Public read access to resources"
 ON storage.objects FOR SELECT
-TO authenticated
+TO public
 USING (bucket_id = 'resources');
 
 -- ============================================
@@ -117,10 +118,11 @@ USING (
   AND (storage.foldername(name))[1] = auth.uid()::text
 );
 
--- Allow authenticated users to view all media
-CREATE POLICY IF NOT EXISTS "Authenticated users can view media"
+-- Allow public access to view media (required for iframe/image previews)
+-- Note: Authorization is checked at the application layer
+CREATE POLICY IF NOT EXISTS "Public read access to media"
 ON storage.objects FOR SELECT
-TO authenticated
+TO public
 USING (bucket_id = 'media');
 `
 

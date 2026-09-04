@@ -7,6 +7,7 @@
     "db:migrate": "drizzle-kit migrate --config drizzle.config.ts",
     "db:seed": "tsx scripts/seed.ts",
     "db:repair-resource-urls": "tsx scripts/repair-resource-urls.ts",
+    "db:diagnose-storage": "tsx scripts/diagnose-storage.ts",
     "deploy:setup": "tsx scripts/deploy-setup.ts",
     "build": "next build --webpack",
     "build:vercel": "npm run lint && npm run type-check && npm run test && npm run db:migrate && npm run deploy:setup && next build --webpack",
@@ -16,7 +17,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "screenshots": "node scripts/capture-screenshots.mjs",
     "storage:check": "tsx scripts/check-storage-buckets.ts",
+    "storage:verify": "tsx scripts/verify-storage-config.ts",
     "storage:setup": "tsx scripts/setup-storage-buckets.ts",
     "storage:policies": "tsx scripts/setup-storage-policies.ts"
   },
@@ -79,6 +82,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4.3.3",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
