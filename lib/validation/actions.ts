@@ -241,14 +241,23 @@ export const aiChatHistorySchema = z.object({
   resourceId: requiredTrimmedString("Resource ID"),
 })
 
+// AI SDK sends messages as an array of UIMessage objects
 export const aiChatSchema = aiChatHistorySchema.extend({
+  messages: z.array(z.any()).optional(), // UIMessage[] from AI SDK
   message: z
     .string()
     .max(4_000, "Message must be 4,000 characters or fewer")
     .transform((value) => value.trim())
-    .refine((value) => value.length > 0, "Message is required"),
+    .refine((value) => value.length > 0, "Message is required")
+    .optional(),
   clientMessageId: z.string().trim().min(1).max(64).optional(),
-})
+}).refine(
+  (data) => {
+    // Either messages array or message string must be provided
+    return (data.messages && data.messages.length > 0) || (data.message && data.message.length > 0)
+  },
+  { message: "Either messages array or message is required", path: ["message"] }
+)
 
 export type CreateClassInput = z.infer<typeof createClassSchema>
 

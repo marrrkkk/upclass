@@ -120,6 +120,40 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // Extract the latest user message from the AI SDK's messages array
+  let userMessage: string
+  if (parsed.data.messages && parsed.data.messages.length > 0) {
+    const latestMessage = parsed.data.messages[parsed.data.messages.length - 1] as {
+      role: string
+      parts?: Array<{ type: string; text?: string }>
+    }
+    if (latestMessage.role === "user") {
+      // Extract text from parts array
+      const textParts = latestMessage.parts?.filter((part) => part.type === "text") || []
+      userMessage = textParts.map((part) => part.text || "").join("") || ""
+    } else {
+      return NextResponse.json(
+        { error: "Latest message must be from user" },
+        { status: 400 },
+      )
+    }
+  } else if (parsed.data.message) {
+    // Fallback to single message field for backward compatibility
+    userMessage = parsed.data.message
+  } else {
+    return NextResponse.json(
+      { error: "No message provided" },
+      { status: 400 },
+    )
+  }
+
+  if (!userMessage.trim()) {
+    return NextResponse.json(
+      { error: "Message cannot be empty" },
+      { status: 400 },
+    )
+  }
+
   const userId = await getSessionUserId()
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -184,7 +218,7 @@ export async function POST(request: NextRequest) {
     const retrievedChunks = await retrieveResourceChunks({
       resourceId: resource.id,
       orgId: resource.orgId,
-      query: parsed.data.message,
+      query: userMessage,
     })
     if (retrievedChunks.length > 0) {
       sourceText = retrievedChunks
@@ -214,7 +248,7 @@ export async function POST(request: NextRequest) {
           id: crypto.randomUUID(),
           conversationId: inserted[0]?.id ?? conversationId,
           role: "user",
-          content: parsed.data.message,
+          content: userMessage,
           clientMessageId: parsed.data.clientMessageId,
         })
         .onConflictDoNothing()
@@ -247,7 +281,7 @@ export async function POST(request: NextRequest) {
     uiMessages.push({
       id: crypto.randomUUID(),
       role: "user",
-      parts: [{ type: "text" as const, text: parsed.data.message }],
+      parts: [{ type: "text" as const, text: userMessage }],
     })
 
     const startedAt = Date.now()
