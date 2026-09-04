@@ -12,6 +12,7 @@ import {
   classifyResourceFileUrl,
   inlineContentDisposition,
   resourceContentType,
+  storagePublicUrl,
   suggestRepairedResourceUrl,
   type ResourceFileLocation,
 } from "@/lib/resource-file"
@@ -98,6 +99,14 @@ export async function GET(
   if (!resource) return notFound()
 
   const location = classifyResourceFileUrl(resource.fileUrl)
+
+  // If we have a storagePath, try to construct a proper storage URL first
+  if (resource.storagePath) {
+    const storageUrl = storagePublicUrl(resource.storagePath)
+    if (storageUrl) {
+      return serveExternal(storageUrl)
+    }
+  }
 
   if (location.kind === "app-route") {
     const repaired = suggestRepairedResourceUrl({
