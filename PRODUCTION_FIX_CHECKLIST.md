@@ -16,13 +16,20 @@ Your production deployment is showing 404 errors when users try to preview uploa
 
 ```sql
 -- Fix PDF preview 404 errors by allowing public read access
-CREATE POLICY IF NOT EXISTS "Public read access to resources"
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Authenticated users can view resources" ON storage.objects;
+DROP POLICY IF EXISTS "Public read access to resources" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can view media" ON storage.objects;
+DROP POLICY IF EXISTS "Public read access to media" ON storage.objects;
+
+-- Create new public read policies
+CREATE POLICY "Public read access to resources"
 ON storage.objects FOR SELECT
 TO public
 USING (bucket_id = 'resources');
 
--- Also fix media bucket
-CREATE POLICY IF NOT EXISTS "Public read access to media"
+CREATE POLICY "Public read access to media"
 ON storage.objects FOR SELECT
 TO public
 USING (bucket_id = 'media');

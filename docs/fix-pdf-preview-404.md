@@ -33,14 +33,19 @@ This generates SQL that includes the public read policy. Copy the output and run
 3. Run this SQL:
 
 ```sql
--- Allow public read access to resources bucket
-CREATE POLICY IF NOT EXISTS "Public read access to resources"
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Authenticated users can view resources" ON storage.objects;
+DROP POLICY IF EXISTS "Public read access to resources" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can view media" ON storage.objects;
+DROP POLICY IF EXISTS "Public read access to media" ON storage.objects;
+
+-- Create new public read policies
+CREATE POLICY "Public read access to resources"
 ON storage.objects FOR SELECT
 TO public
 USING (bucket_id = 'resources');
 
--- Also update media bucket if needed
-CREATE POLICY IF NOT EXISTS "Public read access to media"
+CREATE POLICY "Public read access to media"
 ON storage.objects FOR SELECT
 TO public
 USING (bucket_id = 'media');
